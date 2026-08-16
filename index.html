@@ -1,0 +1,2923 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Offline POS & Accounts Pro</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#172033;--muted:#64748b;--line:#dbe3ef;--p:#174ea6;--p2:#0f766e;--red:#b42318;--gold:#b7791f}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.app{display:grid;grid-template-columns:245px 1fr;min-height:100vh}
+.sidebar{background:#0b1f3a;color:#fff;padding:14px 10px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{font-weight:800;font-size:19px;padding:10px;border-bottom:1px solid #274060;margin-bottom:8px}
+.subbrand{font-size:11px;color:#bcd0eb;font-weight:400;margin-top:4px}
+.offline-clock-box{
+  margin:10px 4px 12px;
+  padding:10px 8px;
+  border:1px solid #315174;
+  border-radius:9px;
+  background:#102b4c;
+  text-align:center;
+}
+.offline-clock-title{font-size:10px;color:#a9c6e8;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.offline-clock-time{font-size:22px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.offline-clock-date{font-size:10px;color:#cbdcf0;margin-top:3px}
+.search-result{padding:9px 10px;border-bottom:1px solid #e5eaf2}
+.search-result:last-child{border-bottom:0}
+.search-result-title{font-weight:700;font-size:13px}
+.search-result-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.alert-low{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
+.alert-negative{background:#fff1f2;border:1px solid #fda4af;color:#9f1239}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.badge-soft{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef3fa;color:#315174;font-size:10px;font-weight:700}
+.cash-in{color:#087b46;font-weight:700}.cash-out{color:#b42318;font-weight:700}
+.recycle-card{border-left:4px solid #64748b}
+.stock-ledger-in{color:#087b46;font-weight:700}.stock-ledger-out{color:#b42318;font-weight:700}
+.safety-good{background:#ecfdf5;border:1px solid #86efac;color:#166534}
+.safety-warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
+.snapshot-item{padding:10px;border:1px solid #e3eaf3;border-radius:10px;background:#fff;margin-bottom:7px}
+.snapshot-meta{font-size:11px;color:#64748b;margin-top:2px}
+.credit-over{color:#b42318;font-weight:800}
+.auth-overlay{
+  position:fixed;inset:0;z-index:99999;
+  display:flex;align-items:center;justify-content:center;
+  padding:18px;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(23,78,166,.35),transparent 35%),
+    radial-gradient(circle at 80% 80%,rgba(15,118,110,.25),transparent 35%),
+    linear-gradient(135deg,#07182e,#0b1f3a 55%,#102b4c);
+}
+.auth-card{
+  width:min(430px,100%);background:#fff;border-radius:20px;padding:24px;
+  box-shadow:0 28px 80px rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.5)
+}
+.auth-logo{
+  width:58px;height:58px;border-radius:17px;
+  background:linear-gradient(135deg,#174ea6,#0f766e);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:900;margin:0 auto 12px
+}
+.auth-title{text-align:center;font-size:24px;font-weight:900;color:#102b4c}
+.auth-sub{text-align:center;color:#64748b;font-size:12px;margin:5px 0 18px}
+.auth-card input,.auth-card select{width:100%;min-width:0}
+.auth-card .auth-btn{width:100%;padding:11px;font-weight:800;margin-top:8px}
+.auth-error{display:none;margin-top:10px;padding:9px 10px;border-radius:8px;background:#fff1f2;border:1px solid #fda4af;color:#9f1239;font-size:12px}
+.auth-note{font-size:10px;color:#64748b;margin-top:12px;text-align:center;line-height:1.45}
+.user-box{margin:10px 4px 12px;padding:9px;border:1px solid #315174;border-radius:9px;background:#102b4c}
+.user-box .who{font-size:11px;color:#a9c6e8}
+.user-box .name{font-size:13px;font-weight:800;color:#fff;margin-top:2px;word-break:break-word}
+.user-box .role{font-size:10px;color:#cbdcf0;margin-top:2px}
+.user-box .user-actions{display:flex;gap:5px;margin-top:7px}
+.user-box button{flex:1;border:0;border-radius:6px;padding:5px;background:#315174;color:#fff;font-size:10px;cursor:pointer}
+.user-box button:hover{background:#174ea6}
+.auth-admin-only{}
+.auth-hidden{display:none!important}
+.user-status-active{color:#087b46;font-weight:800}
+.user-status-disabled{color:#b42318;font-weight:800}
+
+
+
+.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.chart-card{
+  background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+  border:1px solid #d9e4f0;border-radius:16px;padding:15px;
+  box-shadow:0 10px 28px rgba(23,78,166,.08);
+  min-height:300px;position:relative;overflow:hidden
+}
+.chart-card:before{
+  content:"";position:absolute;width:150px;height:150px;border-radius:50%;
+  right:-75px;top:-75px;background:rgba(49,130,206,.07);pointer-events:none
+}
+.chart-title{font-size:15px;font-weight:800;color:#172033;margin-bottom:2px}
+.chart-subtitle{font-size:11px;color:#64748b;margin-bottom:10px}
+.chart-wrap{height:220px;position:relative}
+.chart-wrap canvas{width:100%;height:100%;display:block}
+.chart-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:11px;color:#475569}
+.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;background:currentColor}
+.lux-kpi{
+  background:linear-gradient(135deg,#0b1f3a,#174ea6);
+  color:#fff;border-radius:14px;padding:14px;border:0;
+  box-shadow:0 10px 25px rgba(11,31,58,.18)
+}
+.lux-kpi .num{color:#fff}.lux-kpi .lbl{color:#d8e7fb}
+
+.due-list{display:grid;gap:7px}
+.due-item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 10px;border:1px solid #e3eaf3;border-radius:9px;background:#fff}
+.due-item-name{font-weight:700;font-size:12px}
+.due-item-amount{font-weight:800;font-variant-numeric:tabular-nums}
+.closing-banner{background:linear-gradient(135deg,#102b4c,#174ea6);color:#fff;border-radius:14px;padding:15px 16px;box-shadow:0 10px 25px rgba(11,31,58,.15)}
+.closing-banner .big{font-size:24px;font-weight:900;margin-top:4px}
+@media(max-width:1050px){.chart-grid{grid-template-columns:1fr}}
+@media print{.chart-card{box-shadow:none}}
+
+
+
+.nav button{display:block;width:100%;border:0;background:transparent;color:#d8e7fb;text-align:left;padding:9px 11px;border-radius:7px;margin:2px 0;cursor:pointer;font-size:13px}
+.nav button.active,.nav button:hover{background:#174ea6;color:#fff}
+.main{padding:20px}.page{display:none}.page.active{display:block}
+h1{font-size:24px;margin:0 0 15px}h2{font-size:17px;margin:0 0 10px}h3{font-size:14px;margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px;box-shadow:0 2px 10px rgba(20,40,70,.04)}
+.grid{display:grid;gap:12px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.kpi .num{font-size:23px;font-weight:800}.kpi .lbl{font-size:11px;color:var(--muted);margin-top:3px}
+.card.lux-kpi{
+  background:linear-gradient(135deg,#0b1f3a 0%,#174ea6 100%);
+  border-color:#244b75;
+  box-shadow:0 10px 25px rgba(11,31,58,.18);
+}
+.card.lux-kpi .num{
+  color:#ffffff;
+  text-shadow:0 1px 2px rgba(0,0,0,.18);
+}
+.card.lux-kpi .lbl{
+  color:#d8e7fb;
+}
+
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:end}label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+input,select,textarea{border:1px solid #cbd5e1;border-radius:7px;padding:8px 9px;font-size:13px;background:#fff;min-width:130px}
+textarea{width:100%;min-height:65px}.grow{flex:1}.grow input,.grow select{width:100%}
+button.action{border:0;border-radius:7px;padding:8px 12px;background:var(--p);color:#fff;cursor:pointer;font-size:12px}
+button.green{background:var(--p2)}button.red{background:var(--red)}button.gray{background:#475569}button.gold{background:var(--gold)}
+.tablewrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px;margin-top:10px}
+table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:7px 7px;border-bottom:1px solid #e5eaf2;text-align:left;white-space:nowrap}
+th{background:#edf3fa;position:sticky;top:0;z-index:1}.money{text-align:right;font-variant-numeric:tabular-nums}
+.small{font-size:11px;color:var(--muted)}.notice{padding:9px 11px;border-radius:8px;background:#edf6ff;border:1px solid #c4ddff;font-size:12px;margin-bottom:11px}
+hr{border:0;border-top:1px solid var(--line);margin:13px 0}.right{text-align:right}.strong{font-weight:700}
+.invoice{background:#fff;padding:15px}.invoice-head{text-align:center;margin-bottom:8px}.invoice-head h2{font-size:18px;margin:0}
+.invoice-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:8px}
+.invoice-table input{width:72px;min-width:72px;padding:5px}.invoice-table select{min-width:180px;padding:5px}
+.invoice-table th,.invoice-table td{border:1px solid #9aa7b7;padding:4px 5px}.invoice-table th{position:static;background:#eef2f7}
+.summary-box{width:430px;margin-top:10px}.summary-box td{border:1px solid #9aa7b7}.summary-box input{width:150px;min-width:120px;padding:5px}
+.signs{display:flex;justify-content:flex-end;gap:120px;margin-top:25px;padding-right:45px}.sign{border-top:1px solid #444;width:95px;text-align:center;font-size:11px;padding-top:4px}
+.print-only{display:none}
+.report-formula{font-size:13px;background:#f8fafc;border:1px dashed #94a3b8;border-radius:8px;padding:10px}
+.negative{color:#b42318}.positive{color:#087b46}
+@media(max-width:950px){.app{grid-template-columns:1fr}.sidebar{height:auto;position:static}.g4,.g3,.g2{grid-template-columns:1fr}.main{padding:12px}.invoice-meta{grid-template-columns:1fr}.summary-box{width:100%}}
+@page{size:A4 portrait;margin:8mm}
+@media print{
+ body{background:#fff}.sidebar,.no-print,.page:not(.active){display:none!important}.app{display:block}.main{padding:0}
+ .card{border:0;box-shadow:none;padding:0}.invoice{padding:0}.print-only{display:block}
+ .invoice-table{font-size:8.5px}.invoice-table th,.invoice-table td{padding:2px 3px}.invoice-table input,.invoice-table select{border:0;padding:0;font-size:8.5px;background:transparent}
+ .invoice-table select{appearance:none;min-width:145px}.invoice-meta input,.invoice-meta select,.summary-box input{border:0;padding:0}
+ .summary-box{width:330px}.summary-box td{padding:3px;font-size:9px}.signs{margin-top:18px}
+}
+
+.mobile-topbar{
+  display:none;
+  position:sticky;top:0;z-index:1200;
+  background:#0b1f3a;color:#fff;
+  padding:10px 12px;
+  align-items:center;justify-content:space-between;
+  box-shadow:0 2px 12px rgba(0,0,0,.18)
+}
+.mobile-topbar-title{font-weight:800;font-size:14px}
+.mobile-menu-btn{
+  border:0;background:#174ea6;color:#fff;border-radius:8px;
+  width:42px;height:42px;font-size:20px;cursor:pointer
+}
+.mobile-overlay{
+  display:none;position:fixed;inset:0;z-index:1090;
+  background:rgba(0,0,0,.45)
+}
+.mobile-overlay.show{display:block}
+@media(max-width:820px){
+  body{padding:0;background:#f4f7fb;display:block}
+  .app{display:block;min-height:100vh}
+  .mobile-topbar{display:flex}
+  .sidebar{
+    position:fixed;top:0;bottom:0;left:0;
+    width:min(82vw,320px);height:100vh;z-index:1100;
+    transform:translateX(-105%);
+    transition:transform .22s ease;
+    box-shadow:8px 0 30px rgba(0,0,0,.25)
+  }
+  .sidebar.mobile-open{transform:translateX(0)}
+  .main{padding:12px;max-width:100vw;overflow-x:hidden}
+  h1{font-size:21px;margin-bottom:12px}
+  h2{font-size:16px}
+  .grid.g2,.grid.g3,.grid.g4,.chart-grid{grid-template-columns:1fr!important}
+  .row,.toolbar{display:grid;grid-template-columns:1fr;gap:9px}
+  .row>div,.toolbar>div{width:100%}
+  input,select,textarea{
+    width:100%!important;min-width:0!important;
+    min-height:44px;font-size:16px!important
+  }
+  button.action{
+    min-height:44px;font-size:14px;padding:10px 13px
+  }
+  .tablewrap{
+    max-height:none;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch
+  }
+  table{min-width:720px;font-size:11px}
+  th,td{padding:7px 6px}
+  .invoice-meta{grid-template-columns:1fr}
+  .invoice-table{min-width:1050px}
+  .summary-box{width:100%;min-width:0}
+  .summary-box input{width:100%!important}
+  .signs{gap:30px;padding-right:0;justify-content:center}
+  .card{padding:12px;border-radius:10px}
+  .chart-card{min-height:280px;padding:12px}
+  .chart-wrap{height:210px}
+  .auth-card{padding:18px;border-radius:14px}
+  .auth-title{font-size:21px}
+  .kpi .num{font-size:21px}
+  .offline-clock-time{font-size:19px}
+  .nav button{font-size:14px;padding:11px 12px}
+  .user-box{margin-bottom:14px}
+  .notice{font-size:12px}
+  .closing-banner .big{font-size:21px}
+}
+@media(max-width:480px){
+  .main{padding:9px}
+  .card{padding:10px}
+  .chart-card{min-height:255px}
+  .chart-wrap{height:185px}
+  .mobile-topbar-title{font-size:13px}
+}
+
+</style>
+</head>
+<body>
+<div id="authOverlay" class="auth-overlay">
+ <div id="loginPanel" class="auth-card">
+  <div class="auth-logo">POS</div>
+  <div class="auth-title">Offline POS Login</div>
+  <div class="auth-sub">Sign in to continue to your offline accounts system.</div>
+  <label>Username</label>
+  <input id="loginUsername" autocomplete="username" placeholder="Username">
+  <label style="margin-top:10px">Password</label>
+  <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password">
+  <button class="action auth-btn" onclick="loginUser()">Login</button>
+  <div id="loginError" class="auth-error"></div>
+  <div class="auth-note">This login works offline on this browser/laptop. It provides practical access control, but a single-file offline HTML app is not bank-grade security.</div>
+ </div>
+
+ <div id="setupPanel" class="auth-card" style="display:none">
+  <div class="auth-logo">A</div>
+  <div class="auth-title">Create Admin Account</div>
+  <div class="auth-sub">First-time setup. Create the main administrator login.</div>
+  <label>Admin Username</label>
+  <input id="setupUsername" autocomplete="username" placeholder="e.g. admin">
+  <label style="margin-top:10px">Password</label>
+  <input id="setupPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters">
+  <label style="margin-top:10px">Confirm Password</label>
+  <input id="setupPassword2" type="password" autocomplete="new-password" placeholder="Repeat password">
+  <button class="action green auth-btn" onclick="createFirstAdmin()">Create Admin & Open App</button>
+  <div id="setupError" class="auth-error"></div>
+  <div class="auth-note">Keep this password safe. If browser/site data is deleted, local login users can also be removed.</div>
+ </div>
+</div>
+
+<div class="mobile-topbar" id="mobileTopbar" style="display:none">
+ <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+ <div class="mobile-topbar-title">Offline POS & Accounts</div>
+ <button class="mobile-menu-btn" onclick="lockApp()">🔒</button>
+</div>
+<div id="mobileOverlay" class="mobile-overlay" onclick="closeMobileMenu()"></div>
+<div class="app" id="appShell" style="display:none">
+<aside class="sidebar">
+ <div class="brand">Offline POS & Accounts Pro<div class="subbrand">Free • Offline • Laptop</div></div>
+ <div class="offline-clock-box">
+  <div class="offline-clock-title">Offline 24-Hour Clock</div>
+  <div id="offlineClock" class="offline-clock-time">00:00:00</div>
+  <div id="offlineDate" class="offline-clock-date">----</div>
+ </div>
+ <div class="user-box">
+  <div class="who">SIGNED IN</div>
+  <div id="currentUserName" class="name">—</div>
+  <div id="currentUserRole" class="role">—</div>
+  <div class="user-actions">
+   <button onclick="lockApp()">Lock</button>
+   <button onclick="logoutUser()">Logout</button>
+  </div>
+ </div>
+ <div class="nav" id="nav">
+  <button data-page="dashboard" class="active">Dashboard</button>
+  <button data-page="quickSearch">Quick Search</button>
+  <button data-page="saleInvoice">Sales / Cash Report</button>
+  <button data-page="stock">Stock</button>
+  <button data-page="stockLedger">Stock Ledger</button>
+  <button data-page="products">Products</button>
+  <button data-page="purchases">Purchases</button>
+  <button data-page="discounts">Discount Report</button>
+  <button data-page="salesmen">Salesmen</button>
+  <button data-page="customers">Customers</button>
+  <button data-page="customerLoans">Customer Loans</button>
+  <button data-page="customerStatement">Customer Statement</button>
+  <button data-page="suppliers">Suppliers</button>
+  <button data-page="supplierStatement">Supplier Statement</button>
+  <button data-page="expenses">Expenses</button>
+  <button data-page="salesmanLoans">Salesman Loans</button>
+  <button data-page="salesmanStatement">Salesman Statement</button>
+  <button data-page="capital">Owner / Partner Money</button>
+  <button data-page="dailyClosing">Daily Closing</button>
+  <button data-page="cashBook">Cash Book</button>
+  <button data-page="reports">Reports</button>
+  <button data-page="recycleBin">Recycle Bin</button>
+  <button data-page="deleteEntry">Delete Entry</button>
+  <button data-page="safetyCenter">Safety Center</button>
+  <button data-page="userManagement" class="auth-admin-only">Users / Login</button>
+  <button data-page="backup">Backup / Restore</button>
+ </div>
+</aside>
+<main class="main">
+
+<section id="dashboard" class="page active">
+ <h1>Dashboard</h1>
+ <div class="grid g4">
+  <div class="card kpi lux-kpi"><div class="num" id="dSales">0</div><div class="lbl">Total Net Sales</div></div>
+  <div class="card kpi lux-kpi"><div class="num" id="dStock">0</div><div class="lbl">Stock Value</div></div>
+  <div class="card kpi lux-kpi"><div class="num" id="dCust">0</div><div class="lbl">Customer Receivable</div></div>
+  <div class="card kpi lux-kpi"><div class="num" id="dSupp">0</div><div class="lbl">Supplier Payable</div></div>
+ </div>
+ <div class="grid g4" style="margin-top:12px">
+  <div class="card kpi"><div class="num" id="dDiscount">0</div><div class="lbl">Discounts</div></div>
+  <div class="card kpi"><div class="num" id="dExpenses">0</div><div class="lbl">Expenses</div></div>
+  <div class="card kpi"><div class="num" id="dSalesmanLoan">0</div><div class="lbl">Salesman Loan Outstanding</div></div>
+  <div class="card kpi"><div class="num" id="dCash">0</div><div class="lbl">Calculated Cash Balance</div></div>
+ </div>
+ <div class="card" style="margin-top:12px"><h2>Business Position</h2><div id="dashboardPosition" class="report-formula"></div></div>
+ <div id="dashboardBackupReminder" class="notice" style="margin-top:12px"></div>
+ <div class="grid g4" style="margin-top:12px">
+  <div class="card kpi"><div class="num" id="todaySales">0</div><div class="lbl">Today Net Sales</div></div>
+  <div class="card kpi"><div class="num" id="todayCash">0</div><div class="lbl">Today Cash Received</div></div>
+  <div class="card kpi"><div class="num" id="todayExpense">0</div><div class="lbl">Today Expenses</div></div>
+  <div class="card kpi"><div class="num" id="todayProfit">0</div><div class="lbl">Today Estimated Net Profit</div></div>
+ </div>
+
+ <div class="chart-grid">
+  <div class="chart-card">
+   <div class="chart-title">7-Day Sales & Profit Trend</div>
+   <div class="chart-subtitle">Daily net sales compared with estimated net profit</div>
+   <div class="chart-wrap"><canvas id="salesProfitChart"></canvas></div>
+   <div class="chart-legend"><span><span class="legend-dot" style="color:#174ea6"></span>Net Sales</span><span><span class="legend-dot" style="color:#0f766e"></span>Net Profit</span></div>
+  </div>
+  <div class="chart-card">
+   <div class="chart-title">Expense Mix</div>
+   <div class="chart-subtitle">Salary, oil, mechanic and other expenses</div>
+   <div class="chart-wrap"><canvas id="expenseDonutChart"></canvas></div>
+   <div id="expenseDonutLegend" class="chart-legend"></div>
+  </div>
+  <div class="chart-card">
+   <div class="chart-title">Top Selling Products</div>
+   <div class="chart-subtitle">Top products by sold quantity</div>
+   <div class="chart-wrap"><canvas id="topProductsChart"></canvas></div>
+  </div>
+  <div class="chart-card">
+   <div class="chart-title">Accounts Position</div>
+   <div class="chart-subtitle">Receivables, stock, cash and supplier payable</div>
+   <div class="chart-wrap"><canvas id="accountsPositionChart"></canvas></div>
+  </div>
+ </div>
+ <div class="grid g2" style="margin-top:12px">
+  <div class="card">
+   <h2>Low Stock Alert</h2>
+   <div class="toolbar no-print">
+    <div><label>Alert if Qty ≤</label><input id="lowStockLimit" type="number" min="0" step="1" value="10" style="width:90px" oninput="renderDashboard()"></div>
+   </div>
+   <div id="lowStockList" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+   <h2>Today's Activity</h2>
+   <div id="todayActivity"></div>
+  </div>
+ </div>
+ <div class="grid g2" style="margin-top:12px">
+  <div class="card">
+   <h2>Top Customer Dues</h2>
+   <div id="topCustomerDues" class="due-list"></div>
+  </div>
+  <div class="card">
+   <h2>Top Salesman Dues</h2>
+   <div id="topSalesmanDues" class="due-list"></div>
+  </div>
+ </div>
+</section>
+
+
+<section id="quickSearch" class="page">
+ <h1>Quick Search</h1>
+ <div class="card">
+  <div class="notice">Search invoices, Customers, Salesmen, Suppliers and Products from one place.</div>
+  <div class="toolbar">
+   <div class="grow"><label>Search</label><input id="globalSearchInput" placeholder="Invoice no, name, phone, product..." style="width:100%" oninput="renderGlobalSearch()"></div>
+   <button class="action" onclick="renderGlobalSearch()">Search</button>
+   <button class="action gray" onclick="globalSearchInput.value='';renderGlobalSearch()">Clear</button>
+  </div>
+  <div id="globalSearchSummary" class="report-formula" style="margin-top:12px"></div>
+  <div id="globalSearchResults" class="card" style="margin-top:12px;padding:0"></div>
+ </div>
+</section>
+
+<section id="saleInvoice" class="page">
+ <h1 class="no-print">Sales / Cash Report</h1><div class="notice no-print">Due and recovery are automatic. If a Customer is selected, the balance goes to that Customer. If no Customer is selected but a Salesman is selected, the due/recovery is posted automatically to that Salesman's account.</div>
+ <div class="card invoice">
+  <div class="invoice-head"><h2>Cash Report</h2></div>
+  <div class="invoice-meta">
+   <div><label>Vehicle No</label><input id="invVehicle"></div>
+   <div><label>Salesman</label><select id="invSalesman"></select></div>
+   <div><label>Date</label><input id="invDate" type="date"></div>
+   <div><label>Customer</label><select id="invCustomer"></select></div>
+   <div><label>Invoice No</label><input id="invNo"><button type="button" class="action gray no-print" style="margin-top:5px" onclick="generateInvoiceNo()">Auto No</button></div>
+   <div class="no-print"><button class="action gray" onclick="newInvoice()">New / Clear Form</button></div>
+  </div>
+  <div style="overflow:auto">
+   <table class="invoice-table">
+    <thead><tr>
+     <th>Products</th><th>Price</th><th>Total Sale (Qty)</th><th>Amount</th><th>Haji Himmat</th><th>HGBL</th><th>Scheme</th><th>T Amount</th>
+    </tr></thead>
+    <tbody id="invoiceRows"></tbody>
+    <tfoot><tr><td class="strong">G.TOTAL</td><td></td><td id="invTotalQty" class="money strong">0</td><td id="invGross" class="money strong">0</td><td id="invHaji" class="money strong">0</td><td id="invHgbl" class="money strong">0</td><td id="invScheme" class="money strong">0</td><td id="invNet" class="money strong">0</td></tr></tfoot>
+   </table>
+  </div>
+  <table class="summary-box">
+   <tr><td>Invoice Net Amount</td><td id="invInvoiceNet" class="money strong">0</td></tr>
+   <tr><td>Received Cash</td><td><input id="invReceived" type="number" step="0.01" value="0"></td></tr>
+   <tr><td>Invoice Due</td><td id="invAutoDue" class="money strong">0</td></tr>
+   <tr><td>Recovery</td><td id="invAutoRecovery" class="money strong">0</td></tr>
+   <tr><td>Old Account Balance</td><td id="invOldShort" class="money strong">0</td></tr>
+   <tr><td>New Account Balance</td><td id="invTotalShort" class="money strong">0</td></tr>
+   <tr><td>Oil Expense</td><td><input id="invOil" type="number" step="0.01" value="0"></td></tr>
+   <tr><td>Masre / Other Expense</td><td><input id="invOther" type="number" step="0.01" value="0"></td></tr>
+   <tr><td>Total Cash After Expenses</td><td id="invTotalCash" class="money strong">0</td></tr>
+  </table>
+  <div class="signs"><div class="sign">office</div><div class="sign">sales man</div></div>
+  <div class="no-print" style="margin-top:15px">
+   <button id="invSaveBtn" class="action green" onclick="saveInvoice()">Save Invoice</button>
+   <button id="invCancelEditBtn" class="action gray" onclick="cancelEditSale()" style="display:none">Cancel Edit</button>
+   <button class="action gray" onclick="window.print()">Print</button>
+  </div>
+ </div>
+ <div class="card no-print" style="margin-top:12px">
+  <h2>Saved Sales</h2>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Salesman</th><th class="money">Qty</th><th class="money">Net Sale</th><th class="money">Received</th><th class="money">Due</th><th></th></tr></thead><tbody id="salesHistory"></tbody></table></div>
+ </div>
+</section>
+
+
+<section id="stockLedger" class="page">
+ <h1>Stock Ledger</h1>
+ <div class="card">
+  <div class="notice">See the complete movement history of one Product: Opening Stock, Purchases, Sales and Adjustments.</div>
+  <div class="toolbar no-print">
+   <div class="grow"><label>Product</label><select id="stockLedgerProduct"></select></div>
+   <div><label>From</label><input id="stockLedgerFrom" type="date"></div>
+   <div><label>To</label><input id="stockLedgerTo" type="date"></div>
+   <button class="action" onclick="renderStockLedger()">Refresh</button>
+   <button class="action gray" onclick="window.print()">Print</button>
+  </div>
+  <div id="stockLedgerSummary" class="report-formula" style="margin-top:12px"></div>
+  <div class="tablewrap">
+   <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="money">Stock In</th><th class="money">Stock Out</th><th class="money">Running Qty</th><th>Note</th></tr></thead>
+    <tbody id="stockLedgerBody"></tbody>
+   </table>
+  </div>
+ </div>
+</section>
+
+<section id="products" class="page">
+ <h1>Products</h1>
+ <div class="card">
+  <div class="row">
+   <div class="grow"><label>Product Name</label><input id="prodName"></div>
+   <div><label>Sale Price</label><input id="prodSale" type="number" step="0.01"></div>
+   <div><label>Cost Price</label><input id="prodCost" type="number" step="0.01"></div>
+   <div><label>Opening Qty</label><input id="prodOpening" type="number" step="0.01" value="0"></div>
+   <div><label>Reorder Level</label><input id="prodReorder" type="number" step="0.01" value="0"></div>
+   <button id="prodSaveBtn" class="action" onclick="addProduct()">Add Product</button>
+   <button id="prodCancelEditBtn" class="action gray" onclick="cancelEditProduct()" style="display:none">Cancel Edit</button>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>Product</th><th class="money">Sale Price</th><th class="money">Cost Price</th><th class="money">Opening Qty</th><th class="money">Reorder Level</th><th></th></tr></thead><tbody id="productsBody"></tbody></table></div>
+ </div>
+</section>
+
+<section id="stock" class="page">
+ <h1>Stock</h1>
+ <div class="card">
+  <div class="notice">Current Stock = Opening + Purchases + Adjustments − Sold Qty.</div>
+  <div class="row no-print">
+   <div><label>Product</label><select id="adjProduct"></select></div>
+   <div><label>Adjustment Qty (+/-)</label><input id="adjQty" type="number" step="0.01"></div>
+   <div class="grow"><label>Note</label><input id="adjNote"></div>
+   <button class="action" onclick="addAdjustment()">Save Adjustment</button>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>Product</th><th class="money">Opening</th><th class="money">Purchased</th><th class="money">Sold</th><th class="money">Adjust</th><th class="money">Current</th><th class="money">Reorder</th><th>Status</th><th class="money">Cost</th><th class="money">Stock Value</th></tr></thead><tbody id="stockBody"></tbody></table></div>
+ </div>
+</section>
+
+<section id="purchases" class="page">
+ <h1>Purchases</h1>
+ <div class="card">
+  <div class="row">
+   <div><label>Date</label><input id="purDate" type="date"></div>
+   <div><label>Supplier</label><select id="purSupplier"></select></div>
+   <div><label>Invoice No</label><input id="purNo"></div>
+   <div><label>Paid</label><input id="purPaid" type="number" step="0.01" value="0"></div>
+   <div class="grow"><label>Note</label><input id="purNote"></div>
+  </div>
+  <hr>
+  <div class="row">
+   <div class="grow"><label>Product</label><select id="purProduct"></select></div>
+   <div><label>Qty</label><input id="purQty" type="number" step="0.01"></div>
+   <div><label>Cost Price</label><input id="purCost" type="number" step="0.01"></div>
+   <button class="action gray" onclick="addPurchaseLine()">Add Line</button>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>Product</th><th class="money">Qty</th><th class="money">Cost</th><th class="money">Amount</th><th></th></tr></thead><tbody id="purLinesBody"></tbody><tfoot><tr><td colspan="3" class="right strong">Total</td><td id="purTotal" class="money strong">0</td><td></td></tr></tfoot></table></div>
+  <div style="margin-top:10px"><button id="purSaveBtn" class="action green" onclick="savePurchase()">Save Purchase</button> <button id="purCancelEditBtn" class="action gray" onclick="cancelEditPurchase()" style="display:none">Cancel Edit</button></div>
+ </div>
+ <div class="card" style="margin-top:12px"><h2>Purchase History</h2><div class="tablewrap"><table><thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th class="money">Total</th><th class="money">Paid</th><th></th></tr></thead><tbody id="purchaseHistory"></tbody></table></div></div>
+</section>
+
+<section id="discounts" class="page">
+ <h1>Discount Report</h1>
+ <div class="grid g4">
+  <div class="card kpi"><div class="num" id="discHaji">0</div><div class="lbl">Haji Himmat</div></div>
+  <div class="card kpi"><div class="num" id="discHgbl">0</div><div class="lbl">HGBL</div></div>
+  <div class="card kpi"><div class="num" id="discScheme">0</div><div class="lbl">Scheme</div></div>
+  <div class="card kpi"><div class="num" id="discTotal">0</div><div class="lbl">Total Discount</div></div>
+ </div>
+ <div class="card" style="margin-top:12px"><div class="tablewrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Product</th><th class="money">Qty</th><th class="money">Haji Himmat</th><th class="money">HGBL</th><th class="money">Scheme</th><th class="money">Total</th></tr></thead><tbody id="discountBody"></tbody></table></div></div>
+</section>
+
+
+<section id="salesmen" class="page">
+ <h1>Salesmen</h1>
+ <div class="card">
+  <div class="notice">Create a Salesman first. The same Salesman list is used in Customers, Sales Invoice, and Salesman Loans. One Salesman can have multiple Customers.</div>
+  <div class="row">
+   <div class="grow"><label>Salesman Name</label><input id="smName"></div>
+   <div><label>Phone</label><input id="smPhone"></div>
+   <div><label>Credit Limit</label><input id="smCreditLimit" type="number" step="0.01" value="0"></div>
+   <div class="grow"><label>Note</label><input id="smNote"></div>
+   <button id="smSaveBtn" class="action" onclick="addSalesman()">Save Salesman</button>
+   <button id="smCancelEditBtn" class="action gray" onclick="cancelEditSalesman()" style="display:none">Cancel Edit</button>
+  </div>
+  <div class="tablewrap">
+   <table>
+    <thead><tr><th>Salesman</th><th>Phone</th><th class="money">Credit Limit</th><th class="money">Current Due</th><th class="money">Customers</th><th>Note</th><th></th></tr></thead>
+    <tbody id="salesmenBody"></tbody>
+   </table>
+  </div>
+ </div>
+</section>
+
+<section id="customers" class="page">
+ <h1>Customers</h1><div class="card">
+ <div class="row"><div class="grow"><label>Customer Name</label><input id="cName"></div><div><label>Phone</label><input id="cPhone"></div><div><label>Credit Limit</label><input id="cCreditLimit" type="number" step="0.01" value="0"></div><div><label>Salesman</label><select id="cSalesman"></select></div><div><label>Opening Balance</label><input id="cOpening" type="number" step="0.01" value="0"></div><div class="grow"><label>Note</label><input id="cNote"></div><button id="cSaveBtn" class="action" onclick="addCustomer()">Save</button><button id="cCancelEditBtn" class="action gray" onclick="cancelEditCustomer()" style="display:none">Cancel Edit</button></div>
+ <div class="tablewrap"><table><thead><tr><th>Customer Name</th><th>Phone</th><th>Salesman</th><th class="money">Credit Limit</th><th class="money">Opening</th><th class="money">Current Balance</th><th>Status</th><th>Note</th><th></th></tr></thead><tbody id="customersBody"></tbody></table></div></div>
+</section>
+
+<section id="customerLoans" class="page">
+ <h1>Customer Loans</h1><div class="card">
+ <div class="row"><div><label>Date</label><input id="clDate" type="date"></div><div><label>Customer</label><select id="clCustomer"></select></div><div><label>Loan Given</label><input id="clGiven" type="number" step="0.01" value="0"></div><div><label>Loan Received</label><input id="clReceived" type="number" step="0.01" value="0"></div><div class="grow"><label>Note</label><input id="clNote"></div><button id="clSaveBtn" class="action" onclick="saveCustomerLoan()">Save</button><button id="clCancelEditBtn" class="action gray" onclick="cancelEditCustomerLoan()" style="display:none">Cancel Edit</button></div>
+ <div class="tablewrap"><table><thead><tr><th>Date</th><th>Customer</th><th class="money">Given</th><th class="money">Received</th><th>Note</th><th></th></tr></thead><tbody id="customerLoansBody"></tbody></table></div></div>
+</section>
+
+<section id="customerStatement" class="page">
+ <h1>Customer Statement / Ledger</h1><div class="card">
+ <div class="row no-print"><div><label>Customer</label><select id="csCustomer"></select></div><button class="action" onclick="renderCustomerStatement()">Refresh</button><button class="action gray" onclick="window.print()">Print</button></div>
+ <div id="csSummary" style="margin-top:10px"></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Ref</th><th class="money">Debit</th><th class="money">Credit</th><th class="money">Balance</th><th>Note</th></tr></thead><tbody id="csBody"></tbody></table></div></div>
+</section>
+
+<section id="suppliers" class="page">
+ <h1>Suppliers</h1>
+ <div class="card">
+  <h2>Supplier Master</h2>
+  <div class="row"><div class="grow"><label>Supplier Name</label><input id="sName"></div><div><label>Phone</label><input id="sPhone"></div><div><label>Opening Balance</label><input id="sOpening" type="number" step="0.01" value="0"></div><div class="grow"><label>Note</label><input id="sNote"></div><button id="sSaveBtn" class="action" onclick="addSupplier()">Save Supplier</button><button id="sCancelEditBtn" class="action gray" onclick="cancelEditSupplier()" style="display:none">Cancel Edit</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Supplier Name</th><th>Phone</th><th class="money">Opening</th><th class="money">Current Balance</th><th>Note</th><th></th></tr></thead><tbody id="suppliersBody"></tbody></table></div>
+ </div>
+
+ <div class="card" style="margin-top:12px">
+  <h2>Supplier Payment / Receipt</h2>
+  <div class="notice">Use only one amount per entry: <b>Paid to Supplier</b> OR <b>Received from Supplier</b>.</div>
+  <div class="row">
+   <div><label>Date</label><input id="spDate" type="date"></div>
+   <div><label>Supplier</label><select id="spPaySupplier"></select></div>
+   <div><label>Paid to Supplier</label><input id="spPaid" type="number" step="0.01" value="0"></div>
+   <div><label>Received from Supplier</label><input id="spReceived" type="number" step="0.01" value="0"></div>
+   <div class="grow"><label>Note</label><input id="spNote"></div>
+   <button id="spSaveBtn" class="action green" onclick="saveSupplierTransaction()">Save</button>
+   <button id="spCancelEditBtn" class="action gray" onclick="cancelEditSupplierTransaction()" style="display:none">Cancel Edit</button>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Supplier</th><th class="money">Paid</th><th class="money">Received</th><th>Note</th><th></th></tr></thead><tbody id="supplierTransactionsBody"></tbody></table></div>
+ </div>
+</section>
+
+<section id="supplierStatement" class="page">
+ <h1>Supplier Statement / Ledger</h1><div class="card">
+ <div class="row no-print"><div><label>Supplier</label><select id="ssSupplier"></select></div><button class="action" onclick="renderSupplierStatement()">Refresh</button><button class="action gray" onclick="window.print()">Print</button></div>
+ <div id="ssSummary" style="margin-top:10px"></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Ref</th><th class="money">Debit</th><th class="money">Credit</th><th class="money">Balance</th><th>Note</th></tr></thead><tbody id="ssBody"></tbody></table></div></div>
+</section>
+
+<section id="expenses" class="page">
+ <h1>Expenses</h1><div class="card">
+ <div class="row"><div><label>Date</label><input id="exDate" type="date"></div><div><label>Expense Category</label><select id="exCat"><option value="Salary">Salary</option><option value="Oil">Oil</option><option value="Mechanic">Mechanic</option><option value="Extra">Extra Expense</option><option value="Other">Other Expense</option></select></div><div><label>Amount</label><input id="exAmount" type="number" step="0.01"></div><div class="grow"><label>Note</label><input id="exNote"></div><button id="exSaveBtn" class="action" onclick="saveExpense()">Save Expense</button><button id="exCancelEditBtn" class="action gray" onclick="cancelEditExpense()" style="display:none">Cancel Edit</button></div>
+ <div class="tablewrap"><table><thead><tr><th>Date</th><th>Expense Category</th><th class="money">Amount</th><th>Note</th><th></th></tr></thead><tbody id="expensesBody"></tbody></table></div></div>
+</section>
+
+<section id="salesmanLoans" class="page">
+ <h1>Salesman Loans</h1><div class="card"><div class="notice">Select the Salesman from the Salesmen page list. Older Salesman names are automatically added to this list.</div>
+ <div class="row"><div><label>Date</label><input id="slDate" type="date"></div><div><label>Salesman</label><select id="slName"></select></div><div><label>Loan Given</label><input id="slGiven" type="number" step="0.01" value="0"></div><div><label>Loan Received</label><input id="slReceived" type="number" step="0.01" value="0"></div><div class="grow"><label>Note</label><input id="slNote"></div><button id="slSaveBtn" class="action" onclick="saveSalesmanLoan()">Save</button><button id="slCancelEditBtn" class="action gray" onclick="cancelEditSalesmanLoan()" style="display:none">Cancel Edit</button></div>
+ <div class="tablewrap"><table><thead><tr><th>Date</th><th>Salesman</th><th class="money">Given</th><th class="money">Received</th><th class="money">Balance</th><th>Note</th><th></th></tr></thead><tbody id="salesmanLoansBody"></tbody></table></div></div>
+</section>
+
+<section id="salesmanStatement" class="page">
+ <h1>Salesman Statement / Ledger</h1>
+ <div class="card">
+  <div class="notice">This statement includes manual Salesman Loans plus automatic Invoice Due / Recovery entries created from Sales / Cash Report.</div>
+  <div class="row no-print">
+   <div><label>Salesman</label><select id="salesmanStmtSelect"></select></div>
+   <button class="action" onclick="renderSalesmanStatement()">Refresh</button>
+   <button class="action gray" onclick="window.print()">Print</button>
+  </div>
+  <div id="salesmanStmtSummary" style="margin-top:10px"></div>
+  <div class="grid g3" style="margin-top:10px">
+   <div class="card kpi"><div class="num" id="salesmanLastDueDate">—</div><div class="lbl">Last Due Date</div></div>
+   <div class="card kpi"><div class="num" id="salesmanLastRecoveryDate">—</div><div class="lbl">Last Recovery Date</div></div>
+   <div class="card kpi"><div class="num" id="salesmanLastTxnDate">—</div><div class="lbl">Last Transaction Date</div></div>
+  </div>
+  <div class="tablewrap">
+   <table>
+    <thead>
+     <tr>
+      <th>Date</th>
+      <th>Type</th>
+      <th>Reference</th>
+      <th class="money">Debit / Given</th>
+      <th class="money">Credit / Received</th>
+      <th class="money">Balance</th>
+      <th>Note</th>
+     </tr>
+    </thead>
+    <tbody id="salesmanStmtBody"></tbody>
+   </table>
+  </div>
+ </div>
+</section>
+
+
+<section id="capital" class="page">
+ <h1>Owner / Partner Money</h1><div class="card">
+ <div class="notice">These amounts are subtracted in the Business Position report, as requested.</div>
+ <div class="row"><div><label>Date</label><input id="capDate" type="date"></div><div><label>Person / Partner</label><input id="capName"></div><div><label>Amount</label><input id="capAmount" type="number" step="0.01"></div><div class="grow"><label>Note</label><input id="capNote"></div><button class="action" onclick="saveCapital()">Save</button></div>
+ <div class="tablewrap"><table><thead><tr><th>Date</th><th>Person / Partner</th><th class="money">Amount</th><th>Note</th><th></th></tr></thead><tbody id="capitalBody"></tbody></table></div></div>
+</section>
+
+
+<section id="dailyClosing" class="page">
+ <h1>Daily Closing</h1>
+ <div class="card no-print">
+  <div class="toolbar">
+   <div><label>Closing Date</label><input id="closingDate" type="date"></div>
+   <button class="action" onclick="renderDailyClosing()">Refresh</button>
+   <button class="action gray" onclick="window.print()">Print Closing</button>
+  </div>
+ </div>
+
+ <div class="closing-banner" style="margin-top:12px">
+  <div>Daily Closing Net Profit / Loss</div>
+  <div id="closingNetProfit" class="big">0.00</div>
+  <div id="closingLabel" style="font-size:11px;margin-top:3px;opacity:.85"></div>
+ </div>
+
+ <div class="grid g4" style="margin-top:12px">
+  <div class="card kpi"><div class="num" id="closingGrossSales">0</div><div class="lbl">Gross Sales</div></div>
+  <div class="card kpi"><div class="num" id="closingDiscount">0</div><div class="lbl">Discount</div></div>
+  <div class="card kpi"><div class="num" id="closingNetSales">0</div><div class="lbl">Net Sales</div></div>
+  <div class="card kpi"><div class="num" id="closingReceived">0</div><div class="lbl">Cash Received</div></div>
+ </div>
+ <div class="grid g4" style="margin-top:12px">
+  <div class="card kpi"><div class="num" id="closingDue">0</div><div class="lbl">Due Created</div></div>
+  <div class="card kpi"><div class="num" id="closingRecovery">0</div><div class="lbl">Recovery</div></div>
+  <div class="card kpi"><div class="num" id="closingExpenses">0</div><div class="lbl">Total Expenses</div></div>
+  <div class="card kpi"><div class="num" id="closingCOGS">0</div><div class="lbl">Cost of Goods Sold</div></div>
+ </div>
+
+ <div class="grid g2" style="margin-top:12px">
+  <div class="card">
+   <h2>Expense Breakdown</h2>
+   <div class="tablewrap"><table>
+    <thead><tr><th>Category</th><th class="money">Amount</th></tr></thead>
+    <tbody id="closingExpenseBody"></tbody>
+   </table></div>
+  </div>
+  <div class="card">
+   <h2>Day Summary</h2>
+   <div class="tablewrap"><table>
+    <tbody>
+     <tr><td>Invoice Count</td><td id="closingInvoices" class="money strong">0</td></tr>
+     <tr><td>Sold Quantity</td><td id="closingQty" class="money strong">0</td></tr>
+     <tr><td>Gross Profit</td><td id="closingGrossProfit" class="money strong">0</td></tr>
+     <tr><td>Net Profit / Loss</td><td id="closingNetProfitTable" class="money strong">0</td></tr>
+    </tbody>
+   </table></div>
+  </div>
+ </div>
+
+ <div class="card" style="margin-top:12px">
+  <h2>Salesman Day Summary</h2>
+  <div class="tablewrap"><table>
+   <thead><tr><th>Salesman</th><th class="money">Invoices</th><th class="money">Net Sales</th><th class="money">Received</th><th class="money">Due</th><th class="money">Recovery</th></tr></thead>
+   <tbody id="closingSalesmanBody"></tbody>
+  </table></div>
+ </div>
+
+ <div class="card" style="margin-top:12px">
+  <h2>Invoices for Closing Date</h2>
+  <div class="tablewrap"><table>
+   <thead><tr><th>Invoice</th><th>Customer</th><th>Salesman</th><th class="money">Net Sale</th><th class="money">Received</th><th class="money">Due</th></tr></thead>
+   <tbody id="closingInvoicesBody"></tbody>
+  </table></div>
+ </div>
+</section>
+
+
+<section id="cashBook" class="page">
+ <h1>Cash Book</h1>
+ <div class="card">
+  <div class="notice">Automatic cash ledger built from Sales, Purchases, Loans, Supplier Payments and Expenses. Automatic invoice due/recovery entries are not double-counted.</div>
+  <div class="toolbar no-print">
+   <div><label>From</label><input id="cashBookFrom" type="date"></div>
+   <div><label>To</label><input id="cashBookTo" type="date"></div>
+   <div class="grow"><label>Search</label><input id="cashBookSearch" placeholder="Type, reference, note..." oninput="renderCashBook()"></div>
+   <button class="action" onclick="renderCashBook()">Refresh</button>
+   <button class="action gray" onclick="window.print()">Print</button>
+  </div>
+  <div class="grid g3" style="margin-top:12px">
+   <div class="card kpi"><div class="num" id="cashBookIn">0</div><div class="lbl">Cash In</div></div>
+   <div class="card kpi"><div class="num" id="cashBookOut">0</div><div class="lbl">Cash Out</div></div>
+   <div class="card kpi"><div class="num" id="cashBookBalance">0</div><div class="lbl">Net Cash Movement</div></div>
+  </div>
+  <div class="tablewrap">
+   <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="money">Cash In</th><th class="money">Cash Out</th><th class="money">Running Balance</th><th>Note</th></tr></thead>
+    <tbody id="cashBookBody"></tbody>
+   </table>
+  </div>
+ </div>
+</section>
+
+<section id="reports" class="page">
+ <h1>Reports</h1>
+ <div class="card no-print" style="margin-bottom:12px">
+  <h2>Export Data</h2>
+  <div class="toolbar">
+   <button class="action green" onclick="exportSalesCSV()">Export Sales CSV</button>
+   <button class="action green" onclick="exportCustomersCSV()">Export Customers CSV</button>
+   <button class="action green" onclick="exportSuppliersCSV()">Export Suppliers CSV</button>
+   <button class="action green" onclick="exportStockCSV()">Export Stock CSV</button>
+  </div>
+ </div>
+
+ <div class="card" style="margin-bottom:12px">
+  <h2>Profit & Loss — Daily, Monthly and Yearly Report</h2>
+  <div class="notice">Net Profit = Net Sales − Cost of Goods Sold − Total Expenses. Discounts are already deducted when calculating Net Sales, so they are not deducted a second time.</div>
+  <div class="row no-print">
+   <div><label>Report Type</label><select id="plPeriodType" onchange="updateProfitFilterUI()"><option value="day">Daily</option><option value="month">Monthly</option><option value="year">Yearly</option></select></div>
+   <div id="plDayBox"><label>Date</label><input id="plDate" type="date"></div>
+   <div id="plMonthBox" style="display:none"><label>Month</label><input id="plMonth" type="month"></div>
+   <div id="plYearBox" style="display:none"><label>Year</label><input id="plYear" type="number" min="2000" max="2100"></div>
+   <button class="action" onclick="renderProfitLossReport()">Search</button>
+  </div>
+  <div id="plPeriodLabel" class="report-formula" style="margin-top:10px"></div>
+  <div class="grid g4" style="margin-top:12px">
+   <div class="card kpi"><div class="num" id="plGrossSales">0</div><div class="lbl">Gross Sales</div></div>
+   <div class="card kpi"><div class="num" id="plDiscount">0</div><div class="lbl">Discount</div></div>
+   <div class="card kpi"><div class="num" id="plNetSales">0</div><div class="lbl">Net Sales</div></div>
+   <div class="card kpi"><div class="num" id="plCOGS">0</div><div class="lbl">Cost of Goods Sold</div></div>
+  </div>
+  <div class="grid g4" style="margin-top:12px">
+   <div class="card kpi"><div class="num" id="plGrossProfit">0</div><div class="lbl">Gross Profit</div></div>
+   <div class="card kpi"><div class="num" id="plTotalExpenses">0</div><div class="lbl">Total Expenses</div></div>
+   <div class="card kpi"><div class="num" id="plNetProfit">0</div><div class="lbl">Net Profit / Loss</div></div>
+   <div class="card kpi"><div class="num" id="plInvoiceCount">0</div><div class="lbl">Invoice Count</div></div>
+  </div>
+  <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Description</th><th class="money">Amount</th></tr></thead><tbody>
+   <tr><td>Salary</td><td id="plSalary" class="money">0</td></tr>
+   <tr><td>Oil</td><td id="plOil" class="money">0</td></tr>
+   <tr><td>Mechanic</td><td id="plMechanic" class="money">0</td></tr>
+   <tr><td>Extra / Other Expenses</td><td id="plOther" class="money">0</td></tr>
+  </tbody></table></div>
+  <div class="small" style="margin-top:8px">Note: for older Sales records without historical cost data, the system uses the product's current cost.</div>
+ </div>
+
+ <div class="grid g4">
+  <div class="card kpi"><div class="num" id="rSales">0</div><div class="lbl">Net Sales</div></div>
+  <div class="card kpi"><div class="num" id="rDiscount">0</div><div class="lbl">Discount</div></div>
+  <div class="card kpi"><div class="num" id="rSalary">0</div><div class="lbl">Salary Expense</div></div>
+  <div class="card kpi"><div class="num" id="rOil">0</div><div class="lbl">Oil Expense</div></div>
+ </div>
+ <div class="grid g4" style="margin-top:12px">
+  <div class="card kpi"><div class="num" id="rExtra">0</div><div class="lbl">Extra / Other Expense</div></div>
+  <div class="card kpi"><div class="num" id="rSL">0</div><div class="lbl">Salesman Loans</div></div>
+  <div class="card kpi"><div class="num" id="rReceivable">0</div><div class="lbl">Customer Receivable</div></div>
+  <div class="card kpi"><div class="num" id="rPayable">0</div><div class="lbl">Supplier Payable</div></div>
+ </div>
+ <div class="card" style="margin-top:12px">
+  <h2>Business Position Calculation</h2>
+  <div id="businessFormula" class="report-formula"></div>
+ </div>
+ <div class="grid g2" style="margin-top:12px">
+  <div class="card"><h2>Every Product — Sold Quantity</h2><div class="tablewrap"><table><thead><tr><th>Product</th><th class="money">Sold Qty</th><th class="money">Net Sales</th><th class="money">Current Stock</th></tr></thead><tbody id="productReportBody"></tbody></table></div></div>
+  <div class="card"><h2>Expense Report</h2><div class="tablewrap"><table><thead><tr><th>Category</th><th class="money">Amount</th></tr></thead><tbody id="expenseReportBody"></tbody></table></div>
+  <h2 style="margin-top:15px">Salesman Loan Report</h2><div class="tablewrap"><table><thead><tr><th>Salesman</th><th class="money">Balance</th></tr></thead><tbody id="salesmanReportBody"></tbody></table></div></div>
+ </div>
+</section>
+
+
+<section id="recycleBin" class="page">
+ <h1>Recycle Bin</h1>
+ <div class="card">
+  <div class="notice">Deleted row-level records are kept here so mistakes can be restored. "Clear Whole Section" remains permanent.</div>
+  <div class="toolbar no-print">
+   <div class="grow"><label>Search</label><input id="recycleSearch" placeholder="Section, date, name, invoice..." oninput="renderRecycleBin()"></div>
+   <button class="action gray" onclick="renderRecycleBin()">Refresh</button>
+   <button class="action red" onclick="emptyRecycleBin()">Empty Recycle Bin</button>
+  </div>
+  <div id="recycleSummary" class="report-formula" style="margin-top:12px"></div>
+  <div class="tablewrap">
+   <table>
+    <thead><tr><th>Deleted At</th><th>Section</th><th>Record</th><th></th></tr></thead>
+    <tbody id="recycleBody"></tbody>
+   </table>
+  </div>
+ </div>
+</section>
+
+<section id="deleteEntry" class="page">
+ <h1>Delete Entry</h1><div class="card"><div class="notice">Delete one wrong entry or clear a whole data section. Always make a backup first.</div>
+ <div class="grid g2"><div><h3>Delete by Record ID</h3><div><label>Section</label><select id="delSec"><option value="sales">Sales</option><option value="purchases">Purchases</option><option value="salesmen">Salesmen</option><option value="customerLoans">Customer Loans</option><option value="salesmanLoans">Salesman Loans</option><option value="supplierTransactions">Supplier Payment / Receipt</option><option value="expenses">Expenses</option><option value="capital">Owner/Partner Money</option><option value="stockAdjustments">Stock Adjustments</option><option value="customers">Customers</option><option value="suppliers">Suppliers</option><option value="products">Products</option></select></div><div style="margin-top:8px"><label>Record ID</label><input id="delId"></div><button class="action red" style="margin-top:8px" onclick="deleteById()">Delete Record</button></div>
+ <div><h3>Clear Whole Section</h3><div><label>Section</label><select id="clearSec"><option value="sales">Sales</option><option value="purchases">Purchases</option><option value="customerLoans">Customer Loans</option><option value="salesmanLoans">Salesman Loans</option><option value="supplierTransactions">Supplier Payment / Receipt</option><option value="expenses">Expenses</option><option value="capital">Owner/Partner Money</option><option value="stockAdjustments">Stock Adjustments</option></select></div><button class="action red" style="margin-top:8px" onclick="clearWhole()">Clear Section</button></div></div>
+ </div>
+</section>
+
+
+<section id="safetyCenter" class="page">
+ <h1>Safety Center</h1>
+ <div class="grid g3">
+  <div class="card kpi"><div class="num" id="safetyLastBackup">Never</div><div class="lbl">Last Full Backup</div></div>
+  <div class="card kpi"><div class="num" id="safetySnapshotCount">0</div><div class="lbl">Local Safety Snapshots</div></div>
+  <div class="card kpi"><div class="num" id="safetyDataSize">0 KB</div><div class="lbl">Current Data Size</div></div>
+ </div>
+ <div id="safetyBackupStatus" class="notice" style="margin-top:12px"></div>
+ <div class="card" style="margin-top:12px">
+  <h2>Automatic Local Snapshots</h2>
+  <div class="notice">The app keeps up to 3 recent browser-local snapshots before important changes. These are an extra safety layer, not a replacement for Full Backup. Clearing browser/site data can remove them.</div>
+  <div class="toolbar no-print" style="margin-top:10px">
+   <button class="action green" onclick="createManualSnapshot()">Create Snapshot Now</button>
+   <button class="action gray" onclick="renderSafetyCenter()">Refresh</button>
+   <button class="action red" onclick="clearSafetySnapshots()">Clear Snapshots</button>
+  </div>
+  <div id="snapshotList" style="margin-top:12px"></div>
+ </div>
+</section>
+
+
+<section id="userManagement" class="page">
+ <h1>Users / Login</h1>
+ <div class="card">
+  <div class="notice">Admin can create login accounts. A Salesman login is linked to one Salesman and gets limited access to operational pages.</div>
+  <div class="row">
+   <div class="grow"><label>Username</label><input id="umUsername" placeholder="username"></div>
+   <div><label>Password</label><input id="umPassword" type="password" placeholder="minimum 6 characters"></div>
+   <div><label>Role</label><select id="umRole" onchange="updateUserRoleFields()"><option>Admin</option><option>Salesman</option></select></div>
+   <div id="umSalesmanWrap"><label>Linked Salesman</label><select id="umSalesman"></select></div>
+   <button class="action green" onclick="createManagedUser()">Create User</button>
+  </div>
+  <div id="userManageMessage" class="report-formula" style="margin-top:12px">User management ready.</div>
+  <div class="tablewrap">
+   <table>
+    <thead><tr><th>Username</th><th>Role</th><th>Linked Salesman</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody id="usersBody"></tbody>
+   </table>
+  </div>
+ </div>
+</section>
+
+<section id="backup" class="page">
+ <h1>Backup / Restore</h1>
+ <div class="card">
+  <div class="notice">
+   Backup files use the <b>.json</b> format. Do not open the backup by double-clicking it; restore it from this page using <b>Restore Backup</b>.
+  </div>
+  <div class="row">
+   <button class="action green" onclick="downloadBackup()">Download Full Backup</button>
+   <input id="backupFile" type="file" accept=".json,application/json">
+   <button class="action gray" onclick="restoreBackup()">Restore Backup</button>
+  </div>
+  <div id="backupStatus" class="report-formula" style="margin-top:12px">Backup status: Ready</div>
+  <div style="margin-top:12px">
+   <button class="action" onclick="runDataHealthCheck()">Run Data Health Check</button>
+  </div>
+  <div id="dataHealthResult" class="report-formula" style="margin-top:12px">Data health: Not checked</div>
+  <hr>
+  <button class="action red" onclick="resetData()">Reset All Transactions</button>
+ </div>
+</section>
+
+</main></div>
+
+<script>
+const SEED_PRODUCTS = [{"name": "Coke Slim 250 Ml", "salePrice": 405}, {"name": "Fanta Slim 250 Ml", "salePrice": 405}, {"name": "Sprite 250 Ml", "salePrice": 405}, {"name": "Fanta Apple 250 Ml", "salePrice": 405}, {"name": "Can 300 Ml Coke", "salePrice": 520}, {"name": "Can 300 Ml Fanta", "salePrice": 520}, {"name": "Can 300 Ml Sprite", "salePrice": 520}, {"name": "Can 300 Ml Sprite 3G", "salePrice": 520}, {"name": "Coke 1.5 LTR", "salePrice": 263}, {"name": "Fanta Orange 1.5 LTR", "salePrice": 263}, {"name": "Fanta Apple 1.5 LTR", "salePrice": 303}, {"name": "Sprite 1.5 LTR", "salePrice": 263}, {"name": "3G 1.5 LTR", "salePrice": 243}, {"name": "Kinley 500 ml", "salePrice": 82}, {"name": "Kinley 1.5 LIT", "salePrice": 85}, {"name": "Apple Juice 180ml", "salePrice": 200}, {"name": "Mix Fruit Juice 180ml", "salePrice": 200}, {"name": "Mango Juice 180ml", "salePrice": 200}, {"name": "Juice Cherry 180 Ml", "salePrice": 200}, {"name": "Apple Juice 1 LIT", "salePrice": 600}, {"name": "Mix Fruit Juice 1 LIT", "salePrice": 600}, {"name": "Mango Juice 1 LIT", "salePrice": 600}, {"name": "Cherry Juice 1 LITER", "salePrice": 600}, {"name": "ENERGY MANGO", "salePrice": 390}, {"name": "ENERGY GOLD", "salePrice": 430}, {"name": "ENERGY ROARX", "salePrice": 375}];
+const KEY="offline_pos_accounts_pro_v2";
+const AUTH_KEY=KEY+"_auth_users_v1";
+const AUTH_SESSION_KEY=KEY+"_auth_session_v1";
+
+
+function isMobileLayout(){return window.matchMedia("(max-width:820px)").matches}
+function toggleMobileMenu(){
+ const sb=document.querySelector(".sidebar");
+ if(!sb)return;
+ const open=!sb.classList.contains("mobile-open");
+ sb.classList.toggle("mobile-open",open);
+ const ov=document.getElementById("mobileOverlay");
+ if(ov)ov.classList.toggle("show",open);
+}
+function closeMobileMenu(){
+ document.querySelector(".sidebar")?.classList.remove("mobile-open");
+ document.getElementById("mobileOverlay")?.classList.remove("show");
+}
+window.addEventListener("resize",()=>{
+ if(!isMobileLayout())closeMobileMenu();
+ const top=document.getElementById("mobileTopbar");
+ if(top && currentUser())top.style.display=isMobileLayout()?"flex":"none";
+});
+
+function simpleFallbackHash(str){
+ let h1=0xdeadbeef^str.length,h2=0x41c6ce57^str.length;
+ for(let i=0,ch;i<str.length;i++){
+  ch=str.charCodeAt(i);
+  h1=Math.imul(h1^ch,2654435761);
+  h2=Math.imul(h2^ch,1597334677);
+ }
+ h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+ h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+ return "fb-"+(4294967296*(2097151&h2)+(h1>>>0)).toString(16);
+}
+async function hashPassword(password){
+ try{
+  if(window.crypto && crypto.subtle){
+   const data=new TextEncoder().encode("offline-pos-v1|"+password);
+   const digest=await crypto.subtle.digest("SHA-256",data);
+   return "sha256-"+Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+ }catch(e){}
+ return simpleFallbackHash("offline-pos-v1|"+password);
+}
+function getAuthUsers(){
+ try{
+  const x=JSON.parse(localStorage.getItem(AUTH_KEY)||"[]");
+  return Array.isArray(x)?x:[];
+ }catch(e){return []}
+}
+function setAuthUsers(users){localStorage.setItem(AUTH_KEY,JSON.stringify(users))}
+function authSession(){
+ try{return JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY)||"null")}catch(e){return null}
+}
+function setAuthSession(user){
+ if(user)sessionStorage.setItem(AUTH_SESSION_KEY,JSON.stringify({id:user.id,username:user.username,role:user.role,salesmanId:user.salesmanId||""}));
+ else sessionStorage.removeItem(AUTH_SESSION_KEY);
+}
+function currentUser(){
+ const s=authSession();if(!s)return null;
+ const u=getAuthUsers().find(x=>x.id===s.id && x.active!==false);
+ return u||null;
+}
+function authError(id,msg){
+ const el=document.getElementById(id);if(!el)return;
+ el.style.display=msg?"block":"none";el.textContent=msg||"";
+}
+async function createFirstAdmin(){
+ const username=setupUsername.value.trim(),pw=setupPassword.value,pw2=setupPassword2.value;
+ if(!username)return authError("setupError","Username is required.");
+ if(pw.length<6)return authError("setupError","Password must be at least 6 characters.");
+ if(pw!==pw2)return authError("setupError","Passwords do not match.");
+ const users=getAuthUsers();
+ if(users.length)return authError("setupError","Login users already exist.");
+ const user={id:makeId(),username,passwordHash:await hashPassword(pw),role:"Admin",salesmanId:"",active:true,createdAt:new Date().toISOString()};
+ setAuthUsers([user]);setAuthSession(user);authError("setupError","");
+ openAuthenticatedApp();
+}
+async function loginUser(){
+ const username=loginUsername.value.trim().toLowerCase(),pw=loginPassword.value;
+ const user=getAuthUsers().find(x=>(x.username||"").trim().toLowerCase()===username);
+ if(!user || user.active===false)return authError("loginError","Invalid username or password.");
+ const h=await hashPassword(pw);
+ if(h!==user.passwordHash)return authError("loginError","Invalid username or password.");
+ setAuthSession(user);loginPassword.value="";authError("loginError","");
+ openAuthenticatedApp();
+}
+function logoutUser(){
+ setAuthSession(null);
+ document.getElementById("appShell").style.display="none";
+ if(document.getElementById("mobileTopbar"))mobileTopbar.style.display="none";
+ closeMobileMenu();
+ authOverlay.style.display="flex";loginPanel.style.display="block";setupPanel.style.display="none";
+ loginUsername.value="";loginPassword.value="";loginUsername.focus();
+}
+function lockApp(){
+ document.getElementById("appShell").style.display="none";
+ if(document.getElementById("mobileTopbar"))mobileTopbar.style.display="none";
+ closeMobileMenu();
+ authOverlay.style.display="flex";loginPanel.style.display="block";setupPanel.style.display="none";
+ loginPassword.value="";
+ const u=authSession();loginUsername.value=u?.username||"";
+ loginPassword.focus();
+}
+function allowedPagesForUser(user){
+ if(!user)return [];
+ if(user.role==="Admin")return ["*"];
+ return ["saleInvoice","stock","stockLedger","customerStatement","salesmanStatement"];
+}
+function canAccessPage(pageId){
+ const u=currentUser();if(!u)return false;
+ const allowed=allowedPagesForUser(u);
+ return allowed.includes("*")||allowed.includes(pageId);
+}
+function applyRoleUI(){
+ const u=currentUser();if(!u)return;
+ currentUserName.textContent=u.username;
+ currentUserRole.textContent=u.role+(u.role==="Salesman" && u.salesmanId ? " • "+(salesmanBy(u.salesmanId)?.name||"Linked") : "");
+ document.querySelectorAll("#nav button").forEach(btn=>{
+  const page=btn.dataset.page;
+  const adminOnly=btn.classList.contains("auth-admin-only");
+  const show=canAccessPage(page) && (!adminOnly || u.role==="Admin");
+  btn.style.display=show?"block":"none";
+ });
+ if(u.role==="Salesman"){
+  const sid=u.salesmanId||"";
+  invSalesman.value=sid;invSalesman.disabled=true;refreshInvoiceCustomers();
+  salesmanStmtSelect.value=sid;salesmanStmtSelect.disabled=true;
+  csCustomer.disabled=false;
+ }else{
+  invSalesman.disabled=false;salesmanStmtSelect.disabled=false;
+ }
+}
+function openAuthenticatedApp(){
+ const u=currentUser();
+ if(!u){initAuth();return}
+ authOverlay.style.display="none";
+ appShell.style.display=isMobileLayout()?"block":"grid";
+ if(document.getElementById("mobileTopbar"))mobileTopbar.style.display=isMobileLayout()?"flex":"none";
+ refreshSelects();
+ applyRoleUI();
+ const firstPage=u.role==="Admin"?"dashboard":"saleInvoice";
+ openPage(firstPage);
+ if(u.role==="Admin")renderUsers();
+}
+function initAuth(){
+ const users=getAuthUsers();
+ const u=currentUser();
+ if(u){openAuthenticatedApp();return}
+ appShell.style.display="none";if(document.getElementById("mobileTopbar"))mobileTopbar.style.display="none";authOverlay.style.display="flex";
+ if(!users.length){loginPanel.style.display="none";setupPanel.style.display="block";setupUsername.focus()}
+ else{setupPanel.style.display="none";loginPanel.style.display="block";loginUsername.focus()}
+}
+function updateUserRoleFields(){
+ umSalesmanWrap.style.display=umRole.value==="Salesman"?"block":"none";
+}
+async function createManagedUser(){
+ const admin=currentUser();if(!admin||admin.role!=="Admin")return alert("Admin access required.");
+ const username=umUsername.value.trim(),pw=umPassword.value,role=umRole.value,salesmanId=role==="Salesman"?umSalesman.value:"";
+ if(!username)return userManageMessage.textContent="Username is required.";
+ if(pw.length<6)return userManageMessage.textContent="Password must be at least 6 characters.";
+ if(role==="Salesman"&&!salesmanId)return userManageMessage.textContent="Select a linked Salesman.";
+ const users=getAuthUsers();
+ if(users.some(x=>(x.username||"").trim().toLowerCase()===username.toLowerCase()))return userManageMessage.textContent="Username already exists.";
+ users.push({id:makeId(),username,passwordHash:await hashPassword(pw),role,salesmanId,active:true,createdAt:new Date().toISOString()});
+ setAuthUsers(users);umUsername.value="";umPassword.value="";userManageMessage.textContent="User created.";renderUsers();
+}
+function renderUsers(){
+ if(!document.getElementById("usersBody"))return;
+ const u=currentUser();if(!u||u.role!=="Admin")return;
+ umSalesman.innerHTML=opt(db.salesmen);updateUserRoleFields();
+ const users=getAuthUsers();
+ usersBody.innerHTML=users.map(x=>`<tr><td>${e(x.username)}</td><td>${e(x.role)}</td><td>${e(salesmanBy(x.salesmanId)?.name||"")}</td><td class="${x.active===false?'user-status-disabled':'user-status-active'}">${x.active===false?'Disabled':'Active'}</td><td>${e((x.createdAt||"").slice(0,10))}</td><td><button class="action gray" onclick="resetUserPassword('${x.id}')">Password</button> <button class="action gold" onclick="toggleUserActive('${x.id}')">${x.active===false?'Enable':'Disable'}</button> <button class="action red" onclick="deleteManagedUser('${x.id}')">Delete</button></td></tr>`).join("");
+}
+async function resetUserPassword(id){
+ const admin=currentUser();if(!admin||admin.role!=="Admin")return;
+ const pw=prompt("Enter new password (minimum 6 characters):");if(pw===null)return;
+ if(pw.length<6)return alert("Password must be at least 6 characters.");
+ const users=getAuthUsers(),x=users.find(u=>u.id===id);if(!x)return;
+ x.passwordHash=await hashPassword(pw);setAuthUsers(users);alert("Password updated.");
+}
+function toggleUserActive(id){
+ const admin=currentUser();if(!admin||admin.role!=="Admin")return;
+ const users=getAuthUsers(),x=users.find(u=>u.id===id);if(!x)return;
+ if(x.id===admin.id)return alert("You cannot disable the account currently signed in.");
+ x.active=x.active===false?true:false;setAuthUsers(users);renderUsers();
+}
+function deleteManagedUser(id){
+ const admin=currentUser();if(!admin||admin.role!=="Admin")return;
+ const users=getAuthUsers(),x=users.find(u=>u.id===id);if(!x)return;
+ if(x.id===admin.id)return alert("You cannot delete the account currently signed in.");
+ if(x.role==="Admin" && users.filter(u=>u.role==="Admin"&&u.active!==false).length<=1)return alert("At least one active Admin must remain.");
+ if(confirm(`Delete login user "${x.username}"?`)){setAuthUsers(users.filter(u=>u.id!==id));renderUsers()}
+}
+
+function makeId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function n(v){v=parseFloat(v);return Number.isFinite(v)?v:0}
+function m(v){return n(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+function e(s){return String(s??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]))}
+function today(){return new Date().toISOString().slice(0,10)}
+function emptyDB(){
+ return {
+  products:SEED_PRODUCTS.map(p=>({id:makeId(),name:p.name,salePrice:p.salePrice,costPrice:0,openingQty:0})),
+  salesmen:[],customers:[],suppliers:[],sales:[],purchases:[],customerLoans:[],salesmanLoans:[],supplierTransactions:[],expenses:[],capital:[],stockAdjustments:[],recycleBin:[]
+ };
+}
+function normalizeDB(x){
+ const fallback=emptyDB();
+ if(!x || typeof x!=="object") return fallback;
+
+ // Newer backup envelope support.
+ if(x.data && typeof x.data==="object") x=x.data;
+
+ const arrays=["salesmen","customers","suppliers","sales","purchases","customerLoans","salesmanLoans","supplierTransactions","expenses","capital","stockAdjustments","recycleBin"];
+ const out={};
+
+ // Products: preserve backup products when available; otherwise keep seeded defaults.
+ out.products=Array.isArray(x.products) ? x.products : fallback.products;
+
+ arrays.forEach(k=>out[k]=Array.isArray(x[k]) ? x[k] : []);
+
+ // Compatibility with the very first offline POS version.
+ // Old field "loans" becomes Customer Loans when possible.
+ if(!out.customerLoans.length && Array.isArray(x.loans)){
+   out.customerLoans=x.loans.map(r=>{
+     const c=out.customers.find(q=>q.name===r.customer);
+     return {
+       id:r.id||makeId(),
+       date:r.date||today(),
+       customerId:c?.id||"",
+       given:n(r.given),
+       received:n(r.received),
+       note:r.note||"Imported old backup"
+     };
+   }).filter(r=>r.customerId);
+ }
+
+ return migrateSalesmenFromOldData(out);
+}
+
+function migrateSalesmenFromOldData(x){
+ // Build the Salesmen master automatically from old Salesman Loan / Sales data.
+ x.salesmen = Array.isArray(x.salesmen) ? x.salesmen : [];
+
+ const existingByName = new Map(
+  x.salesmen.map(s=>[(s.name||"").trim().toLowerCase(), s])
+ );
+
+ const names = new Set();
+
+ (x.salesmanLoans||[]).forEach(r=>{
+   const nm=(r.name||"").trim();
+   if(nm) names.add(nm);
+ });
+
+ (x.sales||[]).forEach(r=>{
+   const nm=(r.salesman||"").trim();
+   if(nm) names.add(nm);
+ });
+
+ names.forEach(nm=>{
+   const key=nm.toLowerCase();
+   if(!existingByName.has(key)){
+     const s={id:makeId(),name:nm,phone:"",note:"Auto-created from old data"};
+     x.salesmen.push(s);
+     existingByName.set(key,s);
+   }
+ });
+
+ // Link old salesman loan entries to the new Salesmen master.
+ (x.salesmanLoans||[]).forEach(r=>{
+   if(!r.salesmanId){
+     const nm=(r.name||"").trim().toLowerCase();
+     if(nm && existingByName.has(nm)) r.salesmanId=existingByName.get(nm).id;
+   }
+ });
+
+ // Link old sales entries too.
+ (x.sales||[]).forEach(r=>{
+   if(!r.salesmanId){
+     const nm=(r.salesman||"").trim().toLowerCase();
+     if(nm && existingByName.has(nm)) r.salesmanId=existingByName.get(nm).id;
+   }
+ });
+
+ return x;
+}
+
+function load(){
+ try{
+  const raw=localStorage.getItem(KEY);
+  if(raw){
+    const x=JSON.parse(raw);
+    return normalizeDB(x);
+  }
+ }catch(err){
+  console.error("Local database load error:",err);
+ }
+ return emptyDB();
+}
+let db=migrateSalesmenFromOldData(load()), purchaseDraft=[];
+localStorage.setItem(KEY,JSON.stringify(db));
+const SNAP_KEY=KEY+"_safety_snapshots";
+const LAST_BACKUP_KEY=KEY+"_last_full_backup";
+let lastSavedDbJSON=JSON.stringify(db);
+let editingSaleId="";
+let editingSalesmanLoanId="";
+let editingProductId="";
+let editingCustomerId="";
+let editingSupplierId="";
+let editingPurchaseId="";
+let editingSalesmanId="";
+let editingCustomerLoanId="";
+let editingSupplierTransactionId="";
+let editingExpenseId="";
+function getSafetySnapshots(){
+ try{return JSON.parse(localStorage.getItem(SNAP_KEY)||"[]")}catch(e){return []}
+}
+function writeSafetySnapshots(arr){
+ try{
+  localStorage.setItem(SNAP_KEY,JSON.stringify(arr.slice(0,3)));
+ }catch(err){
+  // If browser storage is tight, retain fewer snapshots.
+  try{localStorage.setItem(SNAP_KEY,JSON.stringify(arr.slice(0,1)))}catch(e){}
+ }
+}
+function storeSafetySnapshot(data,reason){
+ if(!data)return;
+ const arr=getSafetySnapshots();
+ if(arr[0]?.data===data)return;
+ arr.unshift({id:makeId(),at:new Date().toISOString(),reason:reason||"Safety snapshot",data});
+ writeSafetySnapshots(arr);
+}
+function save(){
+ const current=JSON.stringify(db);
+ if(lastSavedDbJSON && current!==lastSavedDbJSON)storeSafetySnapshot(lastSavedDbJSON,"Before data change");
+ localStorage.setItem(KEY,current);
+ lastSavedDbJSON=current;
+ renderAll();
+}
+function recordLabel(sec,record){
+ if(!record)return "";
+ if(sec==="sales")return `${record.invoice||"Sale"} | ${record.date||""} | ${record.salesman||""}`;
+ if(sec==="purchases")return `${record.invoice||"Purchase"} | ${record.date||""}`;
+ if(sec==="customers"||sec==="suppliers"||sec==="salesmen"||sec==="products")return record.name||record.id;
+ if(sec==="expenses")return `${record.date||""} | ${record.category||""} | ${m(record.amount)}`;
+ if(sec==="customerLoans")return `${record.date||""} | ${customerBy(record.customerId)?.name||"Customer"} | ${m(n(record.given)||n(record.received))}`;
+ if(sec==="salesmanLoans")return `${record.date||""} | ${record.name||salesmanBy(record.salesmanId)?.name||"Salesman"} | ${m(n(record.given)||n(record.received))}`;
+ if(sec==="supplierTransactions")return `${record.date||""} | ${supplierBy(record.supplierId)?.name||"Supplier"} | ${m(n(record.paid)||n(record.received))}`;
+ return record.id||"Record";
+}
+function softDelete(sec,id){
+ const arr=db[sec];
+ if(!Array.isArray(arr))return alert("Section not found.");
+ const record=arr.find(x=>x.id===id);
+ if(!record)return alert("Record not found.");
+
+ const item={
+  id:makeId(),
+  section:sec,
+  deletedAt:new Date().toISOString(),
+  label:recordLabel(sec,record),
+  record:JSON.parse(JSON.stringify(record)),
+  linkedRecords:[]
+ };
+
+ if(sec==="sales"){
+  item.linkedRecords=db.salesmanLoans.filter(x=>x.linkedSaleId===id).map(x=>({section:"salesmanLoans",record:JSON.parse(JSON.stringify(x))}));
+  db.salesmanLoans=db.salesmanLoans.filter(x=>x.linkedSaleId!==id);
+ }
+
+ db[sec]=arr.filter(x=>x.id!==id);
+ db.recycleBin.unshift(item);
+ save();
+}
+function del(sec,id){
+ if(confirm("Move this record to Recycle Bin?")) softDelete(sec,id);
+}
+function opt(arr,key="name",blank="Select..."){return `<option value="">${blank}</option>`+arr.slice().sort((a,b)=>String(a[key]).localeCompare(String(b[key]))).map(x=>`<option value="${e(x.id)}">${e(x[key])}</option>`).join("")}
+function productBy(id){return db.products.find(x=>x.id===id)}
+function salesmanBy(id){return db.salesmen.find(x=>x.id===id)}
+function customerBy(id){return db.customers.find(x=>x.id===id)}
+function supplierBy(id){return db.suppliers.find(x=>x.id===id)}
+function saleLineGross(l){return n(l.price)*n(l.qty)}
+function saleLineDiscount(l){return n(l.haji)+n(l.hgbl)+n(l.scheme)}
+function saleLineNet(l){return saleLineGross(l)-saleLineDiscount(l)}
+function saleNet(s){return (s.lines||[]).reduce((a,l)=>a+saleLineNet(l),0)}
+function saleQty(s){return (s.lines||[]).reduce((a,l)=>a+n(l.qty),0)}
+function totalDiscount(){return db.sales.reduce((a,s)=>a+(s.lines||[]).reduce((q,l)=>q+saleLineDiscount(l),0),0)}
+function purchasedQty(pid){return db.purchases.reduce((a,p)=>a+(p.lines||[]).filter(l=>l.productId===pid).reduce((q,l)=>q+n(l.qty),0),0)}
+function soldQty(pid){return db.sales.reduce((a,s)=>a+(s.lines||[]).filter(l=>l.productId===pid).reduce((q,l)=>q+n(l.qty),0),0)}
+function adjustedQty(pid){return db.stockAdjustments.filter(x=>x.productId===pid).reduce((a,x)=>a+n(x.qty),0)}
+function currentQty(p){return n(p.openingQty)+purchasedQty(p.id)+adjustedQty(p.id)-soldQty(p.id)}
+function currentCost(p){
+ let latest=null;
+ db.purchases.forEach(pu=>(pu.lines||[]).forEach(l=>{if(l.productId===p.id && (!latest || String(pu.date)>=String(latest.date))) latest={date:pu.date,cost:n(l.cost)}}));
+ return latest?latest.cost:n(p.costPrice);
+}
+function stockValue(){return db.products.reduce((a,p)=>a+currentQty(p)*currentCost(p),0)}
+function customerBalance(cid){
+ const c=customerBy(cid);let b=n(c?.opening);
+ db.sales.filter(s=>s.customerId===cid).forEach(s=>b+=saleNet(s)-n(s.received));
+ db.customerLoans.filter(x=>x.customerId===cid).forEach(x=>b+=n(x.given)-n(x.received));
+ return b;
+}
+function invoiceOldCustomerBalance(){
+ const cid=invCustomer.value;
+ if(!cid) return 0;
+ let bal=customerBalance(cid);
+ if(editingSaleId){
+  const oldSale=db.sales.find(x=>x.id===editingSaleId);
+  if(oldSale && oldSale.customerId===cid){
+   bal -= saleNet(oldSale) - n(oldSale.received);
+  }
+ }
+ return bal;
+}
+function salesmanBalanceById(sid,excludeLinkedSaleId=""){
+ if(!sid) return 0;
+ const sm=salesmanBy(sid);
+ const smName=(sm?.name||"").trim().toLowerCase();
+ return db.salesmanLoans.reduce((bal,x)=>{
+  if(excludeLinkedSaleId && x.linkedSaleId===excludeLinkedSaleId) return bal;
+  const sameId=x.salesmanId===sid;
+  const sameOldName=!x.salesmanId && smName && (x.name||"").trim().toLowerCase()===smName;
+  if(sameId || sameOldName) bal += n(x.given)-n(x.received);
+  return bal;
+ },0);
+}
+function invoiceOldAccountBalance(){
+ if(invCustomer.value) return invoiceOldCustomerBalance();
+ if(invSalesman.value) return salesmanBalanceById(invSalesman.value,editingSaleId);
+ return 0;
+}
+
+
+function supplierBalance(sid){
+ const s=supplierBy(sid);let b=n(s?.opening);
+ db.purchases.filter(p=>p.supplierId===sid).forEach(p=>b+=n(p.total)-n(p.paid));
+ db.supplierTransactions.filter(x=>x.supplierId===sid).forEach(x=>b+=n(x.received)-n(x.paid));
+ return b;
+}
+function totalCustomerReceivable(){return db.customers.reduce((a,c)=>a+customerBalance(c.id),0)}
+function totalSupplierPayable(){
+ return db.suppliers.reduce((a,s)=>a+supplierBalance(s.id),0)
+}
+function totalExpenses(){
+ let x=db.expenses.reduce((a,r)=>a+n(r.amount),0);
+ db.sales.forEach(s=>x+=n(s.oil)+n(s.other));
+ return x;
+}
+function categoryExpense(cat){
+ let x=db.expenses.filter(r=>r.category===cat).reduce((a,r)=>a+n(r.amount),0);
+ if(cat==="Oil")db.sales.forEach(s=>x+=n(s.oil));
+ if(cat==="Extra")db.sales.forEach(s=>x+=n(s.other));
+ return x;
+}
+function salesmanLoanBalances(){
+ const mp={};
+ db.salesmanLoans.forEach(x=>{
+  const nm=salesmanBy(x.salesmanId)?.name||x.name||"Unassigned";
+  mp[nm]=(mp[nm]||0)+n(x.given)-n(x.received);
+ });
+ return mp;
+}
+function salesmanLoanOutstanding(){return Object.values(salesmanLoanBalances()).reduce((a,x)=>a+n(x),0)}
+function ownerPartnerMoney(){return db.capital.reduce((a,x)=>a+n(x.amount),0)}
+function cashBalance(){
+ let cashIn=0,cashOut=0;
+ db.sales.forEach(s=>{cashIn+=n(s.received);cashOut+=n(s.oil)+n(s.other)});
+ db.purchases.forEach(p=>cashOut+=n(p.paid));
+ db.supplierTransactions.forEach(x=>{cashOut+=n(x.paid);cashIn+=n(x.received)});
+ db.customerLoans.forEach(x=>{cashOut+=n(x.given);cashIn+=n(x.received)});
+ db.salesmanLoans.forEach(x=>{
+  if(x.source==="sale_due" || x.source==="sale_recovery") return;
+  cashOut+=n(x.given);cashIn+=n(x.received)
+ });
+ db.expenses.forEach(x=>cashOut+=n(x.amount));
+ return cashIn-cashOut;
+}
+function businessPosition(){return totalCustomerReceivable()+stockValue()+cashBalance()-totalSupplierPayable()-ownerPartnerMoney()}
+
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{
+ if(!canAccessPage(b.dataset.page))return alert("Your login role does not have access to this page.");
+ document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+ document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(b.dataset.page).classList.add("active");
+ if(b.dataset.page==="customerStatement")renderCustomerStatement();
+ if(b.dataset.page==="supplierStatement")renderSupplierStatement();
+ if(b.dataset.page==="salesmanStatement")renderSalesmanStatement();
+ if(b.dataset.page==="dailyClosing")renderDailyClosing();
+ if(b.dataset.page==="stockLedger")renderStockLedger();
+ if(b.dataset.page==="cashBook")renderCashBook();
+ if(b.dataset.page==="recycleBin")renderRecycleBin();
+ if(b.dataset.page==="safetyCenter")renderSafetyCenter();
+ if(b.dataset.page==="userManagement")renderUsers();
+ if(isMobileLayout())closeMobileMenu();
+ if(b.dataset.page==="reports")renderReports();
+ if(b.dataset.page==="quickSearch")renderGlobalSearch();
+});
+
+function openPage(pageId){
+ const btn=document.querySelector(`#nav button[data-page="${pageId}"]`);
+ if(btn) btn.click();
+}
+
+function refreshSelects(){
+ const salesmanOptions=opt(db.salesmen);
+ cSalesman.innerHTML=salesmanOptions;
+ invSalesman.innerHTML=salesmanOptions;
+ slName.innerHTML=salesmanOptions;
+ salesmanStmtSelect.innerHTML=salesmanOptions;
+ const au2=currentUser();if(au2?.role==="Salesman"){salesmanStmtSelect.value=au2.salesmanId||"";salesmanStmtSelect.disabled=true}else salesmanStmtSelect.disabled=false;
+ clCustomer.innerHTML=opt(db.customers);
+ csCustomer.innerHTML=opt(db.customers);
+ purSupplier.innerHTML=opt(db.suppliers);
+ ssSupplier.innerHTML=opt(db.suppliers);
+ spPaySupplier.innerHTML=opt(db.suppliers);
+ purProduct.innerHTML=opt(db.products);
+ adjProduct.innerHTML=opt(db.products);
+ stockLedgerProduct.innerHTML=opt(db.products);
+ if(document.getElementById("umSalesman"))umSalesman.innerHTML=opt(db.salesmen);
+ refreshInvoiceCustomers();
+}
+function refreshInvoiceCustomers(){
+ const smid=invSalesman.value;
+ let list=db.customers;
+ if(smid) list=list.filter(c=>c.salesmanId===smid);
+ invCustomer.innerHTML='<option value="">Cash / No Customer</option>'+list
+   .slice().sort((a,b)=>a.name.localeCompare(b.name))
+   .map(x=>`<option value="${x.id}">${e(x.name)}</option>`).join("");
+}
+invSalesman.addEventListener("change",()=>{refreshInvoiceCustomers();calcInvoice();});
+invCustomer.addEventListener("change",calcInvoice);
+function renderInvoiceRows(){
+ invoiceRows.innerHTML=db.products.map(p=>`<tr data-pid="${p.id}">
+  <td>${e(p.name)}</td><td><input class="ir-price" type="number" step="0.01" value="${n(p.salePrice)}"></td>
+  <td><input class="ir-qty" type="number" step="0.01" value="0"></td><td class="ir-gross money">0</td>
+  <td><input class="ir-haji" type="number" step="0.01" value="0"></td><td><input class="ir-hgbl" type="number" step="0.01" value="0"></td>
+  <td><input class="ir-scheme" type="number" step="0.01" value="0"></td><td class="ir-net money">0</td></tr>`).join("");
+ invoiceRows.querySelectorAll("input").forEach(x=>x.addEventListener("input",calcInvoice));
+}
+function calcInvoice(){
+ let tq=0,g=0,h=0,b=0,s=0,net=0;
+ invoiceRows.querySelectorAll("tr").forEach(r=>{
+  const price=n(r.querySelector(".ir-price").value),
+        qty=n(r.querySelector(".ir-qty").value),
+        hh=n(r.querySelector(".ir-haji").value),
+        hg=n(r.querySelector(".ir-hgbl").value),
+        sc=n(r.querySelector(".ir-scheme").value);
+  const gross=price*qty;
+  const nn=gross-hh-hg-sc;
+  r.querySelector(".ir-gross").textContent=m(gross);
+  r.querySelector(".ir-net").textContent=m(nn);
+  tq+=qty;g+=gross;h+=hh;b+=hg;s+=sc;net+=nn;
+ });
+ invTotalQty.textContent=m(tq);
+ invGross.textContent=m(g);
+ invHaji.textContent=m(h);
+ invHgbl.textContent=m(b);
+ invScheme.textContent=m(s);
+ invNet.textContent=m(net);
+
+ const received=n(invReceived.value);
+ const oldBalance=invoiceOldAccountBalance();
+ const invoiceDue=Math.max(net-received,0);
+ const recovery=Math.max(received-net,0);
+ const hasAccount=!!(invCustomer.value || invSalesman.value);
+ const newAccountBalance=hasAccount ? oldBalance+net-received : 0;
+
+ invInvoiceNet.textContent=m(net);
+ invAutoDue.textContent=m(invoiceDue);
+ invAutoRecovery.textContent=m(recovery);
+ invOldShort.textContent=m(oldBalance);
+ invTotalShort.textContent=m(newAccountBalance);
+ invTotalCash.textContent=m(received-n(invOil.value)-n(invOther.value));
+}
+["invReceived","invOil","invOther"].forEach(id=>document.getElementById(id).addEventListener("input",calcInvoice));
+
+
+function resetInvoiceEditMode(){
+ editingSaleId="";
+ invSaveBtn.textContent="Save Invoice";
+ invCancelEditBtn.style.display="none";
+}
+function newInvoice(){
+ resetInvoiceEditMode();
+ invVehicle.value="";
+ const au=currentUser();
+ invSalesman.value=(au?.role==="Salesman" ? (au.salesmanId||"") : "");
+ invSalesman.disabled=au?.role==="Salesman";
+ refreshInvoiceCustomers();
+ invCustomer.value="";
+ invNo.value="";
+ invReceived.value=0;
+ invOil.value=0;
+ invOther.value=0;
+ invDate.value=today();
+ renderInvoiceRows();
+ calcInvoice();
+}
+function editSale(id){
+ const s=db.sales.find(x=>x.id===id);
+ if(!s) return alert("Sale record not found.");
+ editingSaleId=id;
+ openPage("saleInvoice");
+ invDate.value=s.date||today();
+ refreshSelects();
+ invVehicle.value=s.vehicle||"";
+ invSalesman.value=s.salesmanId||"";
+ refreshInvoiceCustomers();
+ invCustomer.value=s.customerId||"";
+ invNo.value=s.invoice||"";
+ renderInvoiceRows();
+ const lineMap=new Map((s.lines||[]).map(l=>[l.productId,l]));
+ invoiceRows.querySelectorAll("tr").forEach(r=>{
+  const l=lineMap.get(r.dataset.pid);
+  if(l){
+   r.querySelector(".ir-price").value=n(l.price);
+   r.querySelector(".ir-qty").value=n(l.qty);
+   r.querySelector(".ir-haji").value=n(l.haji);
+   r.querySelector(".ir-hgbl").value=n(l.hgbl);
+   r.querySelector(".ir-scheme").value=n(l.scheme);
+  }else{
+   r.querySelector(".ir-qty").value=0;
+   r.querySelector(".ir-haji").value=0;
+   r.querySelector(".ir-hgbl").value=0;
+   r.querySelector(".ir-scheme").value=0;
+  }
+ });
+ invReceived.value=n(s.received);
+ invOil.value=n(s.oil);
+ invOther.value=n(s.other);
+ invSaveBtn.textContent="Update Invoice";
+ invCancelEditBtn.style.display="inline-block";
+ calcInvoice();
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditSale(){
+ if(confirm("Cancel invoice edit?")) newInvoice();
+}
+function saveInvoice(){
+ const lines=[];
+ invoiceRows.querySelectorAll("tr").forEach(r=>{
+  const p=productBy(r.dataset.pid),
+        qty=n(r.querySelector(".ir-qty").value),
+        price=n(r.querySelector(".ir-price").value),
+        haji=n(r.querySelector(".ir-haji").value),
+        hgbl=n(r.querySelector(".ir-hgbl").value),
+        scheme=n(r.querySelector(".ir-scheme").value);
+  if(qty!==0 || haji!==0 || hgbl!==0 || scheme!==0){
+   lines.push({productId:p.id,productName:p.name,price,qty,haji,hgbl,scheme,costAtSale:currentCost(p)});
+  }
+ });
+ if(!lines.length) return alert("Enter sold quantity for at least one product.");
+
+ const invNumber=invNo.value.trim();
+ if(invNumber && db.sales.some(s=>s.id!==editingSaleId && (s.invoice||"").trim().toLowerCase()===invNumber.toLowerCase())){
+  if(!confirm("Another Sales record already uses this Invoice No. Save anyway?"))return;
+ }
+ const existingSale=editingSaleId ? db.sales.find(x=>x.id===editingSaleId) : null;
+ for(const l of lines){
+  let available=currentQty(productBy(l.productId));
+  if(existingSale){
+   const oldLine=(existingSale.lines||[]).find(x=>x.productId===l.productId);
+   available += n(oldLine?.qty);
+  }
+  if(n(l.qty)>available && available>=0){
+   if(!confirm(`${l.productName} stock is low. Save anyway?`)) return;
+  }
+ }
+
+ const netAmount=lines.reduce((a,l)=>a+saleLineNet(l),0);
+ const received=n(invReceived.value);
+ const invoiceDue=Math.max(netAmount-received,0);
+ const recovery=Math.max(received-netAmount,0);
+
+ const customerId=invCustomer.value;
+ const salesmanId=invSalesman.value;
+ const salesmanName=salesmanBy(salesmanId)?.name||"";
+
+ // If money is not exactly settled, there must be either a Customer or a Salesman account.
+ if((invoiceDue>0 || recovery>0) && !customerId && !salesmanId){
+  return alert("Please select either a Customer or a Salesman so the due/recovery can be posted to an account.");
+ }
+
+ const oldBalance = customerId
+   ? invoiceOldCustomerBalance()
+   : salesmanId
+     ? salesmanBalanceById(salesmanId,editingSaleId)
+     : 0;
+
+ const newBalance=(customerId||salesmanId) ? oldBalance+netAmount-received : 0;
+
+ if(customerId){
+  const limit=n(customerBy(customerId)?.creditLimit);
+  if(limit>0 && newBalance>limit){
+   if(!confirm(`Customer credit limit is ${m(limit)}. New balance will be ${m(newBalance)}. Save anyway?`))return;
+  }
+ }else if(salesmanId){
+  const limit=n(salesmanBy(salesmanId)?.creditLimit);
+  if(limit>0 && newBalance>limit){
+   if(!confirm(`Salesman credit limit is ${m(limit)}. New balance will be ${m(newBalance)}. Save anyway?`))return;
+  }
+ }
+ const saleId=editingSaleId || makeId();
+
+ const rec={
+  id:saleId,
+  date:invDate.value||today(),
+  vehicle:invVehicle.value.trim(),
+  salesmanId,
+  salesman:salesmanName,
+  customerId,
+  invoice:invNo.value.trim(),
+  lines,
+  received,
+  oil:n(invOil.value),
+  other:n(invOther.value),
+  oldShort:oldBalance,
+  recovery,
+  newShort:invoiceDue,
+  totalShort:newBalance
+ };
+
+ // Remove previous automatic salesman postings before updating/reposting this invoice.
+ db.salesmanLoans=db.salesmanLoans.filter(x=>x.linkedSaleId!==saleId);
+
+ if(editingSaleId){
+  const idx=db.sales.findIndex(x=>x.id===editingSaleId);
+  if(idx<0) return alert("Sale record not found.");
+  db.sales[idx]=rec;
+ }else{
+  db.sales.push(rec);
+ }
+
+ // If Customer is blank, the Salesman becomes the account holder automatically.
+ if(!customerId && salesmanId){
+  if(invoiceDue>0){
+   db.salesmanLoans.push({
+    id:makeId(),
+    date:rec.date,
+    salesmanId,
+    name:salesmanName,
+    given:invoiceDue,
+    received:0,
+    note:`Automatic invoice due / Invoice ${rec.invoice||saleId}`,
+    source:"sale_due",
+    linkedSaleId:saleId
+   });
+  }
+  if(recovery>0){
+   db.salesmanLoans.push({
+    id:makeId(),
+    date:rec.date,
+    salesmanId,
+    name:salesmanName,
+    given:0,
+    received:recovery,
+    note:`Automatic invoice recovery / Invoice ${rec.invoice||saleId}`,
+    source:"sale_recovery",
+    linkedSaleId:saleId
+   });
+  }
+ }
+
+ save();
+ alert(editingSaleId ? "Invoice updated." : "Invoice saved.");
+ newInvoice();
+}
+
+function resetProductEditMode(){
+ editingProductId="";
+ prodSaveBtn.textContent="Add Product";
+ prodCancelEditBtn.style.display="none";
+ prodName.value="";prodSale.value="";prodCost.value="";prodOpening.value=0;prodReorder.value=0;
+}
+function editProduct(id){
+ const p=db.products.find(x=>x.id===id);
+ if(!p) return alert("Product not found.");
+ editingProductId=id;
+ openPage("products");
+ prodName.value=p.name||"";
+ prodSale.value=n(p.salePrice);
+ prodCost.value=n(p.costPrice);
+ prodOpening.value=n(p.openingQty);
+ prodReorder.value=n(p.reorderLevel);
+ prodSaveBtn.textContent="Update Product";
+ prodCancelEditBtn.style.display="inline-block";
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditProduct(){
+ if(confirm("Cancel product edit?")) resetProductEditMode();
+}
+function addProduct(){
+ const name=prodName.value.trim();if(!name)return alert("Product name required.");
+ const rec={id:editingProductId||makeId(),name,salePrice:n(prodSale.value),costPrice:n(prodCost.value),openingQty:n(prodOpening.value),reorderLevel:n(prodReorder.value)};
+ if(editingProductId){
+  const idx=db.products.findIndex(x=>x.id===editingProductId);
+  if(idx<0)return alert("Product not found.");
+  db.products[idx]=rec;save();alert("Product updated.");
+ }else{
+  db.products.push(rec);save();alert("Product added.");
+ }
+ resetProductEditMode();renderInvoiceRows();
+}
+function addAdjustment(){if(!adjProduct.value)return alert("Select product.");db.stockAdjustments.push({id:makeId(),date:today(),productId:adjProduct.value,qty:n(adjQty.value),note:adjNote.value.trim()});adjQty.value="";adjNote.value="";save()}
+function resetSalesmanEditMode(){
+ editingSalesmanId="";
+ smSaveBtn.textContent="Save Salesman";
+ smCancelEditBtn.style.display="none";
+ smName.value=smPhone.value=smNote.value="";smCreditLimit.value=0;
+}
+function editSalesman(id){
+ const s=db.salesmen.find(x=>x.id===id);
+ if(!s)return alert("Salesman not found.");
+ editingSalesmanId=id;openPage("salesmen");
+ smName.value=s.name||"";smPhone.value=s.phone||"";smCreditLimit.value=n(s.creditLimit);smNote.value=s.note||"";
+ smSaveBtn.textContent="Update";smCancelEditBtn.style.display="inline-block";
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditSalesman(){if(confirm("Cancel edit?"))resetSalesmanEditMode()}
+function addSalesman(){
+ const name=smName.value.trim();
+ if(!name)return alert("Salesman name required.");
+ if(db.salesmen.some(x=>x.id!==editingSalesmanId && x.name.toLowerCase()===name.toLowerCase()))return alert("Salesman already exists.");
+ const rec={id:editingSalesmanId||makeId(),name,phone:smPhone.value.trim(),creditLimit:n(smCreditLimit.value),note:smNote.value.trim()};
+ if(editingSalesmanId){
+  const idx=db.salesmen.findIndex(x=>x.id===editingSalesmanId);if(idx<0)return alert("Salesman not found.");
+  db.salesmen[idx]=rec;
+  db.sales.filter(x=>x.salesmanId===editingSalesmanId).forEach(x=>x.salesman=name);
+  db.salesmanLoans.filter(x=>x.salesmanId===editingSalesmanId).forEach(x=>x.name=name);
+  save();alert("Salesman updated.");
+ }else{db.salesmen.push(rec);save();alert("Salesman saved.")}
+ resetSalesmanEditMode();
+}
+function resetCustomerEditMode(){
+ editingCustomerId="";
+ cSaveBtn.textContent="Save";
+ cCancelEditBtn.style.display="none";
+ cName.value=cPhone.value=cNote.value="";
+ cOpening.value=0;cCreditLimit.value=0;cSalesman.value="";
+}
+function editCustomer(id){
+ const c=db.customers.find(x=>x.id===id);
+ if(!c) return alert("Customer not found.");
+ editingCustomerId=id;
+ openPage("customers");
+ refreshSelects();
+ cName.value=c.name||"";
+ cPhone.value=c.phone||"";
+ cCreditLimit.value=n(c.creditLimit);
+ cSalesman.value=c.salesmanId||"";
+ cOpening.value=n(c.opening);
+ cNote.value=c.note||"";
+ cSaveBtn.textContent="Update";
+ cCancelEditBtn.style.display="inline-block";
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditCustomer(){
+ if(confirm("Cancel customer edit?")) resetCustomerEditMode();
+}
+function addCustomer(){
+ const name=cName.value.trim();
+ if(!name)return alert("Name required.");
+ const rec={id:editingCustomerId||makeId(),name,phone:cPhone.value.trim(),salesmanId:cSalesman.value||"",creditLimit:n(cCreditLimit.value),opening:n(cOpening.value),note:cNote.value.trim()};
+ if(editingCustomerId){
+  const idx=db.customers.findIndex(x=>x.id===editingCustomerId);
+  if(idx<0)return alert("Customer not found.");
+  db.customers[idx]=rec;save();alert("Customer updated.");
+ }else{
+  db.customers.push(rec);save();alert("Customer saved.");
+ }
+ resetCustomerEditMode();
+}
+function resetSupplierEditMode(){
+ editingSupplierId="";
+ sSaveBtn.textContent="Save Supplier";
+ sCancelEditBtn.style.display="none";
+ sName.value=sPhone.value=sNote.value="";sOpening.value=0;
+}
+function editSupplier(id){
+ const s=db.suppliers.find(x=>x.id===id);
+ if(!s) return alert("Supplier not found.");
+ editingSupplierId=id;
+ openPage("suppliers");
+ sName.value=s.name||"";
+ sPhone.value=s.phone||"";
+ sOpening.value=n(s.opening);
+ sNote.value=s.note||"";
+ sSaveBtn.textContent="Update Supplier";
+ sCancelEditBtn.style.display="inline-block";
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditSupplier(){
+ if(confirm("Cancel supplier edit?")) resetSupplierEditMode();
+}
+function addSupplier(){
+ const name=sName.value.trim();if(!name)return alert("Name required.");
+ const rec={id:editingSupplierId||makeId(),name,phone:sPhone.value.trim(),opening:n(sOpening.value),note:sNote.value.trim()};
+ if(editingSupplierId){
+  const idx=db.suppliers.findIndex(x=>x.id===editingSupplierId);
+  if(idx<0)return alert("Supplier not found.");
+  db.suppliers[idx]=rec;save();alert("Supplier updated.");
+ }else{
+  db.suppliers.push(rec);save();alert("Supplier saved.");
+ }
+ resetSupplierEditMode();
+}
+function resetSupplierTransactionEditMode(){
+ editingSupplierTransactionId="";
+ spSaveBtn.textContent="Save";spCancelEditBtn.style.display="none";
+ spDate.value=today();spPaySupplier.value="";spPaid.value=0;spReceived.value=0;spNote.value="";
+}
+function editSupplierTransaction(id){
+ const x=db.supplierTransactions.find(r=>r.id===id);if(!x)return alert("Record not found.");
+ editingSupplierTransactionId=id;openPage("suppliers");refreshSelects();
+ spDate.value=x.date||today();spPaySupplier.value=x.supplierId||"";spPaid.value=n(x.paid);spReceived.value=n(x.received);spNote.value=x.note||"";
+ spSaveBtn.textContent="Update";spCancelEditBtn.style.display="inline-block";window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditSupplierTransaction(){if(confirm("Cancel edit?"))resetSupplierTransactionEditMode()}
+function saveSupplierTransaction(){
+ if(!spPaySupplier.value)return alert("Select supplier.");
+ const paid=n(spPaid.value),received=n(spReceived.value);
+ if((paid<=0&&received<=0)||(paid>0&&received>0))return alert("Use only Paid to Supplier OR Received from Supplier.");
+ const rec={id:editingSupplierTransactionId||makeId(),date:spDate.value||today(),supplierId:spPaySupplier.value,paid,received,note:spNote.value.trim()};
+ if(editingSupplierTransactionId){
+  const idx=db.supplierTransactions.findIndex(x=>x.id===editingSupplierTransactionId);if(idx<0)return alert("Record not found.");
+  db.supplierTransactions[idx]=rec;save();alert("Supplier transaction updated.");
+ }else{db.supplierTransactions.push(rec);save();alert("Supplier transaction saved.")}
+ resetSupplierTransactionEditMode();
+}
+function addPurchaseLine(){
+ if(!purProduct.value)return alert("Select product.");const p=productBy(purProduct.value),qty=n(purQty.value),cost=n(purCost.value||p.costPrice);
+ if(qty<=0)return alert("Enter quantity.");purchaseDraft.push({id:makeId(),productId:p.id,productName:p.name,qty,cost});purQty.value="";purCost.value="";renderPurchaseDraft();
+}
+purProduct.addEventListener("change",()=>{const p=productBy(purProduct.value);if(p)purCost.value=currentCost(p)||p.costPrice||0});
+function renderPurchaseDraft(){purLinesBody.innerHTML=purchaseDraft.map(l=>`<tr><td>${e(l.productName)}</td><td class="money">${m(l.qty)}</td><td class="money">${m(l.cost)}</td><td class="money">${m(n(l.qty)*n(l.cost))}</td><td><button class="action red" onclick="purchaseDraft=purchaseDraft.filter(x=>x.id!=='${l.id}');renderPurchaseDraft()">X</button></td></tr>`).join("");purTotal.textContent=m(purchaseDraft.reduce((a,l)=>a+n(l.qty)*n(l.cost),0))}
+function resetPurchaseEditMode(){
+ editingPurchaseId="";
+ purSaveBtn.textContent="Save Purchase";
+ purCancelEditBtn.style.display="none";
+ purchaseDraft=[];
+ purSupplier.value="";purNo.value=purNote.value="";purPaid.value=0;purDate.value=today();purQty.value="";purCost.value="";purProduct.value="";
+ renderPurchaseDraft();
+}
+function editPurchase(id){
+ const p=db.purchases.find(x=>x.id===id);
+ if(!p) return alert("Purchase not found.");
+ editingPurchaseId=id;
+ openPage("purchases");
+ refreshSelects();
+ purDate.value=p.date||today();
+ purSupplier.value=p.supplierId||"";
+ purNo.value=p.invoice||"";
+ purPaid.value=n(p.paid);
+ purNote.value=p.note||"";
+ purchaseDraft=(p.lines||[]).map(x=>({id:makeId(),productId:x.productId,productName:x.productName,qty:n(x.qty),cost:n(x.cost)}));
+ purSaveBtn.textContent="Update Purchase";
+ purCancelEditBtn.style.display="inline-block";
+ renderPurchaseDraft();
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditPurchase(){
+ if(confirm("Cancel purchase edit?")) resetPurchaseEditMode();
+}
+function savePurchase(){
+ if(!purSupplier.value||!purchaseDraft.length)return alert("Select supplier and add products.");
+ const purchaseInv=purNo.value.trim();
+ if(purchaseInv && db.purchases.some(p=>p.id!==editingPurchaseId && p.supplierId===purSupplier.value && (p.invoice||"").trim().toLowerCase()===purchaseInv.toLowerCase())){
+  if(!confirm("This Supplier already has a Purchase with the same Invoice No. Save anyway?"))return;
+ }
+ const total=purchaseDraft.reduce((a,l)=>a+n(l.qty)*n(l.cost),0);
+ const rec={id:editingPurchaseId||makeId(),date:purDate.value||today(),supplierId:purSupplier.value,invoice:purNo.value.trim(),paid:n(purPaid.value),note:purNote.value.trim(),total,lines:purchaseDraft.map(x=>({...x}))};
+ if(editingPurchaseId){
+  const idx=db.purchases.findIndex(x=>x.id===editingPurchaseId);
+  if(idx<0)return alert("Purchase not found.");
+  db.purchases[idx]=rec;save();alert("Purchase updated.");
+ }else{
+  db.purchases.push(rec);save();alert("Purchase saved.");
+ }
+ resetPurchaseEditMode();
+}
+function resetCustomerLoanEditMode(){
+ editingCustomerLoanId="";clSaveBtn.textContent="Save";clCancelEditBtn.style.display="none";
+ clDate.value=today();clCustomer.value="";clGiven.value=0;clReceived.value=0;clNote.value="";
+}
+function editCustomerLoan(id){
+ const x=db.customerLoans.find(r=>r.id===id);if(!x)return alert("Customer loan not found.");
+ editingCustomerLoanId=id;openPage("customerLoans");refreshSelects();
+ clDate.value=x.date||today();clCustomer.value=x.customerId||"";clGiven.value=n(x.given);clReceived.value=n(x.received);clNote.value=x.note||"";
+ clSaveBtn.textContent="Update";clCancelEditBtn.style.display="inline-block";window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditCustomerLoan(){if(confirm("Cancel edit?"))resetCustomerLoanEditMode()}
+function saveCustomerLoan(){
+ if(!clCustomer.value)return alert("Select customer.");const g=n(clGiven.value),r=n(clReceived.value);
+ if((g<=0&&r<=0)||(g>0&&r>0))return alert("Use only Loan Given OR Loan Received.");
+ const rec={id:editingCustomerLoanId||makeId(),date:clDate.value||today(),customerId:clCustomer.value,given:g,received:r,note:clNote.value.trim()};
+ if(editingCustomerLoanId){
+  const idx=db.customerLoans.findIndex(x=>x.id===editingCustomerLoanId);if(idx<0)return alert("Customer loan not found.");
+  db.customerLoans[idx]=rec;save();alert("Customer loan updated.");
+ }else{db.customerLoans.push(rec);save();alert("Customer loan saved.")}
+ resetCustomerLoanEditMode();
+}
+function resetExpenseEditMode(){
+ editingExpenseId="";exSaveBtn.textContent="Save Expense";exCancelEditBtn.style.display="none";
+ exDate.value=today();exCat.value="Salary";exAmount.value="";exNote.value="";
+}
+function editExpense(id){
+ const x=db.expenses.find(r=>r.id===id);if(!x)return alert("Expense not found.");
+ editingExpenseId=id;openPage("expenses");
+ exDate.value=x.date||today();exCat.value=x.category||"Other";exAmount.value=n(x.amount);exNote.value=x.note||"";
+ exSaveBtn.textContent="Update";exCancelEditBtn.style.display="inline-block";window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditExpense(){if(confirm("Cancel edit?"))resetExpenseEditMode()}
+function saveExpense(){
+ if(n(exAmount.value)<=0)return alert("Amount required.");
+ const rec={id:editingExpenseId||makeId(),date:exDate.value||today(),category:exCat.value,amount:n(exAmount.value),note:exNote.value.trim()};
+ if(editingExpenseId){
+  const idx=db.expenses.findIndex(x=>x.id===editingExpenseId);if(idx<0)return alert("Expense not found.");
+  db.expenses[idx]=rec;save();alert("Expense updated.");
+ }else{db.expenses.push(rec);save();alert("Expense saved.")}
+ resetExpenseEditMode();
+}
+
+function resetSalesmanLoanEditMode(){
+ editingSalesmanLoanId="";
+ slSaveBtn.textContent="Save";
+ slCancelEditBtn.style.display="none";
+ slDate.value=today();
+ slName.value="";
+ slGiven.value=0;
+ slReceived.value=0;
+ slNote.value="";
+}
+function editSalesmanLoan(id){
+ const rec=db.salesmanLoans.find(x=>x.id===id);
+ if(!rec) return alert("Salesman loan record not found.");
+ editingSalesmanLoanId=id;
+ openPage("salesmanLoans");
+ refreshSelects();
+ slDate.value=rec.date||today();
+ slName.value=rec.salesmanId||"";
+ if(!slName.value && rec.name){
+  const s=db.salesmen.find(x=>(x.name||"").trim().toLowerCase()===(rec.name||"").trim().toLowerCase());
+  if(s) slName.value=s.id;
+ }
+ slGiven.value=n(rec.given);
+ slReceived.value=n(rec.received);
+ slNote.value=rec.note||"";
+ slSaveBtn.textContent="Update";
+ slCancelEditBtn.style.display="inline-block";
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEditSalesmanLoan(){
+ if(confirm("Cancel salesman loan edit?")) resetSalesmanLoanEditMode();
+}
+function saveSalesmanLoan(){
+ const sm=salesmanBy(slName.value);
+ const name=sm?.name||"";
+ const g=n(slGiven.value),r=n(slReceived.value);
+ if(!slName.value||!name) return alert("Select Salesman.");
+ if((g<=0&&r<=0)||(g>0&&r>0)) return alert("Use only Loan Given OR Loan Received.");
+
+ const rec={
+  id: editingSalesmanLoanId || makeId(),
+  date:slDate.value||today(),
+  salesmanId:slName.value,
+  name,
+  given:g,
+  received:r,
+  note:slNote.value.trim()
+ };
+
+ if(editingSalesmanLoanId){
+  const idx=db.salesmanLoans.findIndex(x=>x.id===editingSalesmanLoanId);
+  if(idx<0) return alert("Salesman loan record not found.");
+  db.salesmanLoans[idx]=rec;
+  save();
+  alert("Salesman loan updated.");
+ }else{
+  db.salesmanLoans.push(rec);
+  save();
+  alert("Salesman loan saved.");
+ }
+ resetSalesmanLoanEditMode();
+}
+function saveCapital(){if(!capName.value.trim()||n(capAmount.value)<=0)return alert("Person and amount required.");db.capital.push({id:makeId(),date:capDate.value||today(),name:capName.value.trim(),amount:n(capAmount.value),note:capNote.value.trim()});capAmount.value="";capNote.value="";save()}
+
+function renderProducts(){productsBody.innerHTML=db.products.map(p=>`<tr title="Record ID: ${p.id}"><td>${e(p.name)}</td><td class="money">${m(p.salePrice)}</td><td class="money">${m(p.costPrice)}</td><td class="money">${m(p.openingQty)}</td><td class="money">${m(p.reorderLevel)}</td><td><button class="action gray" onclick="editProduct('${p.id}')">Edit</button> <button class="action red" onclick="del('products','${p.id}')">Delete</button></td></tr>`).join("")}
+function renderStock(){stockBody.innerHTML=db.products.map(p=>{const pq=purchasedQty(p.id),sq=soldQty(p.id),aq=adjustedQty(p.id),cq=currentQty(p),c=currentCost(p),rl=n(p.reorderLevel);const status=cq<0?"NEGATIVE":(rl>0&&cq<=rl?"REORDER":"OK");return `<tr><td>${e(p.name)}</td><td class="money">${m(p.openingQty)}</td><td class="money">${m(pq)}</td><td class="money">${m(sq)}</td><td class="money">${m(aq)}</td><td class="money ${cq<0?'negative':''}">${m(cq)}</td><td class="money">${m(rl)}</td><td class="${status!=="OK"?'negative':''}">${status}</td><td class="money">${m(c)}</td><td class="money">${m(cq*c)}</td></tr>`}).join("")}
+
+function renderSales(){
+ salesHistory.innerHTML=db.sales.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(s=>`<tr title="Record ID: ${s.id}"><td>${s.date}</td><td>${e(s.invoice)}</td><td>${e(customerBy(s.customerId)?.name||"Cash")}</td><td>${e(s.salesman)}</td><td class="money">${m(saleQty(s))}</td><td class="money">${m(saleNet(s))}</td><td class="money">${m(s.received)}</td><td class="money">${m(Math.max(saleNet(s)-n(s.received),0))}</td><td><button class="action gray" onclick="editSale('${s.id}')">Edit</button> <button class="action red" onclick="del('sales','${s.id}')">Delete</button></td></tr>`).join("")
+}
+function renderPurchases(){purchaseHistory.innerHTML=db.purchases.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(p=>`<tr title="Record ID: ${p.id}"><td>${p.date}</td><td>${e(supplierBy(p.supplierId)?.name||"")}</td><td>${e(p.invoice)}</td><td class="money">${m(p.total)}</td><td class="money">${m(p.paid)}</td><td><button class="action gray" onclick="editPurchase('${p.id}')">Edit</button> <button class="action red" onclick="del('purchases','${p.id}')">Delete</button></td></tr>`).join("")}
+function renderSalesmen(){
+ salesmenBody.innerHTML=db.salesmen.map(s=>{
+  const count=db.customers.filter(c=>c.salesmanId===s.id).length;
+  const due=salesmanBalanceById(s.id),limit=n(s.creditLimit),over=limit>0&&due>limit;
+  return `<tr title="Record ID: ${s.id}"><td>${e(s.name)}</td><td>${e(s.phone)}</td><td class="money">${m(limit)}</td><td class="money ${over?'credit-over':''}">${m(due)}</td><td class="money">${count}</td><td>${e(s.note)}</td><td><button class="action gray" onclick="editSalesman('${s.id}')">Edit</button> <button class="action red" onclick="deleteSalesman('${s.id}')">Delete</button></td></tr>`
+ }).join("");
+}
+function deleteSalesman(id){
+ const count=db.customers.filter(c=>c.salesmanId===id).length;
+ if(count>0)return alert("This salesman has customers. Delete or reassign those customers first.");
+ del("salesmen",id);
+}
+function renderCustomers(){
+ customersBody.innerHTML=db.customers.map(c=>{
+  const bal=customerBalance(c.id),limit=n(c.creditLimit),over=limit>0&&bal>limit;
+  const status=over?"OVER LIMIT":(limit>0?"OK":"NO LIMIT");
+  return `<tr title="Record ID: ${c.id}"><td>${e(c.name)}</td><td>${e(c.phone)}</td><td>${e(salesmanBy(c.salesmanId)?.name||"Unassigned")}</td><td class="money">${m(limit)}</td><td class="money">${m(c.opening)}</td><td class="money ${over?'credit-over':''}">${m(bal)}</td><td class="${over?'credit-over':''}">${status}</td><td>${e(c.note)}</td><td><button class="action gray" onclick="editCustomer('${c.id}')">Edit</button> <button class="action red" onclick="del('customers','${c.id}')">Delete</button></td></tr>`;
+ }).join("")
+}
+function renderSuppliers(){suppliersBody.innerHTML=db.suppliers.map(s=>{const b=supplierBalance(s.id);return `<tr title="Record ID: ${s.id}"><td>${e(s.name)}</td><td>${e(s.phone)}</td><td class="money">${m(s.opening)}</td><td class="money">${m(b)}</td><td>${e(s.note)}</td><td><button class="action gray" onclick="editSupplier('${s.id}')">Edit</button> <button class="action red" onclick="del('suppliers','${s.id}')">Delete</button></td></tr>`}).join("")}
+function renderSupplierTransactions(){
+ supplierTransactionsBody.innerHTML=db.supplierTransactions.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(x=>`<tr title="Record ID: ${x.id}"><td>${x.date}</td><td>${e(supplierBy(x.supplierId)?.name||"")}</td><td class="money">${m(x.paid)}</td><td class="money">${m(x.received)}</td><td>${e(x.note)}</td><td><button class="action gray" onclick="editSupplierTransaction('${x.id}')">Edit</button> <button class="action red" onclick="del('supplierTransactions','${x.id}')">Delete</button></td></tr>`).join("")
+}
+function renderCustomerLoans(){customerLoansBody.innerHTML=db.customerLoans.slice().reverse().map(x=>`<tr title="Record ID: ${x.id}"><td>${x.date}</td><td>${e(customerBy(x.customerId)?.name||"")}</td><td class="money">${m(x.given)}</td><td class="money">${m(x.received)}</td><td>${e(x.note)}</td><td><button class="action gray" onclick="editCustomerLoan('${x.id}')">Edit</button> <button class="action red" onclick="del('customerLoans','${x.id}')">Delete</button></td></tr>`).join("")}
+function expenseCategoryLabel(c){return ({Salary:"Salary",Oil:"Oil",Mechanic:"Mechanic",Extra:"Extra Expense",Other:"Other Expense"})[c]||c}
+function renderExpenses(){expensesBody.innerHTML=db.expenses.slice().reverse().map(x=>`<tr title="Record ID: ${x.id}"><td>${x.date}</td><td>${e(expenseCategoryLabel(x.category))}</td><td class="money">${m(x.amount)}</td><td>${e(x.note)}</td><td><button class="action gray" onclick="editExpense('${x.id}')">Edit</button> <button class="action red" onclick="del('expenses','${x.id}')">Delete</button></td></tr>`).join("")}
+
+function renderSalesmanLoans(){
+ const running={};
+ salesmanLoansBody.innerHTML=db.salesmanLoans.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(x=>{
+  const smName=salesmanBy(x.salesmanId)?.name||x.name||"Unassigned";
+  running[smName]=(running[smName]||0)+n(x.given)-n(x.received);
+  const auto=x.source==="sale_due" || x.source==="sale_recovery";
+  const actions=auto
+    ? `<span class="small">Auto from Sales Invoice</span>`
+    : `<button class="action gray" onclick="editSalesmanLoan('${x.id}')">Edit</button> <button class="action red" onclick="del('salesmanLoans','${x.id}')">Delete</button>`;
+  return `<tr title="Record ID: ${x.id}"><td>${x.date}</td><td>${e(smName)}</td><td class="money">${m(x.given)}</td><td class="money">${m(x.received)}</td><td class="money">${m(running[smName])}</td><td>${e(x.note)}</td><td>${actions}</td></tr>`
+ }).join("")
+}
+
+function renderSalesmanStatement(){
+ const sid=salesmanStmtSelect.value;
+ if(!sid){
+  salesmanStmtBody.innerHTML="";
+  salesmanStmtSummary.innerHTML="";
+  salesmanLastDueDate.textContent="—";
+  salesmanLastRecoveryDate.textContent="—";
+  salesmanLastTxnDate.textContent="—";
+  return;
+ }
+
+ const sm=salesmanBy(sid);
+ const rows=[];
+
+ db.salesmanLoans
+  .filter(x=>{
+   if(x.salesmanId===sid) return true;
+   if(!x.salesmanId && sm?.name){
+    return (x.name||"").trim().toLowerCase()===sm.name.trim().toLowerCase();
+   }
+   return false;
+  })
+  .forEach(x=>{
+   let type="Salesman Loan";
+   if(x.source==="sale_due") type="Invoice Due";
+   else if(x.source==="sale_recovery") type="Invoice Recovery";
+   else if(n(x.given)>0) type="Loan Given";
+   else if(n(x.received)>0) type="Loan Received";
+
+   let ref="";
+   if(x.linkedSaleId){
+    const sale=db.sales.find(s=>s.id===x.linkedSaleId);
+    ref=sale?.invoice || x.linkedSaleId;
+   }
+
+   rows.push({
+    date:x.date||"",
+    type,
+    ref,
+    debit:n(x.given),
+    credit:n(x.received),
+    note:x.note||"",
+    id:x.id,
+    source:x.source||""
+   });
+  });
+
+ rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+
+ let bal=0;
+ salesmanStmtBody.innerHTML=rows.map(r=>{
+  bal += n(r.debit)-n(r.credit);
+  return `<tr>
+   <td>${e(r.date)}</td>
+   <td>${e(r.type)}</td>
+   <td>${e(r.ref)}</td>
+   <td class="money">${m(r.debit)}</td>
+   <td class="money">${m(r.credit)}</td>
+   <td class="money">${m(bal)}</td>
+   <td>${e(r.note)}</td>
+  </tr>`;
+ }).join("");
+
+ const lastDue=[...rows].reverse().find(r=>r.debit>0);
+ const lastRecovery=[...rows].reverse().find(r=>r.credit>0);
+ const lastTxn=rows.length ? rows[rows.length-1] : null;
+
+ salesmanLastDueDate.textContent=lastDue?.date || "—";
+ salesmanLastRecoveryDate.textContent=lastRecovery?.date || "—";
+ salesmanLastTxnDate.textContent=lastTxn?.date || "—";
+
+ salesmanStmtSummary.innerHTML=
+   `<b>${e(sm?.name||"Salesman")}</b> — Current Balance: <b>${m(bal)}</b> — Entries: <b>${rows.length}</b>`;
+}
+
+function renderCapital(){capitalBody.innerHTML=db.capital.slice().reverse().map(x=>`<tr title="Record ID: ${x.id}"><td>${x.date}</td><td>${e(x.name)}</td><td class="money">${m(x.amount)}</td><td>${e(x.note)}</td><td><button class="action red" onclick="del('capital','${x.id}')">Delete</button></td></tr>`).join("")}
+function renderDiscounts(){
+ let h=0,g=0,s=0;const rows=[];db.sales.forEach(sa=>(sa.lines||[]).forEach(l=>{const t=saleLineDiscount(l);h+=n(l.haji);g+=n(l.hgbl);s+=n(l.scheme);if(t)rows.push(`<tr><td>${sa.date}</td><td>${e(sa.invoice)}</td><td>${e(l.productName)}</td><td class="money">${m(l.qty)}</td><td class="money">${m(l.haji)}</td><td class="money">${m(l.hgbl)}</td><td class="money">${m(l.scheme)}</td><td class="money">${m(t)}</td></tr>`)}));
+ discHaji.textContent=m(h);discHgbl.textContent=m(g);discScheme.textContent=m(s);discTotal.textContent=m(h+g+s);discountBody.innerHTML=rows.join("")
+}
+function renderCustomerStatement(){
+ const cid=csCustomer.value;if(!cid){csBody.innerHTML="";csSummary.innerHTML="";return}const c=customerBy(cid),rows=[];if(n(c.opening))rows.push({date:"",type:"Opening",ref:"",d:Math.max(n(c.opening),0),cr:Math.max(-n(c.opening),0),note:c.note});
+ db.sales.filter(s=>s.customerId===cid).forEach(s=>rows.push({date:s.date,type:"Sale",ref:s.invoice,d:saleNet(s),cr:n(s.received),note:""}));
+ db.customerLoans.filter(x=>x.customerId===cid).forEach(x=>rows.push({date:x.date,type:x.given?"Loan Given":"Loan Received",ref:"",d:n(x.given),cr:n(x.received),note:x.note}));
+ rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));let bal=0;csBody.innerHTML=rows.map(r=>{bal+=n(r.d)-n(r.cr);return `<tr><td>${r.date}</td><td>${r.type}</td><td>${e(r.ref)}</td><td class="money">${m(r.d)}</td><td class="money">${m(r.cr)}</td><td class="money">${m(bal)}</td><td>${e(r.note)}</td></tr>`}).join("");csSummary.innerHTML=`<b>${e(c.name)}</b> — Salesman: <b>${e(salesmanBy(c.salesmanId)?.name||"Unassigned")}</b> — Current Balance: <b>${m(bal)}</b>`
+}
+function renderSupplierStatement(){
+ const sid=ssSupplier.value;if(!sid){ssBody.innerHTML="";ssSummary.innerHTML="";return}
+ const s=supplierBy(sid),rows=[];
+ if(n(s.opening))rows.push({date:"",type:"Opening",ref:"",d:Math.max(n(s.opening),0),cr:Math.max(-n(s.opening),0),note:s.note});
+ db.purchases.filter(p=>p.supplierId===sid).forEach(p=>rows.push({date:p.date,type:"Purchase",ref:p.invoice,d:n(p.total),cr:n(p.paid),note:p.note}));
+ db.supplierTransactions.filter(x=>x.supplierId===sid).forEach(x=>{
+  if(n(x.paid)>0)rows.push({date:x.date,type:"Payment to Supplier",ref:"",d:0,cr:n(x.paid),note:x.note});
+  if(n(x.received)>0)rows.push({date:x.date,type:"Received from Supplier",ref:"",d:n(x.received),cr:0,note:x.note});
+ });
+ rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ let bal=0;
+ ssBody.innerHTML=rows.map(r=>{bal+=n(r.d)-n(r.cr);return `<tr><td>${r.date}</td><td>${r.type}</td><td>${e(r.ref)}</td><td class="money">${m(r.d)}</td><td class="money">${m(r.cr)}</td><td class="money">${m(bal)}</td><td>${e(r.note)}</td></tr>`}).join("");
+ ssSummary.innerHTML=`<b>${e(s.name)}</b> — Current Balance: <b>${m(bal)}</b>`
+}
+
+function profitPeriodMatches(dateStr){
+ const d=String(dateStr||"");
+ if(plPeriodType.value==="day") return d===plDate.value;
+ if(plPeriodType.value==="month") return d.slice(0,7)===plMonth.value;
+ if(plPeriodType.value==="year") return d.slice(0,4)===String(plYear.value||"");
+ return true;
+}
+function updateProfitFilterUI(){
+ plDayBox.style.display=plPeriodType.value==="day"?"block":"none";
+ plMonthBox.style.display=plPeriodType.value==="month"?"block":"none";
+ plYearBox.style.display=plPeriodType.value==="year"?"block":"none";
+}
+function saleLineCostForProfit(l){
+ if(l.costAtSale!==undefined && l.costAtSale!==null) return n(l.costAtSale);
+ const p=productBy(l.productId);
+ return p?currentCost(p):0;
+}
+function expenseAmountForPeriod(category){
+ let total=db.expenses.filter(x=>x.category===category && profitPeriodMatches(x.date)).reduce((a,x)=>a+n(x.amount),0);
+ if(category==="Oil") db.sales.filter(s=>profitPeriodMatches(s.date)).forEach(s=>total+=n(s.oil));
+ if(category==="Other") db.sales.filter(s=>profitPeriodMatches(s.date)).forEach(s=>total+=n(s.other));
+ return total;
+}
+function renderProfitLossReport(){
+ const selectedSales=db.sales.filter(s=>profitPeriodMatches(s.date));
+ let grossSales=0,discount=0,netSales=0,cogs=0;
+ selectedSales.forEach(s=>(s.lines||[]).forEach(l=>{
+  grossSales+=saleLineGross(l);
+  discount+=saleLineDiscount(l);
+  netSales+=saleLineNet(l);
+  cogs+=n(l.qty)*saleLineCostForProfit(l);
+ }));
+ const salary=expenseAmountForPeriod("Salary");
+ const oil=expenseAmountForPeriod("Oil");
+ const mechanic=expenseAmountForPeriod("Mechanic");
+ const extra=expenseAmountForPeriod("Extra");
+ const other=expenseAmountForPeriod("Other");
+ const otherTotal=extra+other;
+ const totalExpenses=salary+oil+mechanic+otherTotal;
+ const grossProfit=netSales-cogs;
+ const netProfit=grossProfit-totalExpenses;
+
+ plGrossSales.textContent=m(grossSales);plDiscount.textContent=m(discount);plNetSales.textContent=m(netSales);plCOGS.textContent=m(cogs);
+ plGrossProfit.textContent=m(grossProfit);plTotalExpenses.textContent=m(totalExpenses);plNetProfit.textContent=m(netProfit);plInvoiceCount.textContent=selectedSales.length;
+ plSalary.textContent=m(salary);plOil.textContent=m(oil);plMechanic.textContent=m(mechanic);plOther.textContent=m(otherTotal);
+ plNetProfit.className="num "+(netProfit<0?"negative":"positive");
+ let label="";
+ if(plPeriodType.value==="day")label="Daily Report: "+plDate.value;
+ if(plPeriodType.value==="month")label="Monthly Report: "+plMonth.value;
+ if(plPeriodType.value==="year")label="Yearly Report: "+plYear.value;
+ plPeriodLabel.innerHTML=`${label} — Gross Profit <b>${m(grossProfit)}</b> − Total Expenses <b>${m(totalExpenses)}</b> = Net Profit/Loss <b class="${netProfit<0?'negative':'positive'}">${m(netProfit)}</b>`;
+}
+
+function renderReports(){
+ const sales=db.sales.reduce((a,s)=>a+saleNet(s),0),disc=totalDiscount(),salary=categoryExpense("Salary"),oil=categoryExpense("Oil"),extra=categoryExpense("Extra")+categoryExpense("Other")+categoryExpense("Mechanic"),sl=salesmanLoanOutstanding(),rec=totalCustomerReceivable(),pay=totalSupplierPayable(),sv=stockValue(),cb=cashBalance(),cap=ownerPartnerMoney(),pos=businessPosition();
+ rSales.textContent=m(sales);rDiscount.textContent=m(disc);rSalary.textContent=m(salary);rOil.textContent=m(oil);rExtra.textContent=m(extra);rSL.textContent=m(sl);rReceivable.textContent=m(rec);rPayable.textContent=m(pay);
+ businessFormula.innerHTML=`Customer Receivable <b>${m(rec)}</b> + Stock / Godown <b>${m(sv)}</b> + Cash <b>${m(cb)}</b> − Supplier Debt <b>${m(pay)}</b> − Owner/Partner Money <b>${m(cap)}</b> = <b class="${pos<0?'negative':'positive'}">${m(pos)}</b>`;
+ productReportBody.innerHTML=db.products.map(p=>{let ns=0;db.sales.forEach(sa=>(sa.lines||[]).filter(l=>l.productId===p.id).forEach(l=>ns+=saleLineNet(l)));return `<tr><td>${e(p.name)}</td><td class="money">${m(soldQty(p.id))}</td><td class="money">${m(ns)}</td><td class="money">${m(currentQty(p))}</td></tr>`}).join("");
+ const cats=["Salary","Oil","Mechanic","Extra","Other"];expenseReportBody.innerHTML=cats.map(c=>`<tr><td>${e(expenseCategoryLabel(c))}</td><td class="money">${m(categoryExpense(c))}</td></tr>`).join("");
+ const sm=salesmanLoanBalances();salesmanReportBody.innerHTML=Object.keys(sm).sort().map(k=>`<tr><td>${e(k)}</td><td class="money">${m(sm[k])}</td></tr>`).join("");
+ renderProfitLossReport();
+}
+
+
+function setupCanvas(id){
+ const canvas=document.getElementById(id);
+ if(!canvas)return null;
+ const box=canvas.parentElement.getBoundingClientRect();
+ const dpr=Math.max(1,window.devicePixelRatio||1);
+ const w=Math.max(280,Math.floor(box.width));
+ const h=Math.max(180,Math.floor(box.height));
+ canvas.width=w*dpr;canvas.height=h*dpr;
+ const ctx=canvas.getContext("2d");
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ ctx.clearRect(0,0,w,h);
+ return {canvas,ctx,w,h};
+}
+function chartColors(){
+ return ["#174ea6","#0f766e","#b7791f","#7c3aed","#be123c","#0891b2","#475569","#16a34a"];
+}
+function drawEmptyChart(ctx,w,h,msg="No data yet"){
+ ctx.fillStyle="#94a3b8";ctx.font="12px Segoe UI";ctx.textAlign="center";
+ ctx.fillText(msg,w/2,h/2);
+}
+function drawLineChart(id,labels,series){
+ const o=setupCanvas(id);if(!o)return;const {ctx,w,h}=o;
+ const pad={l:48,r:16,t:18,b:34},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+ const vals=series.flatMap(s=>s.values).filter(Number.isFinite);
+ if(!vals.length || Math.max(...vals)===0){drawEmptyChart(ctx,w,h);return}
+ const max=Math.max(...vals,1)*1.12,min=Math.min(0,...vals);
+ const range=max-min||1;
+ ctx.strokeStyle="#e5eaf2";ctx.lineWidth=1;ctx.font="10px Segoe UI";ctx.fillStyle="#64748b";
+ for(let i=0;i<=4;i++){
+  const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+  const val=max-(range*i/4);ctx.textAlign="right";ctx.fillText(Math.round(val).toLocaleString(),pad.l-7,y+3);
+ }
+ labels.forEach((lab,i)=>{
+  const x=pad.l+(labels.length===1?cw/2:cw*i/(labels.length-1));
+  ctx.textAlign="center";ctx.fillStyle="#64748b";ctx.fillText(lab,x,h-10);
+ });
+ series.forEach(s=>{
+  ctx.strokeStyle=s.color;ctx.lineWidth=2.6;ctx.lineJoin="round";ctx.lineCap="round";
+  ctx.beginPath();
+  s.values.forEach((v,i)=>{
+   const x=pad.l+(s.values.length===1?cw/2:cw*i/(s.values.length-1));
+   const y=pad.t+ch-( (v-min)/range*ch );
+   if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  s.values.forEach((v,i)=>{
+   const x=pad.l+(s.values.length===1?cw/2:cw*i/(s.values.length-1));
+   const y=pad.t+ch-( (v-min)/range*ch );
+   ctx.fillStyle="#fff";ctx.strokeStyle=s.color;ctx.lineWidth=2;
+   ctx.beginPath();ctx.arc(x,y,3.8,0,Math.PI*2);ctx.fill();ctx.stroke();
+  });
+ });
+}
+function drawBarChart(id,labels,values){
+ const o=setupCanvas(id);if(!o)return;const {ctx,w,h}=o;
+ if(!values.length || Math.max(...values,0)===0){drawEmptyChart(ctx,w,h);return}
+ const colors=chartColors(),pad={l:120,r:18,t:15,b:15},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+ const max=Math.max(...values,1)*1.1,barH=Math.max(15,Math.min(27,ch/(values.length*1.5)));
+ values.forEach((v,i)=>{
+  const y=pad.t+i*(ch/values.length)+4;
+  ctx.font="10px Segoe UI";ctx.textAlign="right";ctx.fillStyle="#475569";
+  let lab=labels[i]||"";if(lab.length>17)lab=lab.slice(0,15)+"…";
+  ctx.fillText(lab,pad.l-8,y+barH*.72);
+  ctx.fillStyle="#eef3fa";ctx.beginPath();ctx.roundRect(pad.l,y,cw,barH,6);ctx.fill();
+  const bw=Math.max(2,cw*v/max);ctx.fillStyle=colors[i%colors.length];ctx.beginPath();ctx.roundRect(pad.l,y,bw,barH,6);ctx.fill();
+  ctx.fillStyle="#172033";ctx.textAlign="left";ctx.fillText(Math.round(v).toLocaleString(),Math.min(w-38,pad.l+bw+6),y+barH*.72);
+ });
+}
+function drawDonutChart(id,labels,values,legendId){
+ const o=setupCanvas(id);if(!o)return;const {ctx,w,h}=o;
+ const total=values.reduce((a,v)=>a+Math.max(0,v),0);
+ const legend=document.getElementById(legendId);if(legend)legend.innerHTML="";
+ if(total<=0){drawEmptyChart(ctx,w,h);return}
+ const colors=chartColors(),cx=w/2,cy=h/2,r=Math.min(w,h)*.31,inner=r*.58;
+ let start=-Math.PI/2;
+ values.forEach((v,i)=>{
+  if(v<=0)return;
+  const ang=Math.PI*2*(v/total);ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,start,start+ang);ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();start+=ang;
+ });
+ ctx.globalCompositeOperation="destination-out";ctx.beginPath();ctx.arc(cx,cy,inner,0,Math.PI*2);ctx.fill();ctx.globalCompositeOperation="source-over";
+ ctx.textAlign="center";ctx.fillStyle="#172033";ctx.font="700 18px Segoe UI";ctx.fillText(Math.round(total).toLocaleString(),cx,cy+2);
+ ctx.fillStyle="#64748b";ctx.font="10px Segoe UI";ctx.fillText("Total expenses",cx,cy+19);
+ if(legend)legend.innerHTML=labels.map((l,i)=>`<span><span class="legend-dot" style="color:${colors[i%colors.length]}"></span>${e(l)}: ${m(values[i])}</span>`).join("");
+}
+function drawColumnChart(id,labels,values){
+ const o=setupCanvas(id);if(!o)return;const {ctx,w,h}=o;
+ const pad={l:42,r:12,t:18,b:45},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b,max=Math.max(...values,1)*1.12,colors=chartColors();
+ ctx.strokeStyle="#e5eaf2";ctx.lineWidth=1;ctx.font="10px Segoe UI";ctx.fillStyle="#64748b";
+ for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke()}
+ const gap=10,bw=Math.max(20,(cw-gap*(values.length+1))/Math.max(values.length,1));
+ values.forEach((v,i)=>{
+  const x=pad.l+gap+i*(bw+gap),bh=ch*(v/max),y=pad.t+ch-bh;
+  ctx.fillStyle=colors[i%colors.length];ctx.beginPath();ctx.roundRect(x,y,bw,bh,7);ctx.fill();
+  ctx.fillStyle="#475569";ctx.textAlign="center";ctx.font="9px Segoe UI";
+  let lab=labels[i];if(lab.length>11)lab=lab.slice(0,10)+"…";
+  ctx.save();ctx.translate(x+bw/2,h-15);ctx.rotate(-0.18);ctx.fillText(lab,0,0);ctx.restore();
+  ctx.fillStyle="#172033";ctx.font="10px Segoe UI";ctx.fillText(Math.round(v).toLocaleString(),x+bw/2,Math.max(12,y-5));
+ });
+}
+function dailyProfitForDate(date){
+ const sales=db.sales.filter(s=>s.date===date);
+ const net=sales.reduce((a,s)=>a+saleNet(s),0);
+ const cogs=sales.reduce((a,s)=>a+(s.lines||[]).reduce((q,l)=>{
+  const p=productBy(l.productId);
+  const cost=l.costAtSale!==undefined?n(l.costAtSale):currentCost(p||{id:"",costPrice:0});
+  return q+n(l.qty)*cost;
+ },0),0);
+ const exp=db.expenses.filter(x=>x.date===date).reduce((a,x)=>a+n(x.amount),0)+sales.reduce((a,s)=>a+n(s.oil)+n(s.other),0);
+ return {net,profit:net-cogs-exp};
+}
+function renderLuxuryCharts(){
+ const dates=[];
+ for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);dates.push(d)}
+ const dateKeys=dates.map(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`);
+ const labels=dates.map(d=>d.toLocaleDateString(undefined,{weekday:"short"}));
+ const trend=dateKeys.map(d=>dailyProfitForDate(d));
+ drawLineChart("salesProfitChart",labels,[
+  {values:trend.map(x=>x.net),color:"#174ea6"},
+  {values:trend.map(x=>x.profit),color:"#0f766e"}
+ ]);
+ const expLabels=["Salary","Oil","Mechanic","Extra","Other"];
+ const expValues=[
+  categoryExpense("Salary"),categoryExpense("Oil"),categoryExpense("Mechanic"),categoryExpense("Extra"),categoryExpense("Other")
+ ];
+ drawDonutChart("expenseDonutChart",expLabels,expValues,"expenseDonutLegend");
+ const products=db.products.map(p=>({name:p.name,qty:soldQty(p.id)})).filter(x=>x.qty>0).sort((a,b)=>b.qty-a.qty).slice(0,7);
+ drawBarChart("topProductsChart",products.map(x=>x.name),products.map(x=>x.qty));
+ drawColumnChart("accountsPositionChart",["Receivable","Stock","Cash","Payable"],[
+  Math.max(0,totalCustomerReceivable()),Math.max(0,stockValue()),Math.max(0,cashBalance()),Math.max(0,totalSupplierPayable())
+ ]);
+}
+window.addEventListener("resize",()=>{clearTimeout(window.__posChartResize);window.__posChartResize=setTimeout(renderLuxuryCharts,180)});
+
+
+function expenseForDateCategory(date,category){
+ let total=db.expenses.filter(x=>x.date===date && x.category===category).reduce((a,x)=>a+n(x.amount),0);
+ if(category==="Oil"){
+  total += db.sales.filter(s=>s.date===date).reduce((a,s)=>a+n(s.oil),0);
+ }
+ if(category==="Extra"){
+  total += db.sales.filter(s=>s.date===date).reduce((a,s)=>a+n(s.other),0);
+ }
+ return total;
+}
+function closingStats(date){
+ const sales=db.sales.filter(s=>s.date===date);
+ let gross=0,discount=0,net=0,cogs=0,received=0,due=0,recovery=0,qty=0;
+ sales.forEach(s=>{
+  qty+=saleQty(s);
+  received+=n(s.received);
+  const sn=saleNet(s);
+  net+=sn;
+  due+=Math.max(sn-n(s.received),0);
+  recovery+=Math.max(n(s.received)-sn,0);
+  (s.lines||[]).forEach(l=>{
+   gross+=saleLineGross(l);
+   discount+=saleLineDiscount(l);
+   const p=productBy(l.productId);
+   const cost=l.costAtSale!==undefined?n(l.costAtSale):currentCost(p||{id:"",costPrice:0});
+   cogs+=n(l.qty)*cost;
+  });
+ });
+ const exp={
+  Salary:expenseForDateCategory(date,"Salary"),
+  Oil:expenseForDateCategory(date,"Oil"),
+  Mechanic:expenseForDateCategory(date,"Mechanic"),
+  Extra:expenseForDateCategory(date,"Extra"),
+  Other:expenseForDateCategory(date,"Other")
+ };
+ const totalExpenses=Object.values(exp).reduce((a,x)=>a+n(x),0);
+ const grossProfit=net-cogs;
+ const netProfit=grossProfit-totalExpenses;
+ return {sales,gross,discount,net,cogs,received,due,recovery,qty,exp,totalExpenses,grossProfit,netProfit};
+}
+function renderDailyClosing(){
+ const date=closingDate.value||today();
+ const st=closingStats(date);
+
+ closingGrossSales.textContent=m(st.gross);
+ closingDiscount.textContent=m(st.discount);
+ closingNetSales.textContent=m(st.net);
+ closingReceived.textContent=m(st.received);
+ closingDue.textContent=m(st.due);
+ closingRecovery.textContent=m(st.recovery);
+ closingExpenses.textContent=m(st.totalExpenses);
+ closingCOGS.textContent=m(st.cogs);
+ closingInvoices.textContent=st.sales.length;
+ closingQty.textContent=m(st.qty);
+ closingGrossProfit.textContent=m(st.grossProfit);
+ closingNetProfit.textContent=m(st.netProfit);
+ closingNetProfitTable.textContent=m(st.netProfit);
+ closingNetProfit.className="big "+(st.netProfit<0?"negative":"");
+ closingNetProfitTable.className="money strong "+(st.netProfit<0?"negative":"positive");
+ closingLabel.textContent=`Closing date: ${date} | Invoices: ${st.sales.length}`;
+
+ closingExpenseBody.innerHTML=Object.entries(st.exp).map(([k,v])=>`<tr><td>${e(k)}</td><td class="money">${m(v)}</td></tr>`).join("")
+  +`<tr><td class="strong">Total Expenses</td><td class="money strong">${m(st.totalExpenses)}</td></tr>`;
+
+ const smMap={};
+ st.sales.forEach(s=>{
+  const name=s.salesman||"Unassigned";
+  if(!smMap[name])smMap[name]={count:0,net:0,received:0,due:0,recovery:0};
+  const r=smMap[name],sn=saleNet(s);
+  r.count++;r.net+=sn;r.received+=n(s.received);r.due+=Math.max(sn-n(s.received),0);r.recovery+=Math.max(n(s.received)-sn,0);
+ });
+ closingSalesmanBody.innerHTML=Object.entries(smMap).sort((a,b)=>b[1].net-a[1].net).map(([name,r])=>`
+  <tr><td>${e(name)}</td><td class="money">${r.count}</td><td class="money">${m(r.net)}</td><td class="money">${m(r.received)}</td><td class="money">${m(r.due)}</td><td class="money">${m(r.recovery)}</td></tr>`).join("");
+
+ closingInvoicesBody.innerHTML=st.sales.slice().sort((a,b)=>String(a.invoice).localeCompare(String(b.invoice))).map(s=>{
+  const sn=saleNet(s);
+  return `<tr><td>${e(s.invoice||"")}</td><td>${e(customerBy(s.customerId)?.name||"Cash")}</td><td>${e(s.salesman||"")}</td><td class="money">${m(sn)}</td><td class="money">${m(s.received)}</td><td class="money">${m(Math.max(sn-n(s.received),0))}</td></tr>`;
+ }).join("");
+}
+
+function renderDueAlerts(){
+ const customers=db.customers
+  .map(c=>({name:c.name,amount:customerBalance(c.id)}))
+  .filter(x=>x.amount>0)
+  .sort((a,b)=>b.amount-a.amount).slice(0,6);
+ topCustomerDues.innerHTML=customers.length ? customers.map(x=>`
+  <div class="due-item"><span class="due-item-name">${e(x.name)}</span><span class="due-item-amount">${m(x.amount)}</span></div>`).join("")
+  : '<span class="small">No customer dues.</span>';
+
+ const salesmen=db.salesmen
+  .map(s=>({name:s.name,amount:salesmanBalanceById(s.id)}))
+  .filter(x=>x.amount>0)
+  .sort((a,b)=>b.amount-a.amount).slice(0,6);
+ topSalesmanDues.innerHTML=salesmen.length ? salesmen.map(x=>`
+  <div class="due-item"><span class="due-item-name">${e(x.name)}</span><span class="due-item-amount">${m(x.amount)}</span></div>`).join("")
+  : '<span class="small">No salesman dues.</span>';
+}
+
+
+function dateInRange(date,from,to){
+ if(from && String(date)<String(from))return false;
+ if(to && String(date)>String(to))return false;
+ return true;
+}
+function renderStockLedger(){
+ const pid=stockLedgerProduct.value;
+ if(!pid){stockLedgerBody.innerHTML="";stockLedgerSummary.textContent="Select a Product.";return}
+ const p=productBy(pid),from=stockLedgerFrom.value,to=stockLedgerTo.value;
+ const rows=[];
+ rows.push({date:"",type:"Opening Stock",ref:"",stockIn:n(p.openingQty),stockOut:0,note:"Opening quantity",sort:"0000-00-00-0"});
+
+ db.purchases.forEach(pu=>(pu.lines||[]).filter(l=>l.productId===pid).forEach(l=>{
+  if(dateInRange(pu.date,from,to))rows.push({date:pu.date,type:"Purchase",ref:pu.invoice||"",stockIn:n(l.qty),stockOut:0,note:supplierBy(pu.supplierId)?.name||"",sort:`${pu.date}-1-${pu.id}`});
+ }));
+ db.sales.forEach(sa=>(sa.lines||[]).filter(l=>l.productId===pid).forEach(l=>{
+  if(dateInRange(sa.date,from,to))rows.push({date:sa.date,type:"Sale",ref:sa.invoice||"",stockIn:0,stockOut:n(l.qty),note:sa.salesman||"",sort:`${sa.date}-2-${sa.id}`});
+ }));
+ db.stockAdjustments.filter(x=>x.productId===pid).forEach(x=>{
+  if(dateInRange(x.date,from,to))rows.push({date:x.date,type:"Adjustment",ref:"",stockIn:Math.max(n(x.qty),0),stockOut:Math.max(-n(x.qty),0),note:x.note||"",sort:`${x.date}-3-${x.id}`});
+ });
+
+ rows.sort((a,b)=>a.sort.localeCompare(b.sort));
+ let bal=0;
+ stockLedgerBody.innerHTML=rows.map(r=>{
+  bal+=n(r.stockIn)-n(r.stockOut);
+  return `<tr><td>${e(r.date)}</td><td>${e(r.type)}</td><td>${e(r.ref)}</td><td class="money stock-ledger-in">${r.stockIn?m(r.stockIn):""}</td><td class="money stock-ledger-out">${r.stockOut?m(r.stockOut):""}</td><td class="money strong">${m(bal)}</td><td>${e(r.note)}</td></tr>`;
+ }).join("");
+ stockLedgerSummary.innerHTML=`<b>${e(p.name)}</b> — Current Stock: <b>${m(currentQty(p))}</b> — Cost: <b>${m(currentCost(p))}</b> — Stock Value: <b>${m(currentQty(p)*currentCost(p))}</b>`;
+}
+
+function buildCashBookRows(){
+ const rows=[];
+ db.sales.forEach(s=>{
+  if(n(s.received))rows.push({date:s.date,type:"Sale Cash",ref:s.invoice||"",cashIn:n(s.received),cashOut:0,note:`${s.salesman||""} ${customerBy(s.customerId)?.name||""}`.trim(),sort:`${s.date}-1-${s.id}`});
+  if(n(s.oil))rows.push({date:s.date,type:"Oil Expense (Invoice)",ref:s.invoice||"",cashIn:0,cashOut:n(s.oil),note:s.salesman||"",sort:`${s.date}-2-${s.id}`});
+  if(n(s.other))rows.push({date:s.date,type:"Other Expense (Invoice)",ref:s.invoice||"",cashIn:0,cashOut:n(s.other),note:s.salesman||"",sort:`${s.date}-3-${s.id}`});
+ });
+ db.purchases.forEach(p=>{if(n(p.paid))rows.push({date:p.date,type:"Purchase Payment",ref:p.invoice||"",cashIn:0,cashOut:n(p.paid),note:supplierBy(p.supplierId)?.name||"",sort:`${p.date}-4-${p.id}`})});
+ db.supplierTransactions.forEach(x=>{
+  if(n(x.paid))rows.push({date:x.date,type:"Supplier Payment",ref:"",cashIn:0,cashOut:n(x.paid),note:`${supplierBy(x.supplierId)?.name||""} ${x.note||""}`.trim(),sort:`${x.date}-5-${x.id}`});
+  if(n(x.received))rows.push({date:x.date,type:"Supplier Receipt",ref:"",cashIn:n(x.received),cashOut:0,note:`${supplierBy(x.supplierId)?.name||""} ${x.note||""}`.trim(),sort:`${x.date}-6-${x.id}`});
+ });
+ db.customerLoans.forEach(x=>{
+  if(n(x.given))rows.push({date:x.date,type:"Customer Loan Given",ref:"",cashIn:0,cashOut:n(x.given),note:`${customerBy(x.customerId)?.name||""} ${x.note||""}`.trim(),sort:`${x.date}-7-${x.id}`});
+  if(n(x.received))rows.push({date:x.date,type:"Customer Loan Received",ref:"",cashIn:n(x.received),cashOut:0,note:`${customerBy(x.customerId)?.name||""} ${x.note||""}`.trim(),sort:`${x.date}-8-${x.id}`});
+ });
+ db.salesmanLoans.forEach(x=>{
+  if(x.source==="sale_due"||x.source==="sale_recovery")return;
+  const nm=salesmanBy(x.salesmanId)?.name||x.name||"";
+  if(n(x.given))rows.push({date:x.date,type:"Salesman Loan Given",ref:"",cashIn:0,cashOut:n(x.given),note:`${nm} ${x.note||""}`.trim(),sort:`${x.date}-9-${x.id}`});
+  if(n(x.received))rows.push({date:x.date,type:"Salesman Loan Received",ref:"",cashIn:n(x.received),cashOut:0,note:`${nm} ${x.note||""}`.trim(),sort:`${x.date}-10-${x.id}`});
+ });
+ db.expenses.forEach(x=>rows.push({date:x.date,type:`Expense - ${x.category||"Other"}`,ref:"",cashIn:0,cashOut:n(x.amount),note:x.note||"",sort:`${x.date}-11-${x.id}`}));
+ return rows.sort((a,b)=>a.sort.localeCompare(b.sort));
+}
+function renderCashBook(){
+ const from=cashBookFrom.value,to=cashBookTo.value,q=(cashBookSearch.value||"").trim().toLowerCase();
+ const rows=buildCashBookRows().filter(r=>dateInRange(r.date,from,to) && (!q || [r.type,r.ref,r.note,r.date].some(v=>String(v||"").toLowerCase().includes(q))));
+ let bal=0,cin=0,cout=0;
+ cashBookBody.innerHTML=rows.map(r=>{
+  cin+=n(r.cashIn);cout+=n(r.cashOut);bal+=n(r.cashIn)-n(r.cashOut);
+  return `<tr><td>${e(r.date)}</td><td>${e(r.type)}</td><td>${e(r.ref)}</td><td class="money cash-in">${r.cashIn?m(r.cashIn):""}</td><td class="money cash-out">${r.cashOut?m(r.cashOut):""}</td><td class="money strong">${m(bal)}</td><td>${e(r.note)}</td></tr>`;
+ }).join("");
+ cashBookIn.textContent=m(cin);cashBookOut.textContent=m(cout);cashBookBalance.textContent=m(cin-cout);
+}
+
+function recycleDisplayText(item){
+ return item.label || item.record?.name || item.record?.invoice || item.record?.id || "Record";
+}
+function renderRecycleBin(){
+ const q=(recycleSearch.value||"").trim().toLowerCase();
+ const items=(db.recycleBin||[]).filter(x=>!q || [x.section,x.label,x.deletedAt,JSON.stringify(x.record||{})].some(v=>String(v||"").toLowerCase().includes(q)));
+ recycleSummary.textContent=`${items.length} deleted record(s) shown. Total in Recycle Bin: ${(db.recycleBin||[]).length}.`;
+ recycleBody.innerHTML=items.map(x=>`<tr class="recycle-card"><td>${e((x.deletedAt||"").replace("T"," ").slice(0,19))}</td><td><span class="badge-soft">${e(x.section)}</span></td><td>${e(recycleDisplayText(x))}</td><td><button class="action green" onclick="restoreRecycleItem('${x.id}')">Restore</button> <button class="action red" onclick="permanentDeleteRecycleItem('${x.id}')">Delete Forever</button></td></tr>`).join("");
+}
+function restoreRecycleItem(id){
+ const item=(db.recycleBin||[]).find(x=>x.id===id);if(!item)return alert("Recycle item not found.");
+ if(!Array.isArray(db[item.section]))return alert("Original section no longer exists.");
+ if(db[item.section].some(x=>x.id===item.record.id)){
+  return alert("A record with the same ID already exists. Restore cancelled.");
+ }
+ db[item.section].push(JSON.parse(JSON.stringify(item.record)));
+ (item.linkedRecords||[]).forEach(l=>{
+  if(Array.isArray(db[l.section]) && !db[l.section].some(x=>x.id===l.record.id))db[l.section].push(JSON.parse(JSON.stringify(l.record)));
+ });
+ db.recycleBin=db.recycleBin.filter(x=>x.id!==id);
+ save();alert("Record restored.");
+}
+function permanentDeleteRecycleItem(id){
+ if(confirm("Permanently delete this item? This cannot be undone.")){db.recycleBin=db.recycleBin.filter(x=>x.id!==id);save()}
+}
+function emptyRecycleBin(){
+ if(!(db.recycleBin||[]).length)return;
+ if(confirm("Permanently empty the entire Recycle Bin?")){db.recycleBin=[];save()}
+}
+
+
+function formatBytes(bytes){
+ if(bytes<1024)return bytes+" B";
+ if(bytes<1024*1024)return (bytes/1024).toFixed(1)+" KB";
+ return (bytes/(1024*1024)).toFixed(2)+" MB";
+}
+function lastBackupISO(){return localStorage.getItem(LAST_BACKUP_KEY)||""}
+function backupAgeHours(){
+ const iso=lastBackupISO();if(!iso)return Infinity;
+ return (Date.now()-new Date(iso).getTime())/3600000;
+}
+function renderBackupReminder(){
+ const iso=lastBackupISO(),age=backupAgeHours();
+ let msg="",cls="notice ";
+ if(!iso){msg="Safety reminder: No Full Backup has been recorded yet. Download a Full Backup today.";cls+="safety-warn"}
+ else if(age>24){msg=`Safety reminder: Last Full Backup was ${new Date(iso).toLocaleString()}. Please make a new backup.`;cls+="safety-warn"}
+ else{msg=`Backup status: Last Full Backup ${new Date(iso).toLocaleString()}.`;cls+="safety-good"}
+ if(dashboardBackupReminder){dashboardBackupReminder.className=cls;dashboardBackupReminder.textContent=msg}
+ if(safetyBackupStatus){safetyBackupStatus.className=cls;safetyBackupStatus.textContent=msg}
+}
+function renderSafetyCenter(){
+ const snaps=getSafetySnapshots();
+ const iso=lastBackupISO();
+ safetyLastBackup.textContent=iso?new Date(iso).toLocaleDateString():"Never";
+ safetySnapshotCount.textContent=snaps.length;
+ safetyDataSize.textContent=formatBytes(new Blob([JSON.stringify(db)]).size);
+ renderBackupReminder();
+ snapshotList.innerHTML=snaps.length ? snaps.map(s=>{
+  let counts="";
+  try{
+   const d=JSON.parse(s.data);
+   counts=`Sales ${d.sales?.length||0} • Customers ${d.customers?.length||0} • Purchases ${d.purchases?.length||0}`;
+  }catch(e){}
+  return `<div class="snapshot-item"><b>${e(s.reason||"Snapshot")}</b><div class="snapshot-meta">${e(new Date(s.at).toLocaleString())} — ${e(counts)}</div><div style="margin-top:7px"><button class="action green" onclick="restoreSafetySnapshot('${s.id}')">Restore</button> <button class="action red" onclick="deleteSafetySnapshot('${s.id}')">Delete</button></div></div>`;
+ }).join("") : '<span class="small">No local snapshots yet.</span>';
+}
+function createManualSnapshot(){
+ storeSafetySnapshot(JSON.stringify(db),"Manual safety snapshot");
+ renderSafetyCenter();
+ alert("Safety snapshot created.");
+}
+function restoreSafetySnapshot(id){
+ const item=getSafetySnapshots().find(x=>x.id===id);if(!item)return alert("Snapshot not found.");
+ if(!confirm("Restore this snapshot? Current data will first be saved as another safety snapshot."))return;
+ storeSafetySnapshot(JSON.stringify(db),"Before snapshot restore");
+ try{
+  db=normalizeDB(JSON.parse(item.data));
+  localStorage.setItem(KEY,JSON.stringify(db));
+  lastSavedDbJSON=JSON.stringify(db);
+  renderAll();
+  alert("Snapshot restored.");
+ }catch(err){alert("Snapshot could not be restored: "+err.message)}
+}
+function deleteSafetySnapshot(id){
+ if(confirm("Delete this safety snapshot?")){writeSafetySnapshots(getSafetySnapshots().filter(x=>x.id!==id));renderSafetyCenter()}
+}
+function clearSafetySnapshots(){
+ if(confirm("Clear all local safety snapshots?")){localStorage.removeItem(SNAP_KEY);renderSafetyCenter()}
+}
+
+function generateInvoiceNo(){
+ const date=(invDate.value||today()).replaceAll("-","");
+ const daySales=db.sales.filter(s=>s.date===(invDate.value||today()));
+ const nums=daySales.map(s=>{
+  const m=(s.invoice||"").match(/(\d+)$/);
+  return m ? parseInt(m[1],10) : 0;
+ });
+ const next=Math.max(0,...nums)+1;
+ invNo.value=`INV-${date}-${String(next).padStart(3,"0")}`;
+}
+
+function textIncludes(value,q){
+ return String(value??"").toLowerCase().includes(q);
+}
+function renderGlobalSearch(){
+ const q=(globalSearchInput?.value||"").trim().toLowerCase();
+ const results=[];
+ if(!q){
+  globalSearchSummary.textContent="Type something to search.";
+  globalSearchResults.innerHTML="";
+  return;
+ }
+
+ db.sales.forEach(s=>{
+  const customer=customerBy(s.customerId)?.name||"Cash";
+  if([s.invoice,s.date,s.salesman,customer,s.vehicle].some(v=>textIncludes(v,q)) ||
+     (s.lines||[]).some(l=>textIncludes(l.productName,q))){
+   results.push({
+    type:"Sale",
+    title:`Invoice ${s.invoice||"(no number)"} — ${m(saleNet(s))}`,
+    meta:`${s.date||""} | Salesman: ${s.salesman||""} | Customer: ${customer} | Received: ${m(s.received)} | Due: ${m(Math.max(saleNet(s)-n(s.received),0))}`,
+    page:"saleInvoice"
+   });
+  }
+ });
+ db.customers.forEach(c=>{
+  if([c.name,c.phone,c.note,salesmanBy(c.salesmanId)?.name].some(v=>textIncludes(v,q))){
+   results.push({type:"Customer",title:c.name,meta:`Phone: ${c.phone||"-"} | Salesman: ${salesmanBy(c.salesmanId)?.name||"Unassigned"} | Balance: ${m(customerBalance(c.id))}`,page:"customers"});
+  }
+ });
+ db.salesmen.forEach(s=>{
+  if([s.name,s.phone,s.note].some(v=>textIncludes(v,q))){
+   results.push({type:"Salesman",title:s.name,meta:`Phone: ${s.phone||"-"} | Loan Balance: ${m(salesmanBalanceById(s.id))}`,page:"salesmen"});
+  }
+ });
+ db.suppliers.forEach(s=>{
+  if([s.name,s.phone,s.note].some(v=>textIncludes(v,q))){
+   results.push({type:"Supplier",title:s.name,meta:`Phone: ${s.phone||"-"} | Balance: ${m(supplierBalance(s.id))}`,page:"suppliers"});
+  }
+ });
+ db.products.forEach(p=>{
+  if(textIncludes(p.name,q)){
+   results.push({type:"Product",title:p.name,meta:`Sale Price: ${m(p.salePrice)} | Cost: ${m(currentCost(p))} | Stock: ${m(currentQty(p))}`,page:"products"});
+  }
+ });
+
+ globalSearchSummary.textContent=`Found ${results.length} result(s).`;
+ globalSearchResults.innerHTML=results.length ? results.slice(0,100).map(r=>`
+  <div class="search-result">
+   <div class="search-result-title">${e(r.type)} — ${e(r.title)}</div>
+   <div class="search-result-meta">${e(r.meta)}</div>
+   <button class="action gray no-print" style="margin-top:6px" onclick="openPage('${r.page}')">Open</button>
+  </div>`).join("") : '<div class="search-result">No matching records.</div>';
+}
+
+function downloadCSV(filename,rows){
+ const csv=rows.map(row=>row.map(v=>{
+  const s=String(v??"").replaceAll('"','""');
+  return `"${s}"`;
+ }).join(",")).join("\r\n");
+ if(window.AndroidBridge && AndroidBridge.saveTextFile){
+  AndroidBridge.saveTextFile(filename,"\ufeff"+csv,"text/csv");
+  return;
+ }
+ const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportSalesCSV(){
+ const rows=[["Date","Invoice","Customer","Salesman","Net Sale","Received","Due","Vehicle"]];
+ db.sales.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).forEach(s=>{
+  rows.push([s.date,s.invoice,customerBy(s.customerId)?.name||"Cash",s.salesman,saleNet(s),s.received,Math.max(saleNet(s)-n(s.received),0),s.vehicle]);
+ });
+ downloadCSV("Sales_"+today()+".csv",rows);
+}
+function exportCustomersCSV(){
+ const rows=[["Customer","Phone","Salesman","Opening Balance","Current Balance","Note"]];
+ db.customers.forEach(c=>rows.push([c.name,c.phone,salesmanBy(c.salesmanId)?.name||"Unassigned",c.opening,customerBalance(c.id),c.note]));
+ downloadCSV("Customers_"+today()+".csv",rows);
+}
+function exportSuppliersCSV(){
+ const rows=[["Supplier","Phone","Opening Balance","Current Balance","Note"]];
+ db.suppliers.forEach(s=>rows.push([s.name,s.phone,s.opening,supplierBalance(s.id),s.note]));
+ downloadCSV("Suppliers_"+today()+".csv",rows);
+}
+function exportStockCSV(){
+ const rows=[["Product","Opening Qty","Purchased","Sold","Adjusted","Current Qty","Cost","Stock Value"]];
+ db.products.forEach(p=>rows.push([p.name,p.openingQty,purchasedQty(p.id),soldQty(p.id),adjustedQty(p.id),currentQty(p),currentCost(p),currentQty(p)*currentCost(p)]));
+ downloadCSV("Stock_"+today()+".csv",rows);
+}
+
+function runDataHealthCheck(){
+ const issues=[];
+ const negativeStock=db.products.filter(p=>currentQty(p)<0);
+ if(negativeStock.length) issues.push(`${negativeStock.length} product(s) have negative stock.`);
+ const orphanCustomers=db.customers.filter(c=>c.salesmanId && !salesmanBy(c.salesmanId));
+ if(orphanCustomers.length) issues.push(`${orphanCustomers.length} customer(s) point to a missing Salesman.`);
+ const orphanSales=db.sales.filter(s=>s.customerId && !customerBy(s.customerId));
+ if(orphanSales.length) issues.push(`${orphanSales.length} sale(s) point to a missing Customer.`);
+ const orphanPurchases=db.purchases.filter(p=>p.supplierId && !supplierBy(p.supplierId));
+ if(orphanPurchases.length) issues.push(`${orphanPurchases.length} purchase(s) point to a missing Supplier.`);
+ const duplicateProducts=db.products.filter((p,i,a)=>a.findIndex(x=>(x.name||"").trim().toLowerCase()===(p.name||"").trim().toLowerCase())!==i);
+ if(duplicateProducts.length) issues.push(`${duplicateProducts.length} duplicate Product name(s) found.`);
+ const el=document.getElementById("dataHealthResult");
+ if(!issues.length){
+  el.textContent="Data health: OK — no common problems found.";
+  el.style.background="#ecfdf5";el.style.borderColor="#86efac";
+ }else{
+  el.innerHTML="<b>Check these items:</b><br>"+issues.map(x=>"• "+e(x)).join("<br>");
+  el.style.background="#fff7ed";el.style.borderColor="#fdba74";
+ }
+}
+
+function renderDashboard(){
+ const sales=db.sales.reduce((a,s)=>a+saleNet(s),0),
+       sv=stockValue(),
+       rec=totalCustomerReceivable(),
+       pay=totalSupplierPayable(),
+       disc=totalDiscount(),
+       ex=totalExpenses(),
+       sl=salesmanLoanOutstanding(),
+       cb=cashBalance(),
+       cap=ownerPartnerMoney(),
+       pos=businessPosition();
+
+ dSales.textContent=m(sales);dStock.textContent=m(sv);dCust.textContent=m(rec);dSupp.textContent=m(pay);
+ dDiscount.textContent=m(disc);dExpenses.textContent=m(ex);dSalesmanLoan.textContent=m(sl);dCash.textContent=m(cb);
+ dashboardPosition.innerHTML=`People / Customer Debt <b>${m(rec)}</b> + Godown / Stock <b>${m(sv)}</b> + Cash <b>${m(cb)}</b> − Supplier Debt <b>${m(pay)}</b> − Owner/Partner Money <b>${m(cap)}</b> = <b class="${pos<0?'negative':'positive'}">${m(pos)}</b>`;
+
+ const td=today();
+ const tSales=db.sales.filter(s=>s.date===td);
+ const tNet=tSales.reduce((a,s)=>a+saleNet(s),0);
+ const tCash=tSales.reduce((a,s)=>a+n(s.received),0);
+ const tExpense=db.expenses.filter(x=>x.date===td).reduce((a,x)=>a+n(x.amount),0)
+                + tSales.reduce((a,s)=>a+n(s.oil)+n(s.other),0);
+ const tCOGS=tSales.reduce((a,s)=>a+(s.lines||[]).reduce((q,l)=>{
+   const p=productBy(l.productId);
+   const cost=l.costAtSale!==undefined?n(l.costAtSale):currentCost(p||{id:"",costPrice:0});
+   return q+n(l.qty)*cost;
+ },0),0);
+ const tProfit=tNet-tCOGS-tExpense;
+ todaySales.textContent=m(tNet);
+ todayCash.textContent=m(tCash);
+ todayExpense.textContent=m(tExpense);
+ todayProfit.textContent=m(tProfit);
+ todayProfit.className="num "+(tProfit<0?"negative":"positive");
+
+ const limit=Math.max(0,n(document.getElementById("lowStockLimit")?.value||10));
+ const low=db.products.filter(p=>currentQty(p)<=(n(p.reorderLevel)>0?n(p.reorderLevel):limit)).sort((a,b)=>currentQty(a)-currentQty(b));
+ lowStockList.innerHTML=low.length ? low.slice(0,20).map(p=>{
+   const qty=currentQty(p);
+   const rl=n(p.reorderLevel)>0?n(p.reorderLevel):limit;return `<div class="notice ${qty<0?'alert-negative':'alert-low'}" style="margin-bottom:6px"><b>${e(p.name)}</b> — Current Qty: <b>${m(qty)}</b> — Reorder At: <b>${m(rl)}</b></div>`;
+ }).join("") : '<span class="small">No low-stock products at this threshold.</span>';
+
+ todayActivity.innerHTML=`
+  <table>
+   <tr><td>Invoices</td><td class="money"><b>${tSales.length}</b></td></tr>
+   <tr><td>Sold Quantity</td><td class="money"><b>${m(tSales.reduce((a,s)=>a+saleQty(s),0))}</b></td></tr>
+   <tr><td>Discount</td><td class="money"><b>${m(tSales.reduce((a,s)=>a+(s.lines||[]).reduce((q,l)=>q+saleLineDiscount(l),0),0))}</b></td></tr>
+   <tr><td>Due Created</td><td class="money"><b>${m(tSales.reduce((a,s)=>a+Math.max(saleNet(s)-n(s.received),0),0))}</b></td></tr>
+  </table>`;
+ renderDueAlerts();
+ renderBackupReminder();
+ renderLuxuryCharts();
+}
+function renderAll(){refreshSelects();renderProducts();renderStock();renderSales();renderPurchases();renderSalesmen();renderCustomers();renderSuppliers();renderSupplierTransactions();renderCustomerLoans();renderExpenses();renderSalesmanLoans();renderCapital();renderDiscounts();renderDashboard();renderReports();renderCustomerStatement();renderSupplierStatement();renderSalesmanStatement();renderDailyClosing();renderStockLedger();renderCashBook();renderRecycleBin();renderSafetyCenter();if(currentUser()?.role==="Admin")renderUsers()}
+function deleteById(){const sec=delSec.value,id=delId.value.trim();if(!id)return alert("Enter Record ID.");if(!db[sec]?.some(x=>x.id===id))return alert("Record not found.");if(confirm("Move this record to Recycle Bin?")){softDelete(sec,id);delId.value=""}}
+function clearWhole(){const sec=clearSec.value;if(confirm("Clear ALL entries in "+sec+"?")){db[sec]=[];save()}}
+function setBackupStatus(msg,isError=false){
+ const el=document.getElementById("backupStatus");
+ if(!el)return;
+ el.textContent=msg;
+ el.style.borderColor=isError?"#fca5a5":"#94a3b8";
+ el.style.background=isError?"#fff1f2":"#f8fafc";
+}
+function downloadBackup(){
+ try{
+  const payload={
+   app:"Offline POS & Accounts Pro",
+   version:"7.5",
+   exportedAt:new Date().toISOString(),
+   exportedBy:currentUser()?.username||"",
+   securityNote:"Login users/passwords are intentionally not included in this data backup.",
+   data:db
+  };
+  const json=JSON.stringify(payload,null,2);
+  if(window.AndroidBridge && AndroidBridge.saveTextFile){
+   AndroidBridge.saveTextFile("POS_PRO_FULL_Backup_"+today()+".json",json,"application/json");
+   localStorage.setItem(LAST_BACKUP_KEY,new Date().toISOString());
+   setBackupStatus("Backup saved to phone Downloads / OfflinePOS");
+   renderBackupReminder();
+   renderSafetyCenter();
+   return;
+  }
+  const blob=new Blob([json],{type:"application/json;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="POS_PRO_FULL_Backup_"+today()+".json";
+  a.style.display="none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  localStorage.setItem(LAST_BACKUP_KEY,new Date().toISOString());
+  setBackupStatus("Backup created: POS_PRO_FULL_Backup_"+today()+".json");
+  renderBackupReminder();
+  renderSafetyCenter();
+ }catch(err){
+  console.error(err);
+  setBackupStatus("Backup failed. Error: "+err.message,true);
+  alert("Backup failed: "+err.message);
+ }
+}
+function restoreBackup(){
+ const input=document.getElementById("backupFile");
+ const f=input?.files?.[0];
+ if(!f){
+  setBackupStatus("Choose a .json backup file first.",true);
+  return alert("Choose backup file.");
+ }
+ const r=new FileReader();
+ r.onerror=()=>{
+  setBackupStatus("The backup file could not be read.",true);
+  alert("Backup file could not be read.");
+ };
+ r.onload=()=>{
+  try{
+   const parsed=JSON.parse(r.result);
+   const restored=normalizeDB(parsed);
+
+   // Accept current/full backups and older compatible backups.
+   const hasUsefulData =
+     restored.products.length ||
+     restored.customers.length ||
+     restored.suppliers.length ||
+     restored.sales.length ||
+     restored.purchases.length;
+
+   if(!hasUsefulData) throw new Error("This JSON does not contain POS data.");
+
+   const msg =
+     "Restore this backup?\n\n"+
+     "Products: "+restored.products.length+
+     "\nCustomers: "+restored.customers.length+
+     "\nSuppliers: "+restored.suppliers.length+
+     "\nSales: "+restored.sales.length+
+     "\nPurchases: "+restored.purchases.length;
+
+   if(confirm(msg)){
+    storeSafetySnapshot(JSON.stringify(db),"Before Full Backup restore");
+    db=restored;
+    localStorage.setItem(KEY,JSON.stringify(db));
+    lastSavedDbJSON=JSON.stringify(db);
+    renderAll();
+    setBackupStatus("Backup successfully restored: "+f.name);
+    alert("Backup restored successfully.");
+   }
+  }catch(err){
+   console.error(err);
+   setBackupStatus("Invalid / incompatible backup: "+err.message,true);
+   alert("The backup is invalid or incompatible.\n"+err.message);
+  }
+ };
+ r.readAsText(f,"UTF-8");
+}
+function resetData(){if(confirm("Delete all transactions but keep Products, Customers and Suppliers?")){db.sales=[];db.purchases=[];db.customerLoans=[];db.salesmanLoans=[];db.supplierTransactions=[];db.expenses=[];db.capital=[];db.stockAdjustments=[];save()}}
+
+
+if(window.AndroidBridge && AndroidBridge.printPage){
+ window.print=function(){AndroidBridge.printPage();};
+}
+
+function updateOfflineClock(){
+ const now=new Date();
+ const pad=v=>String(v).padStart(2,"0");
+ const time=`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+ const date=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+ const clockEl=document.getElementById("offlineClock");
+ const dateEl=document.getElementById("offlineDate");
+ if(clockEl) clockEl.textContent=time;
+ if(dateEl) dateEl.textContent=date;
+}
+updateOfflineClock();
+setInterval(updateOfflineClock,1000);
+
+["invDate","purDate","clDate","spDate","exDate","slDate","capDate"].forEach(x=>document.getElementById(x).value=today());
+plDate.value=today();plMonth.value=today().slice(0,7);plYear.value=today().slice(0,4);updateProfitFilterUI();
+closingDate.value=today();
+stockLedgerFrom.value="";stockLedgerTo.value=today();cashBookFrom.value="";cashBookTo.value=today();
+resetProductEditMode();resetCustomerEditMode();resetSupplierEditMode();resetPurchaseEditMode();
+resetSalesmanEditMode();resetCustomerLoanEditMode();resetSupplierTransactionEditMode();resetExpenseEditMode();
+renderInvoiceRows();renderPurchaseDraft();renderAll();calcInvoice();
+initAuth();
+</script>
+</body>
+</html>

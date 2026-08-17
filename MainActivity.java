@@ -1,7 +1,7 @@
 package com.offlinepos.accounts;
 
 import android.app.Activity;
-import android.app.PrintManager;
+import android.print.PrintManager;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;

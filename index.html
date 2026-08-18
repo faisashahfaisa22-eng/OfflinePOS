@@ -1347,6 +1347,11 @@ function deleteManagedUser(id){
 
 function makeId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function n(v){v=parseFloat(v);return Number.isFinite(v)?v:0}
+function purchaseNet(p){
+ const total=n(p?.total);
+ if(total) return total;
+ return (p?.lines||[]).reduce((a,l)=>a+n(l.qty)*n(l.cost),0);
+}
 function m(v){return n(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
 function e(s){return String(s??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]))}
 function today(){return new Date().toISOString().slice(0,10)}
@@ -3115,7 +3120,7 @@ function emergencyRecoveryInstructions(){
 function makeEmergencyPayload(){
  return {
   app:"Offline POS & Accounts Pro",
-  version:"8.0",
+  version:"8.0.1",
   emergencyPack:true,
   exportedAt:new Date().toISOString(),
   exportedBy:currentUser()?.username||"",
@@ -3171,7 +3176,7 @@ function downloadBackup(){
  try{
   const payload={
    app:"Offline POS & Accounts Pro",
-   version:"8.0",
+   version:"8.0.1",
    exportedAt:new Date().toISOString(),
    exportedBy:currentUser()?.username||"",
    securityNote:"Login users/passwords are intentionally not included in this data backup.",
@@ -3246,8 +3251,8 @@ function restoreBackup(){
     if(emergencyAuthUsers && emergencyAuthUsers.length){
      setAuthUsers(emergencyAuthUsers);
     }
-    renderAll();
     setBackupStatus("Backup successfully restored: "+f.name);
+    try{ renderAll(); }catch(uiErr){ console.warn("Post-restore refresh warning:",uiErr); }
     alert("Backup restored successfully.");
    }
   }catch(err){

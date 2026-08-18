@@ -328,6 +328,18 @@ hr{border:0;border-top:1px solid var(--line);margin:13px 0}.right{text-align:rig
   <div class="brand-loading-line"><span></span></div>
  </div>
 </div>
+<script>
+/* v8.0.2 startup fail-safe: never leave the app stuck on the splash screen. */
+(function(){
+  function hideSplash(){
+    var b=document.getElementById("brandLoading");
+    if(b) b.classList.add("hide");
+  }
+  window.addEventListener("error", function(){ setTimeout(hideSplash, 50); });
+  window.addEventListener("unhandledrejection", function(){ setTimeout(hideSplash, 50); });
+  setTimeout(hideSplash, 1800);
+})();
+</script>
 <div id="authOverlay" class="auth-overlay">
  <div id="loginPanel" class="auth-card">
   <div class="auth-logo">POS</div>
@@ -3120,7 +3132,7 @@ function emergencyRecoveryInstructions(){
 function makeEmergencyPayload(){
  return {
   app:"Offline POS & Accounts Pro",
-  version:"8.0.1",
+  version:"8.0.2",
   emergencyPack:true,
   exportedAt:new Date().toISOString(),
   exportedBy:currentUser()?.username||"",
@@ -3176,7 +3188,7 @@ function downloadBackup(){
  try{
   const payload={
    app:"Offline POS & Accounts Pro",
-   version:"8.0.1",
+   version:"8.0.2",
    exportedAt:new Date().toISOString(),
    exportedBy:currentUser()?.username||"",
    securityNote:"Login users/passwords are intentionally not included in this data backup.",
@@ -3279,17 +3291,57 @@ function updateOfflineClock(){
 updateOfflineClock();
 setInterval(updateOfflineClock,1000);
 
-["invDate","purDate","clDate","spDate","exDate","slDate","capDate"].forEach(x=>document.getElementById(x).value=today());
-plDate.value=today();plMonth.value=today().slice(0,7);plYear.value=today().slice(0,4);updateProfitFilterUI();
-closingDate.value=today();
-stockLedgerFrom.value="";stockLedgerTo.value=today();cashBookFrom.value="";cashBookTo.value=today();
-resetProductEditMode();resetCustomerEditMode();resetSupplierEditMode();resetPurchaseEditMode();
-resetSalesmanEditMode();resetCustomerLoanEditMode();resetSupplierTransactionEditMode();resetExpenseEditMode();
-renderInvoiceRows();renderPurchaseDraft();renderAll();calcInvoice();
-bindInvoiceDraftAutosave();
-setTimeout(restoreInvoiceDraft,250);
-initAuth();
-setTimeout(()=>{const b=document.getElementById("brandLoading");if(b)b.classList.add("hide")},650);
+/* v8.0.2 guarded startup: one broken optional module must not block the whole app. */
+(function startOfflinePOS(){
+ const startupErrors=[];
+ const safe=(name,fn)=>{
+  try{ fn(); }
+  catch(err){ startupErrors.push(name+": "+(err?.message||err)); console.warn("Startup warning:",name,err); }
+ };
+ const setVal=(id,val)=>{
+  const el=document.getElementById(id);
+  if(el) el.value=val;
+ };
+
+ safe("default dates",()=>{
+  ["invDate","purDate","clDate","spDate","exDate","slDate","capDate"].forEach(id=>setVal(id,today()));
+  setVal("plDate",today());
+  setVal("plMonth",today().slice(0,7));
+  setVal("plYear",today().slice(0,4));
+  setVal("closingDate",today());
+  setVal("stockLedgerFrom","");
+  setVal("stockLedgerTo",today());
+  setVal("cashBookFrom","");
+  setVal("cashBookTo",today());
+ });
+ safe("profit filters",()=>updateProfitFilterUI());
+
+ [
+  ["product edit",resetProductEditMode],
+  ["customer edit",resetCustomerEditMode],
+  ["supplier edit",resetSupplierEditMode],
+  ["purchase edit",resetPurchaseEditMode],
+  ["salesman edit",resetSalesmanEditMode],
+  ["customer loan edit",resetCustomerLoanEditMode],
+  ["supplier transaction edit",resetSupplierTransactionEditMode],
+  ["expense edit",resetExpenseEditMode],
+  ["invoice rows",renderInvoiceRows],
+  ["purchase draft",renderPurchaseDraft],
+  ["all screens",renderAll],
+  ["invoice calculation",calcInvoice],
+  ["invoice autosave",bindInvoiceDraftAutosave],
+  ["authentication",initAuth]
+ ].forEach(([name,fn])=>safe(name,fn));
+
+ setTimeout(()=>safe("restore invoice draft",restoreInvoiceDraft),250);
+
+ const b=document.getElementById("brandLoading");
+ if(b) b.classList.add("hide");
+
+ if(startupErrors.length){
+  console.warn("Offline POS opened with non-fatal startup warnings:",startupErrors);
+ }
+})();
 </script>
 
 <button class="floating-calc-btn no-print" onclick="toggleCalculator()">⌗</button>

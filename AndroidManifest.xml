@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
     <application
-        android:allowBackup="true"
-        android:label="Offline POS"
+        android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="false">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -18,4 +21,5 @@
             </intent-filter>
         </activity>
     </application>
+
 </manifest>

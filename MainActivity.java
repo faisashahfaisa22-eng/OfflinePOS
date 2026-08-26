@@ -240,7 +240,7 @@ public class MainActivity extends Activity {
                 }
 
                 // 4) Small app/repository reference file
-                String info = "Offline POS & Accounts Pro\\nVersion: 7.9\\nGitHub: https://github.com/faisashahfaisa22-eng/OfflinePOS\\n";
+                String info = "Offline POS & Accounts Pro\\nVersion: 8.0.2\\nGitHub: https://github.com/faisashahfaisa22-eng/OfflinePOS\\n";
                 zos.putNextEntry(new ZipEntry("APP_AND_GITHUB_INFO.txt"));
                 zos.write(info.getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();

@@ -1,0 +1,317 @@
+<!-- OfflinePOS Mobile UI Patch v8.1 -->
+<style id="offlineposMobilePatchStyles">
+/* Authentication actions */
+.auth-secondary-link{
+  display:block;width:100%;border:0;background:transparent;color:#1459b8;
+  font-size:13px;font-weight:800;padding:11px 6px;margin-top:4px;cursor:pointer;
+}
+.auth-back-link{
+  display:block;width:100%;border:0;background:transparent;color:#64748b;
+  font-size:12px;font-weight:700;padding:10px 6px 2px;cursor:pointer;
+}
+
+/* Mobile dashboard: laptop dashboard adapted to native phone layout */
+.mobile-bottom-nav{display:none}
+@media(max-width:820px){
+  body{background:#f6f8fc!important;padding-bottom:78px!important}
+  .mobile-topbar{
+    background:linear-gradient(135deg,#073a73,#0b4f98)!important;
+    min-height:62px;padding:10px 14px!important;
+    box-shadow:0 6px 22px rgba(4,47,93,.18)!important;
+  }
+  .mobile-topbar-title{font-size:16px!important;font-weight:900!important}
+  .mobile-menu-btn{
+    background:rgba(255,255,255,.12)!important;border:1px solid rgba(255,255,255,.15)!important;
+    width:42px!important;height:42px!important;border-radius:13px!important;
+  }
+  .main{padding:18px 14px 92px!important;background:#f6f8fc!important}
+  #dashboard>.dashboard-shell:before{
+    content:"Dashboard";display:block;color:#0f172a;font-size:27px;font-weight:900;
+    margin:0 0 14px 2px;letter-spacing:-.03em
+  }
+
+  /* Phone dashboard starts with KPIs, matching the requested preview */
+  .dashboard-hero{display:none!important}
+  .section-heading{display:none!important}
+
+  .metric-grid-primary,.metric-grid-secondary,.metric-grid-today{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important
+  }
+  .metric-grid-secondary{margin-top:10px!important}
+  .premium-stat,.soft-stat,.today-stat{
+    min-height:112px!important;border-radius:17px!important;padding:13px!important;
+    box-shadow:0 6px 18px rgba(15,23,42,.065)!important;background:#fff!important
+  }
+  .premium-stat:before,.soft-stat:before,.today-stat:before{display:none!important}
+  .stat-top{align-items:center!important;gap:9px!important}
+  .stat-icon{
+    width:42px!important;height:42px!important;border-radius:13px!important;font-size:19px!important;
+    flex:0 0 auto!important
+  }
+  .soft-stat .stat-icon,.today-stat .stat-icon{
+    background:#edf4ff!important;color:#1459b8!important
+  }
+  .stat-label{font-size:11px!important;line-height:1.25!important;max-width:none!important}
+  .premium-stat .num,.soft-stat .num,.today-stat .num{
+    margin-top:10px!important;font-size:22px!important;letter-spacing:-.02em!important
+  }
+  .stat-foot{display:none!important}
+
+  .business-position-card{
+    margin-top:11px!important;border-radius:18px!important;padding:15px!important;background:#fff!important;
+    box-shadow:0 6px 18px rgba(15,23,42,.055)!important
+  }
+  .business-position-header h2{font-size:17px!important}
+  .business-badge{display:none!important}
+  .business-position-card .report-formula{
+    margin-top:9px!important;font-size:12px!important;line-height:1.65!important;
+    background:#f5f8fd!important;border-style:solid!important
+  }
+  .business-position-card .notice{font-size:11px!important;line-height:1.45!important}
+
+  .metric-grid-today{margin-top:11px!important}
+  .today-stat{min-height:104px!important}
+
+  .chart-grid.dashboard-chart-grid{
+    grid-template-columns:1fr!important;gap:11px!important;margin-top:11px!important
+  }
+  .chart-card{
+    min-height:270px!important;border-radius:18px!important;padding:14px!important;
+    box-shadow:0 6px 18px rgba(15,23,42,.055)!important
+  }
+  .chart-title{font-size:16px!important}
+  .chart-wrap{height:205px!important}
+  .chart-grid.dashboard-chart-grid .chart-card:nth-child(n+3){display:none!important}
+
+  #dashboard>.dashboard-shell>.grid.g2,
+  #dashboard>.dashboard-shell>.surface-card,
+  #dashboard>.dashboard-shell>.due-split{display:none!important}
+
+  .floating-calc-btn{bottom:92px!important}
+
+  .mobile-bottom-nav{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:5000;height:72px;
+    background:rgba(255,255,255,.98);border-top:1px solid #dce4ef;
+    box-shadow:0 -8px 30px rgba(15,23,42,.08);padding:5px 8px max(5px,env(safe-area-inset-bottom));
+    justify-content:space-around;align-items:center
+  }
+  .mobile-bottom-nav button{
+    border:0;background:transparent;color:#667085;min-width:58px;height:58px;border-radius:15px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    font-size:10px;font-weight:800;cursor:pointer
+  }
+  .mobile-bottom-nav button .mi{font-size:22px;line-height:1}
+  .mobile-bottom-nav button.active{color:#1459b8;background:#eef5ff}
+  .mobile-bottom-nav .add{
+    width:56px;min-width:56px;height:56px;border-radius:50%;background:#1459d9;color:#fff;
+    margin-top:-22px;box-shadow:0 9px 22px rgba(20,89,217,.3)
+  }
+  .mobile-bottom-nav .add .mi{font-size:29px}
+  .mobile-bottom-nav .add span:last-child{display:none}
+}
+
+@media(max-width:390px){
+  .premium-stat,.soft-stat,.today-stat{padding:11px!important}
+  .stat-icon{width:38px!important;height:38px!important}
+  .premium-stat .num,.soft-stat .num,.today-stat .num{font-size:20px!important}
+}
+</style>
+
+<div id="recoveryPanel" class="auth-card" style="display:none;position:fixed;z-index:100001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,calc(100vw - 36px))">
+  <div class="auth-logo">🔑</div>
+  <div class="auth-title">Forgot Password</div>
+  <div class="auth-sub">Use the Recovery PIN you created with your account.</div>
+  <label>Username</label>
+  <input id="recoverUsername" autocomplete="username" placeholder="Username">
+  <label style="margin-top:10px">Recovery PIN</label>
+  <input id="recoverPin" inputmode="numeric" type="password" placeholder="4–6 digit PIN">
+  <label style="margin-top:10px">New Password</label>
+  <input id="recoverPassword" type="password" placeholder="Minimum 6 characters">
+  <label style="margin-top:10px">Confirm New Password</label>
+  <input id="recoverPassword2" type="password" placeholder="Repeat password">
+  <button class="action green auth-btn" onclick="offlinePosResetPassword()">Reset Password</button>
+  <button class="auth-back-link" onclick="offlinePosShowLogin()">← Back to Login</button>
+  <div id="recoverError" class="auth-error"></div>
+</div>
+
+<nav id="mobileBottomNav" class="mobile-bottom-nav" style="display:none">
+  <button data-mobile-page="dashboard" class="active" onclick="offlinePosMobileOpen('dashboard',this)"><span class="mi">⌂</span><span>Dashboard</span></button>
+  <button data-mobile-page="reports" onclick="offlinePosMobileOpen('reports',this)"><span class="mi">▥</span><span>Reports</span></button>
+  <button class="add" onclick="offlinePosMobileOpen('saleInvoice',this)"><span class="mi">＋</span><span>Add</span></button>
+  <button data-mobile-page="saleInvoice" onclick="offlinePosMobileOpen('saleInvoice',this)"><span class="mi">🛒</span><span>Sales</span></button>
+  <button onclick="toggleMobileMenu()"><span class="mi">•••</span><span>More</span></button>
+</nav>
+
+<script id="offlineposMobilePatchScript">
+(function(){
+  const RECOVERY_PREFIX="offline-pos-recovery-v1|";
+
+  function byId(id){return document.getElementById(id)}
+  function pinHash(pin){return portablePasswordHash(RECOVERY_PREFIX+String(pin||""))}
+
+  window.offlinePosShowLogin=function(){
+    const lp=byId("loginPanel"),sp=byId("setupPanel"),rp=byId("recoveryPanel");
+    if(lp)lp.style.display="block";
+    if(sp)sp.style.display="none";
+    if(rp)rp.style.display="none";
+    byId("authOverlay").style.display="flex";
+    setTimeout(()=>byId("loginUsername")?.focus(),30);
+  };
+
+  window.offlinePosShowCreate=function(){
+    const users=getAuthUsers();
+    if(users.length){
+      authError("loginError","An account already exists on this device. Please Login. An Admin can create more users inside Users / Login.");
+      return;
+    }
+    const lp=byId("loginPanel"),sp=byId("setupPanel"),rp=byId("recoveryPanel");
+    if(lp)lp.style.display="none";
+    if(sp)sp.style.display="block";
+    if(rp)rp.style.display="none";
+    setTimeout(()=>byId("setupUsername")?.focus(),30);
+  };
+
+  window.offlinePosShowRecovery=function(){
+    const lp=byId("loginPanel"),sp=byId("setupPanel"),rp=byId("recoveryPanel");
+    if(lp)lp.style.display="none";
+    if(sp)sp.style.display="none";
+    if(rp)rp.style.display="block";
+    byId("recoverUsername").value=byId("loginUsername")?.value||"";
+    byId("recoverPin").value="";
+    byId("recoverPassword").value="";
+    byId("recoverPassword2").value="";
+    authError("recoverError","");
+    setTimeout(()=>byId("recoverUsername")?.focus(),30);
+  };
+
+  window.offlinePosCreateAccount=async function(){
+    const username=byId("setupUsername").value.trim();
+    const pw=byId("setupPassword").value;
+    const pw2=byId("setupPassword2").value;
+    const pin=byId("setupRecoveryPin")?.value||"";
+    const pin2=byId("setupRecoveryPin2")?.value||"";
+    if(!username)return authError("setupError","Username is required.");
+    if(pw.length<6)return authError("setupError","Password must be at least 6 characters.");
+    if(pw!==pw2)return authError("setupError","Passwords do not match.");
+    if(!/^\d{4,6}$/.test(pin))return authError("setupError","Recovery PIN must be 4 to 6 digits.");
+    if(pin!==pin2)return authError("setupError","Recovery PINs do not match.");
+    const users=getAuthUsers();
+    if(users.length)return authError("setupError","An account already exists. Please return to Login.");
+    const user={
+      id:makeId(),username,passwordHash:portablePasswordHash(pw),
+      recoveryPinHash:pinHash(pin),role:"Admin",salesmanId:"",
+      active:true,createdAt:new Date().toISOString()
+    };
+    setAuthUsers([user]);setAuthSession(user);authError("setupError","");
+    openAuthenticatedApp();
+  };
+
+  window.offlinePosResetPassword=async function(){
+    const username=byId("recoverUsername").value.trim().toLowerCase();
+    const pin=byId("recoverPin").value;
+    const pw=byId("recoverPassword").value;
+    const pw2=byId("recoverPassword2").value;
+    const users=getAuthUsers();
+    const user=users.find(x=>(x.username||"").trim().toLowerCase()===username);
+    if(!user)return authError("recoverError","Account not found.");
+    if(!user.recoveryPinHash)return authError("recoverError","This older account has no Recovery PIN. Login as Admin and create a new user, or reset local login only if you accept replacing the local login account.");
+    if(pinHash(pin)!==user.recoveryPinHash)return authError("recoverError","Recovery PIN is incorrect.");
+    if(pw.length<6)return authError("recoverError","New password must be at least 6 characters.");
+    if(pw!==pw2)return authError("recoverError","New passwords do not match.");
+    user.passwordHash=portablePasswordHash(pw);
+    setAuthUsers(users);
+    authError("recoverError","");
+    offlinePosShowLogin();
+    byId("loginUsername").value=user.username;
+    authError("loginError","Password reset successfully. Please Login.");
+  };
+
+  function patchAuthUI(){
+    const lp=byId("loginPanel"),sp=byId("setupPanel");
+    if(!lp||!sp)return;
+
+    const loginBtn=[...lp.querySelectorAll("button")].find(b=>/^\s*Login\s*$/i.test(b.textContent||""));
+    const resetBtn=[...lp.querySelectorAll("button")].find(b=>(b.textContent||"").includes("Reset Login"));
+    if(resetBtn)resetBtn.remove();
+
+    if(loginBtn && !byId("createAccountBtn")){
+      const create=document.createElement("button");
+      create.id="createAccountBtn";create.className="action auth-btn";
+      create.textContent="Create Account";
+      create.style.background="#1459d9";
+      create.onclick=offlinePosShowCreate;
+      loginBtn.parentNode.insertBefore(create,loginBtn);
+      loginBtn.style.background="#073a73";
+    }
+    if(loginBtn && !byId("forgotPasswordBtn")){
+      const forgot=document.createElement("button");
+      forgot.id="forgotPasswordBtn";forgot.className="auth-secondary-link";
+      forgot.textContent="Forgot Password?";
+      forgot.onclick=offlinePosShowRecovery;
+      loginBtn.insertAdjacentElement("afterend",forgot);
+    }
+
+    if(!byId("setupRecoveryPin")){
+      const btn=[...sp.querySelectorAll("button")].find(b=>(b.textContent||"").includes("Create Admin"));
+      const label=document.createElement("label");
+      label.style.marginTop="10px";label.textContent="Recovery PIN";
+      const pin=document.createElement("input");
+      pin.id="setupRecoveryPin";pin.type="password";pin.inputMode="numeric";pin.placeholder="4–6 digits";
+      const label2=document.createElement("label");
+      label2.style.marginTop="10px";label2.textContent="Confirm Recovery PIN";
+      const pin2=document.createElement("input");
+      pin2.id="setupRecoveryPin2";pin2.type="password";pin2.inputMode="numeric";pin2.placeholder="Repeat PIN";
+      if(btn){
+        btn.parentNode.insertBefore(label,btn);btn.parentNode.insertBefore(pin,btn);
+        btn.parentNode.insertBefore(label2,btn);btn.parentNode.insertBefore(pin2,btn);
+        btn.textContent="Create Account & Open App";
+        btn.onclick=offlinePosCreateAccount;
+        const back=document.createElement("button");
+        back.className="auth-back-link";back.textContent="← Back to Login";back.onclick=offlinePosShowLogin;
+        btn.insertAdjacentElement("afterend",back);
+      }
+    }
+  }
+
+  function normalizeAuthStart(){
+    if(currentUser())return;
+    byId("authOverlay").style.display="flex";
+    offlinePosShowLogin();
+  }
+
+  window.offlinePosMobileOpen=function(page,btn){
+    openPage(page);
+    document.querySelectorAll("#mobileBottomNav button").forEach(x=>x.classList.remove("active"));
+    if(btn && !btn.classList.contains("add"))btn.classList.add("active");
+  };
+
+  function syncBottomNav(){
+    const nav=byId("mobileBottomNav");
+    if(!nav)return;
+    nav.style.display=(isMobileLayout() && !!currentUser())?"flex":"none";
+  }
+
+  const originalOpenAuthenticatedApp=window.openAuthenticatedApp;
+  window.openAuthenticatedApp=function(){
+    originalOpenAuthenticatedApp();
+    syncBottomNav();
+  };
+  const originalLogoutUser=window.logoutUser;
+  window.logoutUser=function(){originalLogoutUser();syncBottomNav()};
+  const originalLockApp=window.lockApp;
+  window.lockApp=function(){originalLockApp();syncBottomNav()};
+  const originalOpenPage=window.openPage;
+  window.openPage=function(pageId){
+    originalOpenPage(pageId);
+    document.querySelectorAll("#mobileBottomNav button").forEach(x=>{
+      x.classList.toggle("active",x.dataset.mobilePage===pageId);
+    });
+  };
+
+  window.addEventListener("resize",syncBottomNav);
+
+  patchAuthUI();
+  setTimeout(()=>{patchAuthUI();normalizeAuthStart();syncBottomNav()},80);
+})();
+</script>

@@ -1,0 +1,110 @@
+<!-- OfflinePOS v8.2 Product + Invoice Cleanup -->
+<style id="offlineposV82CleanupStyles">
+#saleInvoice .invoice-table th:nth-child(5),
+#saleInvoice .invoice-table td:nth-child(5),
+#saleInvoice .invoice-table th:nth-child(6),
+#saleInvoice .invoice-table td:nth-child(6){display:none!important}
+
+#discounts .grid.g4 > .card:nth-child(1),
+#discounts .grid.g4 > .card:nth-child(2){display:none!important}
+#discounts table th:nth-child(5),
+#discounts table td:nth-child(5),
+#discounts table th:nth-child(6),
+#discounts table td:nth-child(6){display:none!important}
+#discounts .grid.g4{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+</style>
+
+<script id="offlineposV82CleanupScript">
+(function(){
+  const CLEANUP_KEY=KEY+"_v82_default_product_cleanup_done";
+  const DEFAULT_PRODUCT_NAMES=[
+    "Coke Slim 250 Ml","Fanta Slim 250 Ml","Sprite 250 Ml","Fanta Apple 250 Ml",
+    "Can 300 Ml Coke","Can 300 Ml Fanta","Can 300 Ml Sprite","Can 300 Ml Sprite 3G",
+    "Coke 1.5 LTR","Fanta Orange 1.5 LTR","Fanta Apple 1.5 LTR","Sprite 1.5 LTR",
+    "3G 1.5 LTR","Kinley 500 ml","Kinley 1.5 LIT","Apple Juice 180ml",
+    "Mix Fruit Juice 180ml","Mango Juice 180ml","Juice Cherry 180 Ml","Apple Juice 1 LIT",
+    "Mix Fruit Juice 1 LIT","Mango Juice 1 LIT","Cherry Juice 1 LITER","ENERGY MANGO",
+    "ENERGY GOLD","ENERGY ROARX"
+  ];
+  const defaultNames=new Set(DEFAULT_PRODUCT_NAMES.map(x=>x.trim().toLowerCase()));
+
+  function isLegacyDefaultProduct(p){
+    return !!p && defaultNames.has(String(p.name||"").trim().toLowerCase());
+  }
+  function productIsReferenced(pid){
+    if(!pid)return false;
+    if((db.sales||[]).some(s=>(s.lines||[]).some(l=>l.productId===pid)))return true;
+    if((db.purchases||[]).some(p=>(p.lines||[]).some(l=>l.productId===pid)))return true;
+    if((db.stockAdjustments||[]).some(x=>x.productId===pid))return true;
+    return false;
+  }
+  function visibleProducts(){
+    return (db.products||[]).filter(p=>p.hiddenFromNewInvoice!==true && !isLegacyDefaultProduct(p));
+  }
+  function withVisibleProducts(fn){
+    return function(){
+      const all=db.products;
+      db.products=visibleProducts();
+      try{return fn.apply(this,arguments)}finally{db.products=all}
+    }
+  }
+
+  ["renderInvoiceRows","renderProducts","renderStock","refreshSelects"].forEach(name=>{
+    const fn=window[name];
+    if(typeof fn==="function"){
+      window[name]=withVisibleProducts(fn);
+    }
+  });
+
+  function forceRemovedDiscountsToZero(){
+    document.querySelectorAll("#invoiceRows .ir-haji,#invoiceRows .ir-hgbl").forEach(el=>{
+      el.value="0";
+      el.setAttribute("value","0");
+    });
+  }
+
+  const oldCalc=window.calcInvoice;
+  if(typeof oldCalc==="function"){
+    window.calcInvoice=function(){
+      forceRemovedDiscountsToZero();
+      return oldCalc.apply(this,arguments);
+    };
+  }
+
+  const oldRender=window.renderInvoiceRows;
+  if(typeof oldRender==="function"){
+    window.renderInvoiceRows=function(){
+      const r=oldRender.apply(this,arguments);
+      forceRemovedDiscountsToZero();
+      return r;
+    };
+  }
+
+  if(localStorage.getItem(CLEANUP_KEY)!=="1"){
+    const kept=[];
+    (db.products||[]).forEach(p=>{
+      if(!isLegacyDefaultProduct(p)){kept.push(p);return}
+      if(productIsReferenced(p.id)){
+        p.hiddenFromNewInvoice=true;
+        kept.push(p);
+      }
+    });
+    db.products=kept;
+    localStorage.setItem(KEY,JSON.stringify(db));
+    localStorage.setItem(CLEANUP_KEY,"1");
+    lastSavedDbJSON=JSON.stringify(db);
+  }
+
+  setTimeout(()=>{
+    try{
+      refreshSelects();
+      renderProducts();
+      renderStock();
+      renderInvoiceRows();
+      calcInvoice();
+      renderDashboard();
+      renderReports();
+    }catch(e){console.warn("v8.2 cleanup refresh warning",e)}
+  },120);
+})();
+</script>

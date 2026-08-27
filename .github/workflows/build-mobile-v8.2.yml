@@ -1,0 +1,152 @@
+name: Build OfflinePOS Mobile v8.2 AAB + APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Rebuild Android app and inject v8.2 patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f AndroidManifest.xml
+          test -f MainActivity.java
+          test -f index.html
+          test -f mobile-ui-patch.html
+          test -f mobile-data-cleanup-v8.2.html
+          test -f strings.xml
+          test -f styles.xml
+          test -f ic_launcher.xml
+          test -f settings.gradle
+          test -f build.gradle
+          test -f gradle.properties
+
+          mkdir -p app/src/main/java/com/offlinepos/accounts
+          mkdir -p app/src/main/assets
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+
+          cp AndroidManifest.xml app/src/main/AndroidManifest.xml
+          cp MainActivity.java app/src/main/java/com/offlinepos/accounts/MainActivity.java
+          cp strings.xml app/src/main/res/values/strings.xml
+          cp styles.xml app/src/main/res/values/styles.xml
+          cp ic_launcher.xml app/src/main/res/drawable/ic_launcher.xml
+
+          python3 - <<'PY'
+          from pathlib import Path
+          core = Path("index.html").read_text(encoding="utf-8")
+          mobile = Path("mobile-ui-patch.html").read_text(encoding="utf-8")
+          cleanup = Path("mobile-data-cleanup-v8.2.html").read_text(encoding="utf-8")
+          if "</body>" not in core:
+              raise SystemExit("index.html has no </body> tag")
+          merged = core.replace("</body>", mobile + "\n" + cleanup + "\n</body>", 1)
+          Path("app/src/main/assets/index.html").write_text(merged, encoding="utf-8")
+          print("Injected v8.1 mobile UI + v8.2 cleanup")
+          PY
+
+          cat > app/build.gradle <<'GRADLE_EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.offlinepos.accounts'
+              compileSdk 36
+
+              defaultConfig {
+                  applicationId "com.offlinepos.accounts"
+                  minSdk 26
+                  targetSdk 36
+                  versionCode 3
+                  versionName "8.2.0"
+              }
+
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          GRADLE_EOF
+          touch app/proguard-rules.pro
+
+      - name: Restore upload keystore
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/offlinepos-upload.jks"
+          test -s "$RUNNER_TEMP/offlinepos-upload.jks"
+
+      - name: Build signed release AAB and APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/offlinepos-upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: offlinepos
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: gradle :app:bundleRelease :app:assembleRelease --stacktrace
+
+      - name: Verify signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$APKSIGNER" verify --verbose app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Play Store AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: OfflinePOS-PlayStore-AAB-v8.2.0
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      - name: Upload signed Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OfflinePOS-Mobile-Release-APK-v8.2.0
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

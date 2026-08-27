@@ -1,0 +1,208 @@
+<!-- OfflinePOS v8.3 Supabase Online + Offline Sync -->
+<style id="offlineposV83SyncStyles">
+.sync-pill{
+  position:fixed;right:12px;top:76px;z-index:4900;
+  padding:7px 10px;border-radius:999px;background:#fff;border:1px solid #dbe3ef;
+  box-shadow:0 5px 18px rgba(15,23,42,.08);font:700 11px Segoe UI,Arial,sans-serif;color:#475569
+}
+.sync-pill.online{color:#087b46;border-color:#86efac;background:#ecfdf5}
+.sync-pill.offline{color:#9a3412;border-color:#fdba74;background:#fff7ed}
+.sync-pill.syncing{color:#174ea6;border-color:#bfdbfe;background:#eff6ff}
+</style>
+
+<div id="cloudSyncStatus" class="sync-pill offline">Offline • Local Save</div>
+
+<script id="offlineposV83SyncScript">
+(function(){
+  const SUPABASE_URL='https://noosoaxtwiacbmrjaugh.supabase.co';
+  const SUPABASE_KEY='sb_publishable_ZVWWnnhsabhe-LwZPQwffg_Gz1QMxDy';
+  const CLOUD_AUTH_KEY=KEY+"_cloud_auth_v1";
+  const CLOUD_PENDING_KEY=KEY+"_cloud_pending_v1";
+  let syncTimer=null,syncBusy=false;
+
+  function status(msg,kind){
+    const el=document.getElementById("cloudSyncStatus");
+    if(!el)return;
+    el.textContent=msg;
+    el.className="sync-pill "+(kind||"");
+  }
+
+  function cloudAuth(){
+    try{return JSON.parse(localStorage.getItem(CLOUD_AUTH_KEY)||"null")}catch(e){return null}
+  }
+  function setCloudAuth(v){
+    if(v)localStorage.setItem(CLOUD_AUTH_KEY,JSON.stringify(v));
+    else localStorage.removeItem(CLOUD_AUTH_KEY);
+  }
+  function headers(token,extra={}){
+    return Object.assign({
+      "apikey":SUPABASE_KEY,
+      "Authorization":"Bearer "+(token||SUPABASE_KEY),
+      "Content-Type":"application/json"
+    },extra);
+  }
+
+  async function cloudSignUp(email,password){
+    const r=await fetch(SUPABASE_URL+"/auth/v1/signup",{
+      method:"POST",headers:headers(null),body:JSON.stringify({email,password})
+    });
+    const x=await r.json();
+    if(!r.ok)throw new Error(x?.msg||x?.message||"Cloud account creation failed.");
+    if(x.access_token)setCloudAuth({access_token:x.access_token,refresh_token:x.refresh_token,user:x.user});
+    return x;
+  }
+
+  async function cloudSignIn(email,password){
+    const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{
+      method:"POST",headers:headers(null),body:JSON.stringify({email,password})
+    });
+    const x=await r.json();
+    if(!r.ok)throw new Error(x?.error_description||x?.msg||x?.message||"Cloud login failed.");
+    setCloudAuth({access_token:x.access_token,refresh_token:x.refresh_token,user:x.user});
+    return x;
+  }
+
+  async function refreshCloudSession(){
+    const a=cloudAuth();
+    if(!a?.refresh_token)throw new Error("Cloud login required.");
+    const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=refresh_token",{
+      method:"POST",headers:headers(null),body:JSON.stringify({refresh_token:a.refresh_token})
+    });
+    const x=await r.json();
+    if(!r.ok)throw new Error("Cloud session expired. Please sign in again.");
+    setCloudAuth({access_token:x.access_token,refresh_token:x.refresh_token,user:x.user});
+    return x;
+  }
+
+  async function authedFetch(path,opts={}){
+    let a=cloudAuth();
+    if(!a?.access_token)throw new Error("Cloud login required.");
+    let r=await fetch(SUPABASE_URL+path,Object.assign({},opts,{headers:headers(a.access_token,opts.headers||{})}));
+    if(r.status===401){
+      await refreshCloudSession();
+      a=cloudAuth();
+      r=await fetch(SUPABASE_URL+path,Object.assign({},opts,{headers:headers(a.access_token,opts.headers||{})}));
+    }
+    return r;
+  }
+
+  async function pushCloud(){
+    if(syncBusy||!navigator.onLine)return;
+    if(!cloudAuth()?.access_token){
+      status("Online • Cloud login needed","online");
+      return;
+    }
+    syncBusy=true;status("Syncing…","syncing");
+    try{
+      const payload={
+        data:db,
+        auth_users:getAuthUsers(),
+        app_version:"8.3.0",
+        updated_at:new Date().toISOString()
+      };
+      const r=await authedFetch("/rest/v1/pos_cloud_state?on_conflict=owner_id",{
+        method:"POST",
+        headers:{"Prefer":"resolution=merge-duplicates,return=minimal"},
+        body:JSON.stringify(payload)
+      });
+      if(!r.ok){
+        const t=await r.text();throw new Error(t||("Cloud sync failed: "+r.status));
+      }
+      localStorage.setItem(CLOUD_PENDING_KEY,"0");
+      status("Online • Synced","online");
+    }catch(err){
+      console.warn("Cloud push:",err);
+      localStorage.setItem(CLOUD_PENDING_KEY,"1");
+      status("Online • Sync pending","offline");
+    }finally{syncBusy=false}
+  }
+
+  async function pullCloud(){
+    if(!navigator.onLine)throw new Error("No internet connection.");
+    if(!cloudAuth()?.access_token)throw new Error("Cloud login required.");
+    status("Downloading cloud data…","syncing");
+    const r=await authedFetch("/rest/v1/pos_cloud_state?select=data,auth_users,updated_at&limit=1",{
+      method:"GET"
+    });
+    if(!r.ok)throw new Error(await r.text());
+    const rows=await r.json();
+    if(!rows.length){status("Online • No cloud data yet","online");return false}
+    const row=rows[0];
+    if(!confirm("Restore the latest cloud copy to this device? Current local data will first be saved as a safety snapshot.")){
+      status("Online • Sync ready","online");return false
+    }
+    storeSafetySnapshot(JSON.stringify(db),"Before Cloud Restore");
+    db=normalizeDB(row.data||{});
+    localStorage.setItem(KEY,JSON.stringify(db));
+    lastSavedDbJSON=JSON.stringify(db);
+    if(Array.isArray(row.auth_users)&&row.auth_users.length)setAuthUsers(row.auth_users);
+    renderAll();
+    status("Online • Cloud restored","online");
+    return true;
+  }
+
+  window.offlinePosCloudSetup=async function(){
+    const current=cloudAuth();
+    if(current?.access_token){
+      const action=prompt("Cloud is already connected. Type PUSH to upload local data, PULL to restore cloud data, or LOGOUT to disconnect.");
+      if(!action)return;
+      if(action.toUpperCase()==="PUSH")return pushCloud();
+      if(action.toUpperCase()==="PULL")return pullCloud();
+      if(action.toUpperCase()==="LOGOUT"){setCloudAuth(null);status(navigator.onLine?"Online • Cloud disconnected":"Offline • Local Save",navigator.onLine?"online":"offline");return}
+      return;
+    }
+    const email=prompt("Enter your cloud email address:");
+    if(!email)return;
+    const password=prompt("Enter a cloud password (minimum 6 characters):");
+    if(!password||password.length<6)return alert("Cloud password must be at least 6 characters.");
+    const mode=confirm("Press OK to CREATE a new cloud account. Press Cancel if the cloud account already exists.");
+    try{
+      if(mode)await cloudSignUp(email.trim(),password);
+      else await cloudSignIn(email.trim(),password);
+      status("Online • Cloud connected","online");
+      await pushCloud();
+      alert("Cloud connection successful.");
+    }catch(err){
+      alert(err.message||String(err));
+      status("Online • Cloud login failed","offline");
+    }
+  };
+
+  const oldSave=window.save;
+  window.save=function(){
+    const r=oldSave.apply(this,arguments);
+    localStorage.setItem(CLOUD_PENDING_KEY,"1");
+    clearTimeout(syncTimer);
+    syncTimer=setTimeout(pushCloud,1200);
+    return r;
+  };
+
+  function addSyncButton(){
+    if(document.getElementById("cloudSyncBtn"))return;
+    const backup=document.getElementById("backup");
+    if(!backup)return;
+    const card=backup.querySelector(".card");
+    if(!card)return;
+    const box=document.createElement("div");
+    box.className="card";
+    box.style.marginTop="12px";
+    box.innerHTML='<h2>Online + Offline Cloud Sync</h2><div class="notice">Offline work always saves locally. When internet is available, this device can sync an encrypted-login-protected cloud copy through Supabase.</div><button id="cloudSyncBtn" class="action green" onclick="offlinePosCloudSetup()">Cloud Sync / Login</button>';
+    card.insertAdjacentElement("afterend",box);
+  }
+
+  window.addEventListener("online",()=>{
+    status("Online • Checking sync","syncing");
+    if(localStorage.getItem(CLOUD_PENDING_KEY)==="1")pushCloud();
+    else status(cloudAuth()?.access_token?"Online • Synced":"Online • Cloud login needed","online");
+  });
+  window.addEventListener("offline",()=>status("Offline • Local Save","offline"));
+
+  setTimeout(()=>{
+    addSyncButton();
+    if(navigator.onLine){
+      status(cloudAuth()?.access_token?"Online • Sync ready":"Online • Cloud login needed","online");
+      if(localStorage.getItem(CLOUD_PENDING_KEY)==="1")pushCloud();
+    }else status("Offline • Local Save","offline");
+  },250);
+})();
+</script>

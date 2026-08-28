@@ -1,0 +1,207 @@
+<!-- OfflinePOS v8.3.3 Cloud Identity + WhatsApp Auto Notify -->
+<style id="offlineposV833WhatsAppStyles">
+.wa-status-card{margin-top:12px}
+.wa-status-line{margin-top:9px;padding:9px 11px;border:1px dashed #94a3b8;border-radius:8px;font-size:12px}
+</style>
+
+<script id="offlineposV833WhatsAppScript">
+(function(){
+  const CLOUD_AUTH_KEY = KEY + "_cloud_auth_v1";
+  const WA_ENABLED_KEY = KEY + "_wa_auto_enabled_v1";
+  const WA_QUEUE_KEY = KEY + "_wa_auto_queue_v1";
+  let waBusy=false;
+
+  function readCloudAuth(){
+    try{return JSON.parse(localStorage.getItem(CLOUD_AUTH_KEY)||"null")}catch(e){return null}
+  }
+  function readQueue(){
+    try{
+      const q=JSON.parse(localStorage.getItem(WA_QUEUE_KEY)||"[]");
+      return Array.isArray(q)?q:[];
+    }catch(e){return []}
+  }
+  function writeQueue(q){localStorage.setItem(WA_QUEUE_KEY,JSON.stringify(q||[]))}
+  function waEnabled(){return localStorage.getItem(WA_ENABLED_KEY)==="1"}
+
+  function cloudEmail(){
+    const a=readCloudAuth();
+    return a?.user?.email || "";
+  }
+
+  function updateCloudIdentityStatus(){
+    const el=document.getElementById("cloudSyncStatus");
+    if(!el)return;
+    const a=readCloudAuth();
+    if(!navigator.onLine){
+      el.textContent="Offline • Local Save";
+      el.className="sync-pill offline";
+      return;
+    }
+    if(a?.access_token){
+      const email=cloudEmail();
+      const syncing=/syncing|downloading/i.test(el.textContent||"");
+      if(!syncing){
+        el.textContent=email
+          ? "Online • Signed in & Synced — "+email
+          : "Online • Signed in & Synced";
+        el.className="sync-pill online";
+      }
+    }else{
+      el.textContent="Online • Cloud login needed";
+      el.className="sync-pill online";
+    }
+  }
+
+  function customerName(id){
+    try{return customerBy(id)?.name||""}catch(e){return ""}
+  }
+  function saleTotal(s){
+    try{return saleNet(s)}catch(e){
+      return (s.lines||[]).reduce((a,l)=>a+(Number(l.price||0)*Number(l.qty||0))-Number(l.haji||0)-Number(l.hgbl||0)-Number(l.scheme||0),0)
+    }
+  }
+  function saleDue(s){return Math.max(saleTotal(s)-Number(s.received||0),0)}
+
+  function buildSalePayload(s){
+    return {
+      event_id:"sale_"+s.id+"_"+Date.now(),
+      sale_id:s.id,
+      invoice:s.invoice||s.id,
+      date:s.date||"",
+      customer:customerName(s.customerId)||"Cash Customer",
+      salesman:s.salesman||"",
+      vehicle:s.vehicle||"",
+      total:saleTotal(s),
+      received:Number(s.received||0),
+      due:saleDue(s),
+      lines:(s.lines||[]).map(l=>({
+        product:l.productName||"",
+        qty:Number(l.qty||0),
+        price:Number(l.price||0)
+      })),
+      created_at:new Date().toISOString()
+    };
+  }
+
+  function queueSale(s){
+    if(!waEnabled() || !s?.id)return;
+    const q=readQueue();
+    const payload=buildSalePayload(s);
+    q.push(payload);
+    writeQueue(q);
+    renderWaStatus();
+    flushWhatsAppQueue();
+  }
+
+  async function callWhatsAppFunction(payload){
+    const a=readCloudAuth();
+    if(!a?.access_token)throw new Error("Cloud login required");
+    const r=await fetch("https://noosoaxtwiacbmrjaugh.supabase.co/functions/v1/whatsapp-sale-notify",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer "+a.access_token,
+        "apikey":"sb_publishable_ZVWWnnhsabhe-LwZPQwffg_Gz1QMxDy",
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify(payload)
+    });
+    const text=await r.text();
+    if(!r.ok)throw new Error(text||("WhatsApp send failed: "+r.status));
+    return text;
+  }
+
+  async function flushWhatsAppQueue(){
+    if(waBusy || !waEnabled() || !navigator.onLine)return;
+    if(!readCloudAuth()?.access_token){
+      renderWaStatus("Waiting for Cloud login");
+      return;
+    }
+    let q=readQueue();
+    if(!q.length){renderWaStatus();return}
+    waBusy=true;
+    try{
+      while(q.length && navigator.onLine){
+        const item=q[0];
+        try{
+          await callWhatsAppFunction(item);
+          q.shift();
+          writeQueue(q);
+          renderWaStatus();
+        }catch(err){
+          console.warn("WhatsApp auto notify:",err);
+          renderWaStatus("Pending — backend not ready");
+          break;
+        }
+      }
+    }finally{waBusy=false}
+  }
+
+  function renderWaStatus(custom){
+    const el=document.getElementById("waAutoStatus");
+    if(!el)return;
+    const q=readQueue().length;
+    if(custom)el.textContent="WhatsApp: "+custom+(q?(" • Queue "+q):"");
+    else if(!waEnabled())el.textContent="WhatsApp: Automatic messages OFF";
+    else if(!readCloudAuth()?.access_token)el.textContent="WhatsApp: ON • Cloud login needed"+(q?(" • Queue "+q):"");
+    else el.textContent="WhatsApp: ON"+(q?(" • Pending "+q):" • Ready");
+  }
+
+  window.offlinePosToggleWhatsAppAuto=function(){
+    const next=!waEnabled();
+    localStorage.setItem(WA_ENABLED_KEY,next?"1":"0");
+    const btn=document.getElementById("waAutoToggleBtn");
+    if(btn)btn.textContent=next?"Turn WhatsApp Auto OFF":"Turn WhatsApp Auto ON";
+    renderWaStatus();
+    if(next)flushWhatsAppQueue();
+  };
+
+  function addWhatsAppSettings(){
+    if(document.getElementById("waAutoSettings"))return;
+    const backup=document.getElementById("backup");
+    if(!backup)return;
+    const box=document.createElement("div");
+    box.id="waAutoSettings";
+    box.className="card wa-status-card";
+    box.innerHTML=
+      '<h2>WhatsApp Automatic Sale Messages</h2>'+
+      '<div class="notice">When an Invoice is saved, the app queues a sale message. When internet + Cloud login are available, Supabase sends it automatically through the WhatsApp Cloud API.</div>'+
+      '<button id="waAutoToggleBtn" class="action green" onclick="offlinePosToggleWhatsAppAuto()">'+
+      (waEnabled()?'Turn WhatsApp Auto OFF':'Turn WhatsApp Auto ON')+
+      '</button>'+
+      '<div id="waAutoStatus" class="wa-status-line"></div>';
+    backup.appendChild(box);
+    renderWaStatus();
+  }
+
+  const originalSaveInvoice=window.saveInvoice;
+  if(typeof originalSaveInvoice==="function"){
+    window.saveInvoice=function(){
+      const before=new Map((db.sales||[]).map(s=>[s.id,JSON.stringify(s)]));
+      const r=originalSaveInvoice.apply(this,arguments);
+      try{
+        const changed=(db.sales||[]).filter(s=>before.get(s.id)!==JSON.stringify(s));
+        changed.forEach(queueSale);
+      }catch(e){console.warn("WhatsApp sale hook:",e)}
+      return r;
+    };
+  }
+
+  window.addEventListener("online",()=>{
+    setTimeout(updateCloudIdentityStatus,250);
+    setTimeout(flushWhatsAppQueue,600);
+  });
+  window.addEventListener("offline",updateCloudIdentityStatus);
+  window.addEventListener("storage",()=>{updateCloudIdentityStatus();renderWaStatus()});
+
+  setInterval(()=>{
+    updateCloudIdentityStatus();
+    if(navigator.onLine)flushWhatsAppQueue();
+  },5000);
+
+  setTimeout(()=>{
+    addWhatsAppSettings();
+    updateCloudIdentityStatus();
+    renderWaStatus();
+  },500);
+})();
+</script>

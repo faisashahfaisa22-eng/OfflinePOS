@@ -1,0 +1,97 @@
+<!-- OfflinePOS v8.3.1 Mobile Backup + Cloud Sync Menu Fix -->
+<style id="offlineposV831MenuFixStyles">
+#mobileCloudQuickBtn{
+  display:none;
+}
+@media(max-width:820px){
+  #mobileCloudQuickBtn{
+    display:flex;position:fixed;right:14px;bottom:150px;z-index:5100;
+    width:56px;height:56px;border-radius:50%;border:0;
+    align-items:center;justify-content:center;
+    background:#0f766e;color:#fff;font-size:24px;font-weight:900;
+    box-shadow:0 10px 26px rgba(15,118,110,.28)
+  }
+}
+</style>
+
+<button id="mobileCloudQuickBtn" class="no-print" title="Cloud Sync" onclick="offlinePosOpenCloudSync()">☁</button>
+
+<script id="offlineposV831MenuFixScript">
+(function(){
+  function byId(id){return document.getElementById(id)}
+
+  window.offlinePosOpenCloudSync=function(){
+    try{
+      const backupBtn=document.querySelector('#nav button[data-page="backup"]');
+      if(backupBtn){
+        backupBtn.style.display="block";
+        backupBtn.click();
+      }else{
+        const backupPage=byId("backup");
+        if(backupPage){
+          document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+          backupPage.classList.add("active");
+        }
+      }
+      if(typeof closeMobileMenu==="function")closeMobileMenu();
+      setTimeout(()=>{
+        const cloudBtn=byId("cloudSyncBtn");
+        if(cloudBtn)cloudBtn.scrollIntoView({behavior:"smooth",block:"center"});
+      },120);
+    }catch(e){
+      alert("Cloud Sync page could not be opened.");
+    }
+  };
+
+  function ensureMenuItems(){
+    const nav=byId("nav");
+    if(!nav)return;
+
+    let backupBtn=nav.querySelector('button[data-page="backup"]');
+    if(!backupBtn){
+      backupBtn=document.createElement("button");
+      backupBtn.dataset.page="backup";
+      backupBtn.textContent="Backup / Restore";
+      backupBtn.onclick=()=>{
+        document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));
+        backupBtn.classList.add("active");
+        document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+        byId("backup")?.classList.add("active");
+        if(typeof closeMobileMenu==="function")closeMobileMenu();
+      };
+      nav.appendChild(backupBtn);
+    }
+    backupBtn.style.display="block";
+
+    if(!byId("cloudSyncMenuBtn")){
+      const cloud=document.createElement("button");
+      cloud.id="cloudSyncMenuBtn";
+      cloud.textContent="☁ Cloud Sync";
+      cloud.onclick=offlinePosOpenCloudSync;
+      nav.appendChild(cloud);
+    }
+  }
+
+  function ensureCloudSection(){
+    const backup=byId("backup");
+    if(!backup)return;
+    if(byId("cloudSyncBtn"))return;
+
+    const card=document.createElement("div");
+    card.className="card";
+    card.style.marginTop="12px";
+    card.innerHTML=
+      '<h2>Online + Offline Cloud Sync</h2>'+
+      '<div class="notice">Offline work saves locally. When internet is available, connect your cloud account and sync data.</div>'+
+      '<button id="cloudSyncBtn" class="action green" onclick="offlinePosCloudSetup()">Cloud Sync / Login</button>';
+    backup.appendChild(card);
+  }
+
+  setTimeout(()=>{
+    ensureMenuItems();
+    ensureCloudSection();
+  },250);
+
+  window.addEventListener("resize",()=>setTimeout(ensureMenuItems,50));
+})();
+</script>

@@ -33,14 +33,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          test -f AndroidManifest.xml
+          test -f AndroidManifest-cloud-v8.3.2.xml
           test -f MainActivity.java
           test -f index.html
           test -f mobile-ui-patch.html
           test -f mobile-data-cleanup-v8.2.html
           test -f online-offline-sync-v8.3.html
           test -f mobile-backup-cloud-fix-v8.3.1.html
-          test -f AndroidManifest-cloud-v8.3.2.xml
+          test -f strings.xml
+          test -f styles.xml
+          test -f ic_launcher.xml
 
           mkdir -p app/src/main/java/com/offlinepos/accounts
           mkdir -p app/src/main/assets
@@ -56,7 +58,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          # Inject all HTML patches
           core = Path("index.html").read_text(encoding="utf-8")
           patches = [
               Path("mobile-ui-patch.html").read_text(encoding="utf-8"),
@@ -64,23 +65,30 @@ jobs:
               Path("online-offline-sync-v8.3.html").read_text(encoding="utf-8"),
               Path("mobile-backup-cloud-fix-v8.3.1.html").read_text(encoding="utf-8"),
           ]
+
           if "</body>" not in core:
               raise SystemExit("index.html has no </body>")
+
           merged = core.replace("</body>", "\n".join(patches) + "\n</body>", 1)
           Path("app/src/main/assets/index.html").write_text(merged, encoding="utf-8")
 
-          # Allow the bundled file:// app to make HTTPS fetch requests to Supabase.
-          p = Path("app/src/main/java/com/offlinepos/accounts/MainActivity.java")
-          java = p.read_text(encoding="utf-8")
+          java_path = Path("app/src/main/java/com/offlinepos/accounts/MainActivity.java")
+          java = java_path.read_text(encoding="utf-8")
+
           anchor = "settings.setAllowFileAccess(true);"
           if anchor not in java:
               raise SystemExit("MainActivity.java WebSettings anchor not found")
-          replacement = """settings.setAllowFileAccess(true);
-        settings.setAllowFileAccessFromFileURLs(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);"""
+
+          replacement = (
+              "settings.setAllowFileAccess(true);\n"
+              "        settings.setAllowFileAccessFromFileURLs(true);\n"
+              "        settings.setAllowUniversalAccessFromFileURLs(true);"
+          )
+
           java = java.replace(anchor, replacement, 1)
-          p.write_text(java, encoding="utf-8")
-          print("Applied INTERNET permission + WebView HTTPS access fix")
+          java_path.write_text(java, encoding="utf-8")
+
+          print("Applied cloud network fix")
           PY
 
           cat > app/build.gradle <<'GRADLE_EOF'
@@ -167,3 +175,4 @@ jobs:
           name: OfflinePOS-CloudNetworkFix-APK-v8.3.2
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+          

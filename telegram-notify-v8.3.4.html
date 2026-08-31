@@ -1,0 +1,61 @@
+<!-- OfflinePOS v8.3.4 Telegram Notification Patch -->
+<script id="telegram-notify-v8.3.4">
+(function(){
+  const TELEGRAM_URL = "/functions/v1/telegram-notify";
+
+  function sendTelegram(title, details){
+    try{
+      fetch(TELEGRAM_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          title:title,
+          message:details,
+          created_at:new Date().toISOString()
+        })
+      }).catch(()=>{});
+    }catch(e){}
+  }
+
+  window.notifyTelegram = sendTelegram;
+
+  const oldSaveInvoice = window.saveInvoice;
+  if(typeof oldSaveInvoice === "function"){
+    window.saveInvoice=function(){
+      const result = oldSaveInvoice.apply(this,arguments);
+      try{
+        sendTelegram(
+          "🧾 New Invoice",
+          "Invoice saved from OfflinePOS"
+        );
+      }catch(e){}
+      return result;
+    };
+  }
+
+  const oldLoan = window.saveCustomerLoan;
+  if(typeof oldLoan === "function"){
+    window.saveCustomerLoan=function(){
+      const result = oldLoan.apply(this,arguments);
+      sendTelegram(
+        "💰 New Loan",
+        "Customer loan recorded in OfflinePOS"
+      );
+      return result;
+    };
+  }
+
+  const oldRecovery = window.saveRecovery;
+  if(typeof oldRecovery === "function"){
+    window.saveRecovery=function(){
+      const result = oldRecovery.apply(this,arguments);
+      sendTelegram(
+        "💵 Recovery",
+        "Recovery entry recorded in OfflinePOS"
+      );
+      return result;
+    };
+  }
+
+})();
+</script>

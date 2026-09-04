@@ -1,0 +1,64 @@
+<!-- POS & Accounts Pro Branding Patch v8.3.5 -->
+<style id="posAccountsBrandingV835Styles">
+/* Branding-only patch. Online/Offline status wording is intentionally preserved. */
+</style>
+<script id="posAccountsBrandingV835Script">
+(function () {
+  const BRAND = "POS & Accounts Pro";
+  const BRAND_SHORT = "POS & Accounts";
+
+  function replaceBranding() {
+    document.title = BRAND;
+
+    const replacements = [
+      ["Offline POS & Accounts Pro", BRAND],
+      ["Offline POS & Accounts", BRAND_SHORT]
+    ];
+
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    for (const node of nodes) {
+      let text = node.nodeValue;
+      for (const [from, to] of replacements) {
+        if (text && text.includes(from)) text = text.split(from).join(to);
+      }
+      node.nodeValue = text;
+    }
+
+    const top = document.querySelector(".mobile-topbar-title");
+    if (top) top.textContent = BRAND_SHORT;
+
+    const loading = document.querySelector(".brand-loading-title");
+    if (loading) loading.textContent = BRAND;
+
+    const auth = document.querySelector(".auth-title");
+    if (auth) auth.textContent = BRAND;
+
+    const brand = document.querySelector(".brand");
+    if (brand) {
+      const sub = brand.querySelector(".subbrand");
+      const subText = sub ? sub.textContent : "";
+      for (const child of Array.from(brand.childNodes)) {
+        if (child.nodeType === Node.TEXT_NODE) child.nodeValue = BRAND;
+      }
+      if (sub) sub.textContent = "Premium • Online + Offline • Laptop + Mobile";
+      else if (subText) brand.appendChild(document.createTextNode(subText));
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", replaceBranding);
+  } else {
+    replaceBranding();
+  }
+
+  setTimeout(replaceBranding, 800);
+})();
+</script>

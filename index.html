@@ -934,6 +934,7 @@ hr{border:0;border-top:1px solid var(--line);margin:13px 0}.right{text-align:rig
    <button class="action green" onclick="exportCustomersCSV()">Export Customers CSV</button>
    <button class="action green" onclick="exportSuppliersCSV()">Export Suppliers CSV</button>
    <button class="action green" onclick="exportStockCSV()">Export Stock CSV</button>
+   <button class="action gold" onclick="downloadLoanRecoveryReport()">📄 Download Loan & Recovery TXT</button>
   </div>
  </div>
 
@@ -3011,6 +3012,89 @@ function exportStockCSV(){
  const rows=[["Product","Opening Qty","Purchased","Sold","Adjusted","Current Qty","Cost","Stock Value"]];
  db.products.forEach(p=>rows.push([p.name,p.openingQty,purchasedQty(p.id),soldQty(p.id),adjustedQty(p.id),currentQty(p),currentCost(p),currentQty(p)*currentCost(p)]));
  downloadCSV("Stock_"+today()+".csv",rows);
+}
+
+function downloadLoanRecoveryReport(){
+ const lines=[];
+ const generated=new Date().toLocaleString();
+ lines.push("OFFLINE POS — د قرض او Recovery راپور");
+ lines.push("جوړ شوی: "+generated);
+ lines.push("========================================");
+ lines.push("");
+
+ let customerCount=0;
+ db.customers.forEach(c=>{
+  const tx=[];
+
+  // Opening balance is kept separately because older records may not have a date.
+  const opening=n(c.opening);
+
+  // Invoice-based due / recovery entries.
+  db.sales.filter(s=>s.customerId===c.id).forEach(s=>{
+   const net=saleNet(s),received=n(s.received);
+   const due=Math.max(net-received,0);
+   const recovery=Math.max(received-net,0);
+   if(due>0) tx.push({date:s.date||"",type:"قرض / Due",amount:due,ref:s.invoice||"",note:"Invoice"});
+   if(recovery>0) tx.push({date:s.date||"",type:"Recovery",amount:recovery,ref:s.invoice||"",note:"Invoice recovery"});
+  });
+
+  // Manual Customer Loans.
+  db.customerLoans.filter(x=>x.customerId===c.id).forEach(x=>{
+   if(n(x.given)>0) tx.push({date:x.date||"",type:"قرض / Loan Given",amount:n(x.given),ref:"",note:x.note||""});
+   if(n(x.received)>0) tx.push({date:x.date||"",type:"Recovery / Loan Received",amount:n(x.received),ref:"",note:x.note||""});
+  });
+
+  if(!tx.length && opening===0 && customerBalance(c.id)===0) return;
+  customerCount++;
+  tx.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+
+  const dueRows=tx.filter(r=>r.type.includes("قرض"));
+  const recRows=tx.filter(r=>r.type.includes("Recovery"));
+  const lastDue=dueRows.length?dueRows[dueRows.length-1].date:"—";
+  const lastRecovery=recRows.length?recRows[recRows.length-1].date:"—";
+  const lastTxn=tx.length?tx[tx.length-1].date:"—";
+  const totalDue=dueRows.reduce((a,r)=>a+n(r.amount),0)+Math.max(opening,0);
+  const totalRecovery=recRows.reduce((a,r)=>a+n(r.amount),0)+Math.max(-opening,0);
+
+  lines.push("مشتری: "+(c.name||"—"));
+  lines.push("موبایل: "+(c.phone||"—"));
+  lines.push("وروستی قرض تاریخ: "+lastDue);
+  lines.push("وروستۍ Recovery تاریخ: "+lastRecovery);
+  lines.push("وروستۍ معامله: "+lastTxn);
+  lines.push("ټول قرض: "+m(totalDue));
+  lines.push("ټوله Recovery: "+m(totalRecovery));
+  lines.push("اوسنی پاتې قرض: "+m(customerBalance(c.id)));
+  lines.push("----------------------------------------");
+  if(opening!==0){
+   lines.push("Opening Balance: "+m(opening));
+  }
+  tx.forEach((r,i)=>{
+   const extra=[r.ref?"Ref: "+r.ref:"",r.note?"Note: "+r.note:""].filter(Boolean).join(" | ");
+   lines.push((i+1)+". "+(r.date||"—")+" | "+r.type+" | "+m(r.amount)+(extra?" | "+extra:""));
+  });
+  lines.push("");
+  lines.push("========================================");
+  lines.push("");
+ });
+
+ if(!customerCount){
+  lines.push("د قرض یا Recovery هیڅ ریکارډ ونه موندل شو.");
+ }
+
+ const content=lines.join("\r\n");
+ const filename="Loan_Recovery_Report_"+today()+".txt";
+ try{
+  if(window.AndroidBridge && typeof AndroidBridge.saveTextFile==="function"){
+   AndroidBridge.saveTextFile(filename,content,"text/plain");
+   return;
+  }
+ }catch(err){console.warn("Android text export unavailable",err)}
+
+ const blob=new Blob(["\ufeff"+content],{type:"text/plain;charset=utf-8"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 function runDataHealthCheck(){

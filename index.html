@@ -3015,160 +3015,46 @@ function exportStockCSV(){
 }
 
 function downloadLoanRecoveryReport(){
- const lines=[];
- const generated=new Date().toLocaleString();
- lines.push("OFFLINE POS — د قرض او Recovery بشپړ راپور");
- lines.push("جوړ شوی: "+generated);
- lines.push("========================================");
- lines.push("");
+const lines=[];
+const generated=new Date().toLocaleString();
 
- let recordCount=0;
+lines.push("د قرض راپور");
+lines.push("جوړ شوی: "+generated);
+lines.push("====================");
+lines.push("");
 
- // =========================
- // CUSTOMER LOANS / RECOVERY
- // =========================
- lines.push("===== CUSTOMER LOANS / RECOVERY =====");
- lines.push("");
+db.customers.forEach(c=>{
+ let total=0;
 
- db.customers.forEach(c=>{
-  const tx=[];
-  const opening=n(c.opening);
-
-  // Invoice-based customer due / recovery.
-  db.sales.filter(s=>s.customerId===c.id).forEach(s=>{
-   const net=saleNet(s),received=n(s.received);
-   const due=Math.max(net-received,0);
-   const recovery=Math.max(received-net,0);
-   if(due>0) tx.push({date:s.date||"",type:"قرض / Due",amount:due,ref:s.invoice||"",note:"Invoice"});
-   if(recovery>0) tx.push({date:s.date||"",type:"Recovery",amount:recovery,ref:s.invoice||"",note:"Invoice recovery"});
-  });
-
-  // Manual customer loans.
-  db.customerLoans.filter(x=>x.customerId===c.id).forEach(x=>{
-   if(n(x.given)>0) tx.push({date:x.date||"",type:"قرض / Loan Given",amount:n(x.given),ref:"",note:x.note||""});
-   if(n(x.received)>0) tx.push({date:x.date||"",type:"Recovery / Loan Received",amount:n(x.received),ref:"",note:x.note||""});
-  });
-
-  if(!tx.length && opening===0 && customerBalance(c.id)===0) return;
-  recordCount++;
-  tx.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-
-  const dueRows=tx.filter(r=>r.type.includes("قرض"));
-  const recRows=tx.filter(r=>r.type.includes("Recovery"));
-  const lastDue=dueRows.length?dueRows[dueRows.length-1].date:"—";
-  const lastRecovery=recRows.length?recRows[recRows.length-1].date:"—";
-  const lastTxn=tx.length?tx[tx.length-1].date:"—";
-  const totalDue=dueRows.reduce((a,r)=>a+n(r.amount),0)+Math.max(opening,0);
-  const totalRecovery=recRows.reduce((a,r)=>a+n(r.amount),0)+Math.max(-opening,0);
-
-  lines.push("مشتری: "+(c.name||"—"));
-  lines.push("موبایل: "+(c.phone||"—"));
-  lines.push("وروستی قرض تاریخ: "+lastDue);
-  lines.push("وروستۍ Recovery تاریخ: "+lastRecovery);
-  lines.push("وروستۍ معامله: "+lastTxn);
-  lines.push("ټول قرض: "+m(totalDue));
-  lines.push("ټوله Recovery: "+m(totalRecovery));
-  lines.push("اوسنی پاتې قرض: "+m(customerBalance(c.id)));
-  lines.push("----------------------------------------");
-  if(opening!==0) lines.push("Opening Balance: "+m(opening));
-  tx.forEach((r,i)=>{
-   const extra=[r.ref?"Ref: "+r.ref:"",r.note?"Note: "+r.note:""].filter(Boolean).join(" | ");
-   lines.push((i+1)+". "+(r.date||"—")+" | "+r.type+" | "+m(r.amount)+(extra?" | "+extra:""));
-  });
-  lines.push("");
-  lines.push("========================================");
-  lines.push("");
+ db.customerLoans
+ .filter(x=>x.customerId===c.id)
+ .forEach(x=>{
+   total += Number(x.given||0)-Number(x.received||0);
  });
 
- // =========================
- // SALESMAN LOANS / RECOVERY
- // =========================
- lines.push("===== SALESMAN LOANS / RECOVERY =====");
- lines.push("");
-
- db.salesmen.forEach(sm=>{
-  const tx=[];
-
-  db.salesmanLoans.filter(x=>{
-   if(x.salesmanId===sm.id) return true;
-   if(!x.salesmanId && sm.name){
-    return (x.name||"").trim().toLowerCase()===sm.name.trim().toLowerCase();
-   }
-   return false;
-  }).forEach(x=>{
-   let ref="";
-   if(x.linkedSaleId){
-    const sale=db.sales.find(s=>s.id===x.linkedSaleId);
-    ref=sale?.invoice || x.linkedSaleId;
-   }
-   if(n(x.given)>0){
-    tx.push({
-     date:x.date||"",
-     type:x.source==="sale_due" ? "قرض / Invoice Due" : "قرض / Loan Given",
-     amount:n(x.given),
-     ref,
-     note:x.note||""
-    });
-   }
-   if(n(x.received)>0){
-    tx.push({
-     date:x.date||"",
-     type:x.source==="sale_recovery" ? "Recovery / Invoice Recovery" : "Recovery / Loan Received",
-     amount:n(x.received),
-     ref,
-     note:x.note||""
-    });
-   }
-  });
-
-  if(!tx.length && salesmanBalanceById(sm.id)===0) return;
-  recordCount++;
-  tx.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-
-  const dueRows=tx.filter(r=>r.type.includes("قرض"));
-  const recRows=tx.filter(r=>r.type.includes("Recovery"));
-  const lastDue=dueRows.length?dueRows[dueRows.length-1].date:"—";
-  const lastRecovery=recRows.length?recRows[recRows.length-1].date:"—";
-  const lastTxn=tx.length?tx[tx.length-1].date:"—";
-  const totalDue=dueRows.reduce((a,r)=>a+n(r.amount),0);
-  const totalRecovery=recRows.reduce((a,r)=>a+n(r.amount),0);
-
-  lines.push("Salesman: "+(sm.name||"—"));
-  lines.push("موبایل: "+(sm.phone||"—"));
-  lines.push("وروستی قرض تاریخ: "+lastDue);
-  lines.push("وروستۍ Recovery تاریخ: "+lastRecovery);
-  lines.push("وروستۍ معامله: "+lastTxn);
-  lines.push("ټول قرض: "+m(totalDue));
-  lines.push("ټوله Recovery: "+m(totalRecovery));
-  lines.push("اوسنی پاتې قرض: "+m(salesmanBalanceById(sm.id)));
-  lines.push("----------------------------------------");
-  tx.forEach((r,i)=>{
-   const extra=[r.ref?"Ref: "+r.ref:"",r.note?"Note: "+r.note:""].filter(Boolean).join(" | ");
-   lines.push((i+1)+". "+(r.date||"—")+" | "+r.type+" | "+m(r.amount)+(extra?" | "+extra:""));
-  });
-  lines.push("");
-  lines.push("========================================");
-  lines.push("");
- });
-
- if(!recordCount){
-  lines.push("د قرض یا Recovery هیڅ ریکارډ ونه موندل شو.");
+ if(total>0){
+   lines.push(c.name+" "+total);
  }
+});
 
- const content=lines.join("\r\n");
- const filename="Loan_Recovery_Report_"+today()+".txt";
- try{
-  if(window.AndroidBridge && typeof AndroidBridge.saveTextFile==="function"){
-   AndroidBridge.saveTextFile(filename,content,"text/plain");
-   return;
-  }
- }catch(err){console.warn("Android text export unavailable",err)}
+if(lines.length<=4){
+ lines.push("هیڅ قرض نشته");
+}
 
- const blob=new Blob(["\ufeff"+content],{type:"text/plain;charset=utf-8"});
- const url=URL.createObjectURL(blob);
- const a=document.createElement("a");
- a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),1000);
+const content=lines.join("\r\n");
+const filename="Loan_Report_"+today()+".txt";
+
+const blob=new Blob([content],{type:"text/plain"});
+const url=URL.createObjectURL(blob);
+
+const a=document.createElement("a");
+a.href=url;
+a.download=filename;
+document.body.appendChild(a);
+a.click();
+
+setTimeout(()=>URL.revokeObjectURL(url),1000);
+a.remove();
 }
 
 function runDataHealthCheck(){

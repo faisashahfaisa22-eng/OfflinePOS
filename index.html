@@ -3018,48 +3018,11 @@ function downloadLoanRecoveryReport(){
 alert("داخل شو");
 
 const lines=[];
-const generated=new Date().toLocaleString();
+lines.push("test");
 
-lines.push("د قرض راپور");
-lines.push("جوړ شوی: "+generated);
-lines.push("====================");
-lines.push("");
-
-db.salesmen.forEach(sm=>{
-
- let total=0;
-
- db.salesmanLoans
- .filter(x=>x.salesmanId===sm.id)
- .forEach(x=>{
-   total += Number(x.given||0)-Number(x.received||0);
- });
-
- if(total>0){
-   lines.push(sm.name+" "+total);
- }
-
-});
-
-if(lines.length<=4){
- lines.push("هیڅ قرض نشته");
+alert("تر دې ځایه راغی");
 }
 
-const content=lines.join("\r\n");
-const filename="Loan_Report_"+today()+".txt";
-
-const blob=new Blob([content],{type:"text/plain"});
-const url=URL.createObjectURL(blob);
-
-const a=document.createElement("a");
-a.href=url;
-a.download=filename;
-document.body.appendChild(a);
-a.click();
-
-setTimeout(()=>URL.revokeObjectURL(url),1000);
-a.remove();
-   }
 
 function runDataHealthCheck(){
  const issues=[];

@@ -3039,11 +3039,6 @@ db.salesmen.forEach(sm=>{
 
 });
 
- if(total>0){
-   lines.push(c.name+" "+total);
- }
-});
-
 if(lines.length<=4){
  lines.push("هیڅ قرض نشته");
 }
@@ -3062,7 +3057,7 @@ a.click();
 
 setTimeout(()=>URL.revokeObjectURL(url),1000);
 a.remove();
-}
+   }
 
 function runDataHealthCheck(){
  const issues=[];

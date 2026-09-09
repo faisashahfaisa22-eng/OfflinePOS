@@ -3018,13 +3018,28 @@ function downloadLoanRecoveryReport(){
 alert("داخل شو");
 
 const lines=[];
-
+lines.push("د قرض راپور");
 lines.push("test");
 
 const content=lines.join("\r\n");
+const filename="Loan_Report.txt";
 
-alert(content);
-  }
+const blob=new Blob([content],{type:"text/plain"});
+const url=URL.createObjectURL(blob);
+
+const a=document.createElement("a");
+a.href=url;
+a.download=filename;
+
+document.body.appendChild(a);
+a.click();
+
+setTimeout(()=>URL.revokeObjectURL(url),1000);
+a.remove();
+
+alert("فایل جوړ شو");
+}
+
 
 
 function runDataHealthCheck(){

@@ -3023,14 +3023,21 @@ lines.push("جوړ شوی: "+generated);
 lines.push("====================");
 lines.push("");
 
-db.customers.forEach(c=>{
+db.salesmen.forEach(sm=>{
+
  let total=0;
 
- db.customerLoans
- .filter(x=>x.customerId===c.id)
+ db.salesmanLoans
+ .filter(x=>x.salesmanId===sm.id)
  .forEach(x=>{
    total += Number(x.given||0)-Number(x.received||0);
  });
+
+ if(total>0){
+   lines.push(sm.name+" "+total);
+ }
+
+});
 
  if(total>0){
    lines.push(c.name+" "+total);

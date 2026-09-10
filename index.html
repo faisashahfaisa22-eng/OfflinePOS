@@ -3045,11 +3045,13 @@ const filename="Loan_Report.txt";
 const blob=new Blob([content],{type:"text/plain"});
 const url=URL.createObjectURL(blob);
 
-const a=document.createElement("a");
-a.href=url;
-a.download=filename;
-document.body.appendChild(a);
-a.click();
+const link=document.createElement("a");
+link.href=url;
+link.setAttribute("download", filename);
+link.style.display="none";
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
   alert("د کلیک وروسته");
 
 setTimeout(()=>URL.revokeObjectURL(url),1000);

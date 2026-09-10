@@ -59,6 +59,25 @@ public class MainActivity extends Activity {
         settings.setUseWideViewPort(false);
         webView.setWebViewClient(new WebViewClient());
 
+
+       webView.setDownloadListener(new DownloadListener() {
+    @Override
+    public void onDownloadStart(String url, String userAgent,
+                                String contentDisposition, String mimeType,
+                                long contentLength) {
+
+        DownloadManager.Request request =
+                new DownloadManager.Request(Uri.parse(url));
+
+        request.setTitle("Loan_Report.txt");
+
+        DownloadManager dm =
+                (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+
+        dm.enqueue(request);
+    }
+});
+
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
         webView.setWebChromeClient(new WebChromeClient() {

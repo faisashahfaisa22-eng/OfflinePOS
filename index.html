@@ -3050,6 +3050,7 @@ a.href=url;
 a.download=filename;
 document.body.appendChild(a);
 a.click();
+  alert("د کلیک وروسته");
 
 setTimeout(()=>URL.revokeObjectURL(url),1000);
 a.remove();

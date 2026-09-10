@@ -1,6 +1,7 @@
 package com.offlinepos.accounts;
 
 import android.app.Activity;
+import android.app.DownloadManager;
 import android.print.PrintManager;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -18,6 +19,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+android.webkit.DownloadListener;
 import android.widget.Toast;
 
 

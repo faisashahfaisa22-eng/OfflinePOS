@@ -53,7 +53,7 @@ jobs:
           cp MainActivity.java app/src/main/java/com/offlinepos/accounts/MainActivity.java
           cp strings-v8.3.5.xml app/src/main/res/values/strings.xml
           cp styles.xml app/src/main/res/values/styles.xml
-          cp ic_launcher.xml app/src/main/res/drawable/ic_launcher.xml
+          cp ic_launcher.png app/src/main/res/drawable/ic_launcher.png
 
           # If the Telegram JS file exists in the repo, bundle it into Android assets.
           if [ -f telegram-notify-v8.3.4.js ]; then

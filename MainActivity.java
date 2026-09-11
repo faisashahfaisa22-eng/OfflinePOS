@@ -1,7 +1,6 @@
 package com.offlinepos.accounts;
 
 import android.app.Activity;
-import android.app.DownloadManager;
 import android.print.PrintManager;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -19,7 +18,6 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.DownloadListener;
 import android.widget.Toast;
 
 
@@ -61,25 +59,7 @@ public class MainActivity extends Activity {
         settings.setUseWideViewPort(false);
         webView.setWebViewClient(new WebViewClient());
 
-
-       webView.setDownloadListener(new DownloadListener() {
-    @Override
-    public void onDownloadStart(String url, String userAgent,
-                                String contentDisposition, String mimeType,
-                                long contentLength) {
-
-        DownloadManager.Request request =
-                new DownloadManager.Request(Uri.parse(url));
-
-        request.setTitle("Loan_Report.txt");
-
-        DownloadManager dm =
-                (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-
-        dm.enqueue(request);
-    }
-});
-
+        
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
         webView.setWebChromeClient(new WebChromeClient() {

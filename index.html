@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Offline POS & Accounts Pro</title>
+<title>Offline POS & Accounts Pro | Upgrade 11</title>
 <style>
 :root{--bg:#f4f7fb;--card:#fff;--ink:#172033;--muted:#64748b;--line:#dbe3ef;--p:#174ea6;--p2:#0f766e;--red:#b42318;--gold:#b7791f}
 *{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
@@ -2712,49 +2712,62 @@ function renderStockLedger(){
  const pid=stockLedgerProduct.value;
  if(!pid){stockLedgerBody.innerHTML="";stockLedgerSummary.textContent="Select a Product.";return}
  const p=productBy(pid),from=stockLedgerFrom.value,to=stockLedgerTo.value;
- const movements=[];
+ const allRows=[];
 
- // Build one complete audit stream. Stock remains transaction-derived:
- // Opening Qty + Purchases + Adjustments - Sales.
- movements.push({date:"",type:"Opening Stock",ref:"",stockIn:n(p.openingQty),stockOut:0,note:"Opening quantity",sort:"0000-00-00-0"});
+ // Stock is transaction-derived in OfflinePOS. Build one audit stream from the
+ // existing opening quantity, purchases, sales and stock adjustments instead of
+ // mutating product quantities separately (which would double-count stock).
+ allRows.push({date:"",type:"Opening Stock",ref:"",stockIn:n(p.openingQty),stockOut:0,note:"Opening quantity",sort:"0000-00-00-0"});
  db.purchases.forEach(pu=>(pu.lines||[]).filter(l=>l.productId===pid).forEach(l=>{
-  movements.push({date:pu.date||"",type:"Purchase",ref:pu.invoice||"",stockIn:n(l.qty),stockOut:0,note:supplierBy(pu.supplierId)?.name||"",sort:`${pu.date||""}-1-${pu.id}`});
+  allRows.push({date:pu.date||"",type:"Purchase",ref:pu.invoice||"",stockIn:n(l.qty),stockOut:0,note:supplierBy(pu.supplierId)?.name||"",sort:`${pu.date||""}-1-${pu.id}`});
  }));
  db.sales.forEach(sa=>(sa.lines||[]).filter(l=>l.productId===pid).forEach(l=>{
-  const party=customerBy(sa.customerId)?.name || sa.salesman || salesmanBy(sa.salesmanId)?.name || "";
-  movements.push({date:sa.date||"",type:"Sale",ref:sa.invoice||"",stockIn:0,stockOut:n(l.qty),note:party,sort:`${sa.date||""}-2-${sa.id}`});
+  const accountName=customerBy(sa.customerId)?.name||sa.salesman||"";
+  allRows.push({date:sa.date||"",type:"Sale",ref:sa.invoice||"",stockIn:0,stockOut:n(l.qty),note:accountName,sort:`${sa.date||""}-2-${sa.id}`});
  }));
  db.stockAdjustments.filter(x=>x.productId===pid).forEach(x=>{
-  const q=n(x.qty);
-  movements.push({date:x.date||"",type:"Adjustment",ref:"",stockIn:Math.max(q,0),stockOut:Math.max(-q,0),note:x.note||"",sort:`${x.date||""}-3-${x.id}`});
+  allRows.push({date:x.date||"",type:"Adjustment",ref:"",stockIn:Math.max(n(x.qty),0),stockOut:Math.max(-n(x.qty),0),note:x.note||"",sort:`${x.date||""}-3-${x.id}`});
  });
- movements.sort((a,b)=>a.sort.localeCompare(b.sort));
+ allRows.sort((a,b)=>a.sort.localeCompare(b.sort));
 
+ // When a From date is selected, carry all earlier movement into a brought-
+ // forward row so the running balance remains mathematically correct.
  let broughtForward=0;
- let rows=[];
- if(from){
-  broughtForward=movements.reduce((bal,r)=>{
-   if(!r.date || String(r.date)<String(from))return bal+n(r.stockIn)-n(r.stockOut);
-   return bal;
-  },0);
-  rows.push({date:"",type:"Brought Forward",ref:"",stockIn:0,stockOut:0,note:`Balance before ${from}`,sort:""});
-  rows=rows.concat(movements.filter(r=>r.date && dateInRange(r.date,from,to)));
- }else{
-  rows=movements.filter(r=>!r.date || dateInRange(r.date,from,to));
- }
-
- let bal=from ? broughtForward : 0, periodIn=0, periodOut=0;
- stockLedgerBody.innerHTML=rows.map((r,i)=>{
-  if(from && i===0){
-   return `<tr><td></td><td>${e(r.type)}</td><td></td><td class="money stock-ledger-in"></td><td class="money stock-ledger-out"></td><td class="money strong">${m(bal)}</td><td>${e(r.note)}</td></tr>`;
+ const rows=[];
+ allRows.forEach(r=>{
+  const delta=n(r.stockIn)-n(r.stockOut);
+  const isOpening=r.type==="Opening Stock";
+  const beforeFrom=from && !isOpening && String(r.date)<String(from);
+  if(isOpening || beforeFrom){
+   broughtForward+=delta;
+   return;
   }
-  const sin=n(r.stockIn),sout=n(r.stockOut);
-  bal+=sin-sout;periodIn+=sin;periodOut+=sout;
-  return `<tr><td>${e(r.date)}</td><td>${e(r.type)}</td><td>${e(r.ref)}</td><td class="money stock-ledger-in">${sin?m(sin):""}</td><td class="money stock-ledger-out">${sout?m(sout):""}</td><td class="money strong">${m(bal)}</td><td>${e(r.note)}</td></tr>`;
+  if(dateInRange(r.date,from,to)) rows.push(r);
+ });
+
+ let bal=broughtForward;
+ const displayRows=[];
+ if(from){
+  displayRows.push({date:from,type:"Brought Forward",ref:"",stockIn:0,stockOut:0,note:"Balance before selected period",fixedBalance:broughtForward});
+ }else{
+  // With no From filter, preserve the original opening-stock row in the ledger.
+  const opening=allRows.find(r=>r.type==="Opening Stock");
+  if(opening){displayRows.push(opening);bal=0;}
+ }
+ displayRows.push(...rows);
+
+ stockLedgerBody.innerHTML=displayRows.map(r=>{
+  if(r.fixedBalance!==undefined){
+   bal=n(r.fixedBalance);
+  }else{
+   bal+=n(r.stockIn)-n(r.stockOut);
+  }
+  return `<tr><td>${e(r.date)}</td><td>${e(r.type)}</td><td>${e(r.ref)}</td><td class="money stock-ledger-in">${r.stockIn?m(r.stockIn):""}</td><td class="money stock-ledger-out">${r.stockOut?m(r.stockOut):""}</td><td class="money strong">${m(bal)}</td><td>${e(r.note)}</td></tr>`;
  }).join("");
 
- const periodText=from||to ? ` — Period In: <b>${m(periodIn)}</b> — Period Out: <b>${m(periodOut)}</b>` : "";
- stockLedgerSummary.innerHTML=`<b>${e(p.name)}</b> — Current Stock: <b>${m(currentQty(p))}</b> — Cost: <b>${m(currentCost(p))}</b> — Stock Value: <b>${m(currentQty(p)*currentCost(p))}</b>${periodText}`;
+ const periodIn=rows.reduce((a,r)=>a+n(r.stockIn),0);
+ const periodOut=rows.reduce((a,r)=>a+n(r.stockOut),0);
+ stockLedgerSummary.innerHTML=`<b>${e(p.name)}</b> — B/F: <b>${m(from?broughtForward:n(p.openingQty))}</b> — Period In: <b>${m(periodIn)}</b> — Period Out: <b>${m(periodOut)}</b> — Current Stock: <b>${m(currentQty(p))}</b> — Cost: <b>${m(currentCost(p))}</b> — Stock Value: <b>${m(currentQty(p)*currentCost(p))}</b>`;
 }
 
 function buildCashBookRows(){

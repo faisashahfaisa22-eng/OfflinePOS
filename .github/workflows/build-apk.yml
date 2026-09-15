@@ -21,17 +21,11 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-  uses: android-actions/setup-android@v3
-  with:
-    packages: |
-      platform-tools
-      platforms;android-35
-      build-tools;35.0.0
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
+        uses: android-actions/setup-android@v3
 
       - name: Install Android SDK packages
         run: |
+          yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup Gradle
@@ -40,11 +34,11 @@ jobs:
       - name: Check Project
         run: |
           ls -la
-          find . -maxdepth 2 -name "build.gradle" -o -name "build.gradle.kts"
+          find . -maxdepth 3 -name "build.gradle" -o -name "build.gradle.kts"
 
       - name: Build APK
         run: |
-          chmod +x gradlew || true
+          chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK

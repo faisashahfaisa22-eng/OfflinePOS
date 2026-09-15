@@ -22,6 +22,12 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+          accept-android-sdk-licenses: true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -29,10 +35,16 @@ jobs:
       - name: Verify Android project
         run: |
           ls -la
-          ls -la app
+          test -f gradlew && chmod +x gradlew || true
+          ls -la app || true
 
       - name: Build APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          if [ -f ./gradlew ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

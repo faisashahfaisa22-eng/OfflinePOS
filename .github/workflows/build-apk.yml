@@ -32,21 +32,17 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Verify Android project
+      - name: Check Project
         run: |
           ls -la
-          test -f gradlew && chmod +x gradlew || true
-          ls -la app || true
+          find . -maxdepth 2 -name "build.gradle" -o -name "build.gradle.kts"
 
       - name: Build APK
         run: |
-          if [ -f ./gradlew ]; then
-            ./gradlew assembleDebug --stacktrace
-          else
-            gradle assembleDebug --stacktrace
-          fi
+          chmod +x gradlew || true
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: OfflinePOS-debug-apk

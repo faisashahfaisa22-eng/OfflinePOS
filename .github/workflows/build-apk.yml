@@ -1,13 +1,4 @@
-name: Build OfflinePOS AAB v11
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-jobs:
-  build-aab:
+build-aab:
     runs-on: ubuntu-latest
 
     steps:
@@ -35,14 +26,3 @@ jobs:
           chmod +x gradlew
           ./gradlew bundleRelease --stacktrace
 
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: OfflinePOS-v11-AAB
-          path: app/build/outputs/bundle/release/*.aab
-          if-no-files-found: error
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: OfflinePOS-v11-AAB
-          path: app/build/outputs/bundle/release/*.aab

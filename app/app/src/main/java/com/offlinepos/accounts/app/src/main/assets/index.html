@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Offline POS & Accounts Pro v11</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #102B4C;
+            color: white;
+        }
+
+        header {
+            padding: 20px;
+            text-align: center;
+            background: #0b1f38;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            color: black;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #102B4C;
+            color: white;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h2>Offline POS & Accounts Pro v11</h2>
+    <p>Offline Accounting System</p>
+</header>
+
+<div class="container">
+
+    <div class="card">
+        <h3>Dashboard</h3>
+        <p id="status">Database Loading...</p>
+    </div>
+
+    <div class="card">
+        <h3>Sales</h3>
+        <button onclick="openSales()">Open Sales</button>
+    </div>
+
+    <div class="card">
+        <h3>Stock</h3>
+        <button onclick="openStock()">Open Stock</button>
+    </div>
+
+</div>
+
+
+<script>
+
+const App = {
+    version: "11.0.0",
+
+    init(){
+        document.getElementById("status").innerHTML =
+        "OfflinePOS v11 Ready";
+    }
+};
+
+
+function openSales(){
+    alert("Sales Module v11");
+}
+
+function openStock(){
+    alert("Stock Module v11");
+}
+
+
+App.init();
+
+</script>
+
+</body>
+  </html>

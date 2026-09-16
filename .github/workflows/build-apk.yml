@@ -17,14 +17,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
+      - name: Setup Gradle 8.10.2
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
 
-      - name: Make Gradle executable
-        run: chmod +x gradlew
+      - name: Check Gradle
+        run: gradle --version
 
       - name: Build AAB
-        run: ./gradlew bundleRelease --stacktrace
+        run: gradle :app:bundleRelease --stacktrace
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4

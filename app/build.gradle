@@ -3,14 +3,44 @@ plugins {
 }
 
 android {
-    namespace 'com.offlinepos.app'
+    namespace 'com.offlinepos.accounts'
+
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.offlinepos.app'
+        applicationId "com.offlinepos.accounts"
         minSdk 23
         targetSdk 35
-        versionCode 1
-        versionName '10.0'
+
+        versionCode 11
+        versionName "11.0"
     }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile(
+                    'proguard-android-optimize.txt'
+            ), 'proguard-rules.pro'
+        }
+    }
+
+    packagingOptions {
+        resources {
+            excludes += [
+                    "META-INF/LICENSE",
+                    "META-INF/LICENSE.txt",
+                    "META-INF/NOTICE",
+                    "META-INF/NOTICE.txt"
+            ]
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
 }

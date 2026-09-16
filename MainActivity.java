@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
 
         getWindow().setStatusBarColor(Color.parseColor("#102B4C"));
         getWindow().setNavigationBarColor(Color.parseColor("#102B4C"));
-        setTitle("Offline POS & Accounts Pro");
+        setTitle("Offline POS & Accounts Pro v11");
 
         webView = new WebView(this);
         setContentView(webView);
@@ -239,8 +239,7 @@ public class MainActivity extends Activity {
                     zos.closeEntry();
                 }
 
-                // 4) Small app/repository reference file
-                String info = "Offline POS & Accounts Pro\\nVersion: 7.9\\nGitHub: https://github.com/faisashahfaisa22-eng/OfflinePOS\\n";
+    String info = "Offline POS & Accounts Pro\nVersion: 11.0\nGitHub: https://github.com/faisashahfaisa22-eng/OfflinePOS\n";            // 4) Small app/repository reference file
                 zos.putNextEntry(new ZipEntry("APP_AND_GITHUB_INFO.txt"));
                 zos.write(info.getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();

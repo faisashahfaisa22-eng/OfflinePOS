@@ -4,28 +4,35 @@ plugins {
 
 android {
     namespace 'com.offlinepos.accounts'
-
     compileSdk 35
 
     defaultConfig {
         applicationId "com.offlinepos.accounts"
         minSdk 23
         targetSdk 35
-
         versionCode 11
         versionName "11.0"
+    }
+
+    signingConfigs {
+        release {
+            if (System.getenv("OFFLINEPOS_KEYSTORE_PATH")) {
+                storeFile file(System.getenv("OFFLINEPOS_KEYSTORE_PATH"))
+                storePassword System.getenv("OFFLINEPOS_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("OFFLINEPOS_KEY_ALIAS")
+                keyPassword System.getenv("OFFLINEPOS_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         debug {
             minifyEnabled false
         }
-
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile(
-                    'proguard-android-optimize.txt'
-            ), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 

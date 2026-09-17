@@ -1,10 +1,10 @@
-name: Build OfflinePOS Signed AAB v11
+name: Build OfflinePOS Signed APK AAB v11
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-aab:
+  build-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +29,14 @@ jobs:
           test -n "$OFFLINEPOS_KEYSTORE_BASE64"
           echo "$OFFLINEPOS_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/offlinepos-upload.jks"
 
+      - name: Build signed APK
+        env:
+          OFFLINEPOS_KEYSTORE_PATH: ${{ runner.temp }}/offlinepos-upload.jks
+          OFFLINEPOS_KEYSTORE_PASSWORD: ${{ secrets.OFFLINEPOS_KEYSTORE_PASSWORD }}
+          OFFLINEPOS_KEY_ALIAS: ${{ secrets.OFFLINEPOS_KEY_ALIAS }}
+          OFFLINEPOS_KEY_PASSWORD: ${{ secrets.OFFLINEPOS_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --stacktrace
+
       - name: Build signed AAB
         env:
           OFFLINEPOS_KEYSTORE_PATH: ${{ runner.temp }}/offlinepos-upload.jks
@@ -37,12 +45,22 @@ jobs:
           OFFLINEPOS_KEY_PASSWORD: ${{ secrets.OFFLINEPOS_KEY_PASSWORD }}
         run: gradle :app:bundleRelease --stacktrace
 
-      - name: Verify signature
+      - name: Verify APK
+        run: jarsigner -verify -verbose -certs app/build/outputs/apk/release/app-release.apk
+
+      - name: Verify AAB
         run: jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab
 
-      - name: Upload signed AAB
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: OfflinePOS-v11-SIGNED-AAB
+          name: OfflinePOS-v11-APK
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: OfflinePOS-v11-AAB
           path: app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error

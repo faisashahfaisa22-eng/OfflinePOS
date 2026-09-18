@@ -25,7 +25,21 @@ jobs:
       - name: Check Gradle
         run: gradle --version
 
+      # This step was missing — without it, the keystore file never exists
+      # and signReleaseBundle NullPointerExceptions.
+      - name: Restore keystore
+        env:
+          OFFLINEPOS_KEYSTORE_BASE64: ${{ secrets.OFFLINEPOS_KEYSTORE_BASE64 }}
+        run: |
+          echo "$OFFLINEPOS_KEYSTORE_BASE64" | base64 --decode > $RUNNER_TEMP/offlinepos-upload.jks
+          ls -la $RUNNER_TEMP/offlinepos-upload.jks
+
       - name: Build AAB
+        env:
+          OFFLINEPOS_KEYSTORE_PATH: ${{ runner.temp }}/offlinepos-upload.jks
+          OFFLINEPOS_KEYSTORE_PASSWORD: ${{ secrets.OFFLINEPOS_KEYSTORE_PASSWORD }}
+          OFFLINEPOS_KEY_ALIAS: ${{ secrets.OFFLINEPOS_KEY_ALIAS }}
+          OFFLINEPOS_KEY_PASSWORD: ${{ secrets.OFFLINEPOS_KEY_PASSWORD }}
         run: gradle :app:bundleRelease --stacktrace
 
       - name: Upload AAB

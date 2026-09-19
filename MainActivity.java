@@ -40,6 +40,11 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // TEMPORARY â€” lets you see real JS errors via chrome://inspect on a
+        // computer while the phone is connected by USB. Remove this line
+        // once the navigation bug is found and fixed, before publishing.
+        WebView.setWebContentsDebuggingEnabled(true);
+
         getWindow().setStatusBarColor(Color.parseColor("#102B4C"));
         getWindow().setNavigationBarColor(Color.parseColor("#102B4C"));
         setTitle("Offline POS & Accounts Pro v11");

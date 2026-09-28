@@ -1,1 +1,420 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QAMVIO POS — Sales • Inventory • Accounts</title><meta name="description" content="QAMVIO POS is a simple business management app for sales, inventory, customers, suppliers, expenses, accounts and reports."><style>*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f9ff;color:#0f2342}header{background:linear-gradient(135deg,#071b38,#075ee8);color:#fff;padding:18px 6%}nav{display:flex;justify-content:space-between;align-items:center;max-width:1150px;margin:auto}.brand{font-size:24px;font-weight:900}.brand span{color:#4db2ff}.navlinks a{color:#fff;text-decoration:none;margin-left:18px;font-size:14px}.hero{max-width:1150px;margin:auto;padding:72px 6% 55px;display:grid;grid-template-columns:1.05fr .95fr;gap:42px;align-items:center}.hero h1{font-size:54px;line-height:1.02;margin:0 0 16px}.hero p{font-size:19px;line-height:1.7;color:#50627c}.btn{display:inline-block;background:#1267ef;color:#fff;text-decoration:none;padding:14px 22px;border-radius:12px;font-weight:800;margin:10px 10px 0 0}.btn.alt{background:#e9f1ff;color:#1258c7}.hero img{width:100%;border-radius:22px;box-shadow:0 24px 65px #163d7a2e}.section{max-width:1150px;margin:auto;padding:55px 6%}.section h2{text-align:center;font-size:34px;margin:0 0 12px}.sub{text-align:center;color:#64748b;margin-bottom:30px}.features{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{background:#fff;border:1px solid #e0e8f4;border-radius:16px;padding:22px;box-shadow:0 8px 25px #173c7110}.ico{font-size:28px}.card h3{margin:10px 0 7px}.card p{font-size:14px;color:#64748b;line-height:1.6}.cta{margin:40px auto 0;background:linear-gradient(135deg,#08244b,#1267ef);color:#fff;border-radius:24px;padding:38px;text-align:center}.cta p{color:#dbeafe}.small{font-size:12px;color:#789}footer{text-align:center;padding:35px 6%;color:#64748b}.legal a{color:#3b6fb6;margin:0 8px}@media(max-width:800px){.hero{grid-template-columns:1fr;padding-top:45px}.hero h1{font-size:40px}.features{grid-template-columns:repeat(2,1fr)}.navlinks{display:none}}@media(max-width:480px){.features{grid-template-columns:1fr}.hero h1{font-size:35px}}</style></head><body><header><nav><div class="brand">QAMVIO <span>POS</span></div><div class="navlinks"><a href="#features">Features</a><a href="#download">Download</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div></nav></header><main><section class="hero"><div><div style="font-weight:800;color:#1267ef;margin-bottom:10px">POS & BUSINESS MANAGEMENT</div><h1>Run your business with QAMVIO.</h1><p>Sales • Inventory • Accounts — plus customers, suppliers, expenses, loans, reports and backup in one practical business app.</p><a class="btn" href="#download">Download QAMVIO POS</a><a class="btn alt" href="#features">Explore Features</a><p class="small">Designed for small and growing businesses.</p></div><img src="qamvio-preview.png" alt="QAMVIO POS preview"></section><section class="section" id="features"><h2>Everything your business needs</h2><p class="sub">A focused toolkit for daily sales and business control.</p><div class="features"><div class="card"><div class="ico">🛒</div><h3>Sales & POS</h3><p>Create invoices, record cash sales and track daily activity.</p></div><div class="card"><div class="ico">📦</div><h3>Inventory</h3><p>Manage products, stock levels, purchases and stock movement.</p></div><div class="card"><div class="ico">👥</div><h3>Customers & Suppliers</h3><p>Keep customer and supplier records, balances and statements organized.</p></div><div class="card"><div class="ico">📊</div><h3>Accounts & Reports</h3><p>Track expenses, loans, cash book, daily closing and business reports.</p></div><div class="card"><div class="ico">🌐</div><h3>4 Languages</h3><p>English, پښتو, دری and اردو for multilingual business teams.</p></div><div class="card"><div class="ico">🔒</div><h3>Secure Access</h3><p>Login controls and protected business data for safer day-to-day use.</p></div><div class="card"><div class="ico">💾</div><h3>Backup</h3><p>Backup and restore tools help you protect important business records.</p></div><div class="card"><div class="ico">📱</div><h3>Mobile Friendly</h3><p>Responsive interface designed for practical use on phones and computers.</p></div></div><div class="cta" id="download"><h2 style="margin:0">QAMVIO POS</h2><p>Sales • Inventory • Accounts</p><a class="btn" style="background:#fff;color:#1258c7" href="#">Android APK — Coming Soon</a><p class="small" style="color:#cbd5e1">Replace this button with your APK download link when the release build is ready.</p></div></section></main><footer><b>QAMVIO</b> — POS & Business Management<div class="legal" style="margin-top:10px"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms of Use</a></div><p>© 2026 QAMVIO. All rights reserved.</p></footer></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>QAMVIO POS — Sales • Inventory • Accounts</title>
+
+  <meta
+    name="description"
+    content="QAMVIO POS is a practical business management app for sales, inventory, customers, suppliers, accounts, expenses, loans, reports and backup."
+  >
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: #f6f9ff;
+      color: #0f2342;
+    }
+
+    header {
+      background: linear-gradient(135deg, #071b38, #075ee8);
+      color: #fff;
+      padding: 18px 6%;
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1150px;
+      margin: auto;
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .brand span {
+      color: #4db2ff;
+    }
+
+    .navlinks a {
+      color: #fff;
+      text-decoration: none;
+      margin-left: 18px;
+      font-size: 14px;
+    }
+
+    .hero {
+      max-width: 1150px;
+      margin: auto;
+      padding: 72px 6% 55px;
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 42px;
+      align-items: center;
+    }
+
+    .tagline {
+      font-weight: 800;
+      color: #1267ef;
+      margin-bottom: 10px;
+    }
+
+    .hero h1 {
+      font-size: 54px;
+      line-height: 1.02;
+      margin: 0 0 16px;
+    }
+
+    .hero p {
+      font-size: 19px;
+      line-height: 1.7;
+      color: #50627c;
+    }
+
+    .btn {
+      display: inline-block;
+      background: #1267ef;
+      color: #fff;
+      text-decoration: none;
+      padding: 14px 22px;
+      border-radius: 12px;
+      font-weight: 800;
+      margin: 10px 10px 0 0;
+    }
+
+    .btn.alt {
+      background: #e9f1ff;
+      color: #1258c7;
+    }
+
+    .hero img {
+      width: 100%;
+      border-radius: 22px;
+      box-shadow: 0 24px 65px #163d7a2e;
+    }
+
+    .small {
+      font-size: 12px !important;
+      color: #789 !important;
+    }
+
+    .section {
+      max-width: 1150px;
+      margin: auto;
+      padding: 55px 6%;
+    }
+
+    .section h2 {
+      text-align: center;
+      font-size: 34px;
+      margin: 0 0 12px;
+    }
+
+    .sub {
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 30px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e0e8f4;
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 8px 25px #173c7110;
+    }
+
+    .ico {
+      font-size: 28px;
+    }
+
+    .card h3 {
+      margin: 10px 0 7px;
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .cta {
+      margin: 40px auto 0;
+      background: linear-gradient(135deg, #08244b, #1267ef);
+      color: #fff;
+      border-radius: 24px;
+      padding: 38px;
+      text-align: center;
+    }
+
+    .cta p {
+      color: #dbeafe;
+    }
+
+    .download-btn {
+      background: #fff;
+      color: #1258c7;
+    }
+
+    footer {
+      text-align: center;
+      padding: 35px 6%;
+      color: #64748b;
+    }
+
+    .legal {
+      margin-top: 10px;
+    }
+
+    .legal a {
+      color: #3b6fb6;
+      margin: 0 8px;
+      text-decoration: none;
+    }
+
+    @media (max-width: 800px) {
+      .hero {
+        grid-template-columns: 1fr;
+        padding-top: 45px;
+      }
+
+      .hero h1 {
+        font-size: 40px;
+      }
+
+      .features {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .navlinks {
+        display: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .features {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 35px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <nav>
+    <div class="brand">
+      QAMVIO <span>POS</span>
+    </div>
+
+    <div class="navlinks">
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </div>
+  </nav>
+</header>
+
+
+<main>
+
+  <!-- HERO -->
+  <section class="hero">
+
+    <div>
+      <div class="tagline">
+        POS & BUSINESS MANAGEMENT
+      </div>
+
+      <h1>
+        Run your business with QAMVIO.
+      </h1>
+
+      <p>
+        Sales • Inventory • Accounts — plus customers,
+        suppliers, expenses, loans, reports and backup
+        in one practical business app.
+      </p>
+
+      <a
+        class="btn"
+        href="https://github.com/faisashahfaisa22-eng/OfflinePOS/releases/download/v1.0.0/app-release.apk"
+      >
+        Download QAMVIO POS
+      </a>
+
+      <a class="btn alt" href="#features">
+        Explore Features
+      </a>
+
+      <p class="small">
+        QAMVIO POS v1.0.0 • Android
+      </p>
+    </div>
+
+    <img
+      src="qamvio-preview.png"
+      alt="QAMVIO POS business management application preview"
+    >
+
+  </section>
+
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+
+    <h2>Everything your business needs</h2>
+
+    <p class="sub">
+      A practical toolkit for daily sales and business management.
+    </p>
+
+    <div class="features">
+
+      <div class="card">
+        <div class="ico">🛒</div>
+        <h3>Sales & POS</h3>
+        <p>
+          Create invoices, record sales and manage
+          daily business activity.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="ico">📦</div>
+        <h3>Inventory</h3>
+        <p>
+          Manage products, stock levels, purchases
+          and stock movement.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="ico">👥</div>
+        <h3>Customers & Suppliers</h3>
+        <p>
+          Keep customer and supplier records,
+          balances and statements organized.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="ico">💰</div>
+        <h3>Accounts & Expenses</h3>
+        <p>
+          Track business accounts, expenses,
+          income and financial activity.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="ico">📊</div>
+        <h3>Reports</h3>
+        <p>
+          Review sales, accounts and other
+          important business information.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="ico">🤝</div>
+        <h3>Loans</h3>
+        <p>
+          Keep loan and borrowing records
+          organized in your business system.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="ico">💾</div>
+        <h3>Backup & Restore</h3>
+        <p>
+          Backup and restore tools help protect
+          important business records.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="ico">🌐</div>
+        <h3>4 Languages</h3>
+        <p>
+          English, پښتو, دری and اردو support
+          for multilingual users.
+        </p>
+      </div>
+
+    </div>
+
+
+    <!-- DOWNLOAD -->
+    <div class="cta" id="download">
+
+      <h2 style="margin:0">
+        Download QAMVIO POS
+      </h2>
+
+      <p>
+        Sales • Inventory • Accounts
+      </p>
+
+      <a
+        class="btn download-btn"
+        href="https://github.com/faisashahfaisa22-eng/OfflinePOS/releases/download/v1.0.0/app-release.apk"
+      >
+        📱 Download for Android
+      </a>
+
+      <p class="small" style="color:#cbd5e1 !important;">
+        Version 1.0.0 • Android APK
+      </p>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+<footer>
+
+  <b>QAMVIO</b>
+  — POS & Business Management
+
+  <div class="legal">
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="terms.html">Terms of Use</a>
+  </div>
+
+  <p>
+    © 2026 QAMVIO. All rights reserved.
+  </p>
+
+</footer>
+
+</body>
+</html>

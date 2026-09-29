@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
 
         getWindow().setStatusBarColor(Color.parseColor("#102B4C"));
         getWindow().setNavigationBarColor(Color.parseColor("#102B4C"));
-        setTitle("Offline POS & Accounts Pro v11");
+        setTitle("QAMVIO POS v13");
 
         nativeStore = new NativeStore(this);
 
@@ -67,6 +67,46 @@ public class MainActivity extends Activity {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(false);
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+
+                // Defensive guard for the short locked state used by cloud restore.
+                // The dashboard can receive a resize event while the encrypted DB
+                // is intentionally unavailable; keep those renderers from reading
+                // a null database until local login unlocks the restored data.
+                String guardScript =
+                        "(function(){" +
+                        "if(window.__qamvioNullDbGuardInstalled)return;" +
+                        "window.__qamvioNullDbGuardInstalled=true;" +
+                        "var names=['renderDashboard','renderLuxuryCharts','renderWeekCompare'];" +
+                        "names.forEach(function(name){" +
+                        "var original=window[name];" +
+                        "if(typeof original!=='function')return;" +
+                        "window[name]=function(){" +
+                        "if(typeof db==='undefined'||db===null)return;" +
+                        "return original.apply(this,arguments);" +
+                        "};" +
+                        "});" +
+                        "if(typeof window.dailyProfitForDate==='function'){" +
+                        "var dailyOriginal=window.dailyProfitForDate;" +
+                        "window.dailyProfitForDate=function(date){" +
+                        "if(typeof db==='undefined'||db===null)return {net:0,profit:0};" +
+                        "return dailyOriginal.call(this,date);" +
+                        "};" +
+                        "}" +
+                        "if(typeof window.installCloudPayloadLocally==='function'){" +
+                        "var installOriginal=window.installCloudPayloadLocally;" +
+                        "window.installCloudPayloadLocally=function(payload){" +
+                        "var result=installOriginal.call(this,payload);" +
+                        "if(typeof db!=='undefined'&&db===null&&typeof emptyDB==='function')db=emptyDB();" +
+                        "return result;" +
+                        "};" +
+                        "}" +
+                        "})();";
+                view.evaluateJavascript(guardScript, null);
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();

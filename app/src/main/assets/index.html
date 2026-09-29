@@ -490,6 +490,7 @@ window.__argon2LoadingPromise = (async ()=>{
    <button class="action gray auth-btn" onclick="wizardFinish('hotel')">🏨 Hotel</button>
    <button class="action gray auth-btn" onclick="wizardFinish('restaurant')">🍽 Restaurant</button>
    <button class="action gray auth-btn" onclick="wizardFinish('pharmacy')">💊 Pharmacy</button>
+   <button class="action gray auth-btn" onclick="wizardFinish('fuel')" data-fuel-i18n="wizard_fuel">⛽ Fuel / Oil Pump</button>
    <button class="action gray auth-btn" onclick="wizardFinish('custom')">🛠 Custom / Other</button>
   </div>
   <button class="action gray auth-btn" style="margin-top:14px" onclick="wizardGoStep1()">← Back</button>
@@ -545,6 +546,7 @@ window.__argon2LoadingPromise = (async ()=>{
   <button data-page="dashboard" class="active">Dashboard</button>
   <button data-page="quickSearch">Quick Search</button>
   <button data-page="saleInvoice">Sales / Cash Report</button>
+  <button data-page="fuelPump" id="fuelPumpNavBtn">⛽ Fuel / Oil Pump</button>
   <button data-page="stock">Stock</button>
   <button data-page="stockLedger">Stock Ledger</button>
   <button data-page="products">Products</button>
@@ -750,6 +752,137 @@ window.__argon2LoadingPromise = (async ()=>{
   </div>
   <div id="globalSearchSummary" class="report-formula" style="margin-top:12px"></div>
   <div id="globalSearchResults" class="card" style="margin-top:12px;padding:0"></div>
+ </div>
+</section>
+
+<section id="fuelPump" class="page">
+ <h1 data-fuel-i18n="title">⛽ Fuel / Oil Pump Control</h1>
+ <div class="notice" data-fuel-i18n="notice">Fuel-pump mode connects meter sales, fuel deliveries, tank stock, customers, salesmen, suppliers, expenses, invoices and cash book. Use this page for nozzle meter sales so tank and product stock stay synchronized.</div>
+
+ <div class="toolbar no-print" style="margin-bottom:12px">
+  <button class="action green" onclick="openPage('saleInvoice')" data-fuel-i18n="open_invoice">Sales Invoice</button>
+  <button class="action gray" onclick="openPage('customers')" data-fuel-i18n="open_customers">Customers</button>
+  <button class="action gray" onclick="openPage('salesmen')" data-fuel-i18n="open_salesmen">Salesmen</button>
+  <button class="action gray fuel-admin-only" onclick="openPage('suppliers')" data-fuel-i18n="open_suppliers">Suppliers</button>
+  <button class="action gray fuel-admin-only" onclick="openPage('expenses')" data-fuel-i18n="open_expenses">Expenses</button>
+  <button class="action gray fuel-admin-only" onclick="openPage('cashBook')" data-fuel-i18n="open_cashbook">Cash Book</button>
+  <button class="action gray fuel-admin-only" onclick="openPage('reports')" data-fuel-i18n="open_reports">Reports</button>
+ </div>
+
+ <div class="grid g4">
+  <div class="card kpi"><div class="num" id="fuelTodayLiters">0</div><div class="lbl" data-fuel-i18n="kpi_liters">Today's Liters Sold</div></div>
+  <div class="card kpi"><div class="num" id="fuelTodaySales">0</div><div class="lbl" data-fuel-i18n="kpi_sales">Today's Fuel Sales</div></div>
+  <div class="card kpi"><div class="num" id="fuelTodayCash">0</div><div class="lbl" data-fuel-i18n="kpi_cash">Today's Cash Received</div></div>
+  <div class="card kpi"><div class="num" id="fuelTodayDue">0</div><div class="lbl" data-fuel-i18n="kpi_due">Today's Credit / Due</div></div>
+ </div>
+
+ <div class="card fuel-admin-only" style="margin-top:12px">
+  <h2 data-fuel-i18n="tank_setup">Fuel Tanks</h2>
+  <div class="notice" data-fuel-i18n="tank_notice">Create fuel products first (Petrol, Diesel, etc.), then link each tank to one product. Product opening stock is synchronized from the opening liters of all linked tanks.</div>
+  <div class="row">
+   <div class="grow"><label data-fuel-i18n="tank_name">Tank Name</label><input id="fuelTankName" placeholder="e.g. Petrol Tank 1"></div>
+   <div><label data-fuel-i18n="fuel_product">Fuel Product</label><select id="fuelTankProduct"></select></div>
+   <div><label data-fuel-i18n="capacity">Capacity (L)</label><input id="fuelTankCapacity" type="number" step="0.01" min="0"></div>
+   <div><label data-fuel-i18n="opening_liters">Opening Liters</label><input id="fuelTankOpening" type="number" step="0.01" min="0"></div>
+   <div class="grow"><label data-fuel-i18n="note">Note</label><input id="fuelTankNote"></div>
+   <button id="fuelTankSaveBtn" class="action green" onclick="saveFuelTank()" data-fuel-i18n="save_tank">Save Tank</button>
+   <button id="fuelTankCancelBtn" class="action gray" onclick="resetFuelTankForm()" style="display:none" data-fuel-i18n="cancel_edit">Cancel Edit</button>
+  </div>
+  <div class="toolbar" style="margin-top:8px"><button class="action gold" onclick="seedFuelProducts()" data-fuel-i18n="seed_products">Create Default Fuel Products</button></div>
+  <div class="tablewrap"><table><thead><tr><th data-fuel-i18n="tank">Tank</th><th data-fuel-i18n="product">Product</th><th class="money" data-fuel-i18n="capacity2">Capacity</th><th class="money" data-fuel-i18n="opening2">Opening</th><th class="money" data-fuel-i18n="current_stock">Current Liters</th><th class="money" data-fuel-i18n="ullage">Free Capacity</th><th data-fuel-i18n="status">Status</th><th></th></tr></thead><tbody id="fuelTanksBody"></tbody></table></div>
+ </div>
+
+ <div class="card fuel-admin-only" style="margin-top:12px">
+  <h2 data-fuel-i18n="nozzle_setup">Pumps / Nozzles</h2>
+  <div class="row">
+   <div class="grow"><label data-fuel-i18n="nozzle_name">Nozzle / Pump Name</label><input id="fuelNozzleName" placeholder="e.g. Nozzle 1"></div>
+   <div><label data-fuel-i18n="tank">Tank</label><select id="fuelNozzleTank"></select></div>
+   <div><label data-fuel-i18n="opening_meter">Opening Meter</label><input id="fuelNozzleOpeningMeter" type="number" step="0.001" min="0"></div>
+   <div class="grow"><label data-fuel-i18n="note">Note</label><input id="fuelNozzleNote"></div>
+   <button id="fuelNozzleSaveBtn" class="action green" onclick="saveFuelNozzle()" data-fuel-i18n="save_nozzle">Save Nozzle</button>
+   <button id="fuelNozzleCancelBtn" class="action gray" onclick="resetFuelNozzleForm()" style="display:none" data-fuel-i18n="cancel_edit">Cancel Edit</button>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th data-fuel-i18n="nozzle">Nozzle</th><th data-fuel-i18n="tank">Tank</th><th data-fuel-i18n="product">Product</th><th class="money" data-fuel-i18n="last_meter">Last Meter</th><th data-fuel-i18n="note">Note</th><th></th></tr></thead><tbody id="fuelNozzlesBody"></tbody></table></div>
+ </div>
+
+ <div class="card fuel-admin-only" style="margin-top:12px">
+  <h2 data-fuel-i18n="delivery_title">Fuel Purchase / Tank Delivery</h2>
+  <div class="row">
+   <div><label data-fuel-i18n="date">Date</label><input id="fuelDeliveryDate" type="date"></div>
+   <div><label data-fuel-i18n="supplier">Supplier</label><select id="fuelDeliverySupplier"></select></div>
+   <div><label data-fuel-i18n="tank">Tank</label><select id="fuelDeliveryTank" onchange="calcFuelDelivery()"></select></div>
+   <div><label data-fuel-i18n="invoice_no">Invoice No</label><input id="fuelDeliveryInvoice"></div>
+   <div><label data-fuel-i18n="liters">Liters</label><input id="fuelDeliveryLiters" type="number" step="0.001" min="0" oninput="calcFuelDelivery()"></div>
+   <div><label data-fuel-i18n="cost_per_liter">Cost / Liter</label><input id="fuelDeliveryCost" type="number" step="0.01" min="0" oninput="calcFuelDelivery()"></div>
+   <div><label data-fuel-i18n="paid">Paid</label><input id="fuelDeliveryPaid" type="number" step="0.01" min="0"></div>
+   <div class="grow"><label data-fuel-i18n="note">Note</label><input id="fuelDeliveryNote"></div>
+  </div>
+  <div class="report-formula" style="margin:8px 0"><span data-fuel-i18n="total_purchase">Purchase Total</span>: <b id="fuelDeliveryTotal">0</b></div>
+  <button id="fuelDeliverySaveBtn" class="action green" onclick="saveFuelDelivery()" data-fuel-i18n="save_delivery">Save Fuel Delivery</button>
+  <button id="fuelDeliveryCancelBtn" class="action gray" onclick="resetFuelDeliveryForm()" style="display:none" data-fuel-i18n="cancel_edit">Cancel Edit</button>
+  <div class="tablewrap"><table><thead><tr><th data-fuel-i18n="date">Date</th><th data-fuel-i18n="supplier">Supplier</th><th data-fuel-i18n="tank">Tank</th><th data-fuel-i18n="invoice_no">Invoice</th><th class="money" data-fuel-i18n="liters">Liters</th><th class="money" data-fuel-i18n="cost_per_liter">Cost/L</th><th class="money" data-fuel-i18n="total">Total</th><th class="money" data-fuel-i18n="paid">Paid</th><th></th></tr></thead><tbody id="fuelDeliveriesBody"></tbody></table></div>
+ </div>
+
+ <div class="card" style="margin-top:12px">
+  <h2 data-fuel-i18n="meter_sale_title">Nozzle Meter Sale / Shift</h2>
+  <div class="notice" data-fuel-i18n="meter_notice">Closing Meter − Opening Meter = Liters Sold. Saving creates a normal sales invoice automatically, updates stock, customer/salesman balances, reports and cash book.</div>
+  <div class="row">
+   <div><label data-fuel-i18n="date">Date</label><input id="fuelShiftDate" type="date"></div>
+   <div><label data-fuel-i18n="shift">Shift</label><input id="fuelShiftName" placeholder="Morning / Evening / Night"></div>
+   <div><label data-fuel-i18n="nozzle">Nozzle</label><select id="fuelShiftNozzle" onchange="onFuelNozzleChange()"></select></div>
+   <div><label data-fuel-i18n="invoice_no">Invoice No</label><input id="fuelShiftInvoice" placeholder="Auto if blank"></div>
+   <div><label data-fuel-i18n="salesman">Salesman</label><select id="fuelShiftSalesman" onchange="refreshFuelCustomers()"></select></div>
+   <div><label data-fuel-i18n="customer">Customer</label><select id="fuelShiftCustomer"></select></div>
+   <div><label data-fuel-i18n="opening_meter">Opening Meter</label><input id="fuelShiftOpening" type="number" step="0.001" min="0" oninput="calcFuelShift()"></div>
+   <div><label data-fuel-i18n="closing_meter">Closing Meter</label><input id="fuelShiftClosing" type="number" step="0.001" min="0" oninput="calcFuelShift()"></div>
+   <div><label data-fuel-i18n="price_per_liter">Price / Liter</label><input id="fuelShiftPrice" type="number" step="0.01" min="0" oninput="calcFuelShift()"></div>
+   <div><label data-fuel-i18n="cash_received">Cash Received</label><input id="fuelShiftReceived" type="number" step="0.01" min="0" oninput="calcFuelShift()"></div>
+   <div class="grow"><label data-fuel-i18n="note">Note</label><input id="fuelShiftNote"></div>
+  </div>
+  <div class="grid g4" style="margin-top:10px">
+   <div class="card kpi"><div class="num" id="fuelShiftLiters">0</div><div class="lbl" data-fuel-i18n="liters_sold">Liters Sold</div></div>
+   <div class="card kpi"><div class="num" id="fuelShiftGross">0</div><div class="lbl" data-fuel-i18n="gross_amount">Gross Amount</div></div>
+   <div class="card kpi"><div class="num" id="fuelShiftDue">0</div><div class="lbl" data-fuel-i18n="due">Due</div></div>
+   <div class="card kpi"><div class="num" id="fuelShiftRecovery">0</div><div class="lbl" data-fuel-i18n="recovery">Recovery / Extra Received</div></div>
+  </div>
+  <div class="toolbar no-print" style="margin-top:10px">
+   <button class="action gray" onclick="fuelUseTotalAsCash()" data-fuel-i18n="cash_equals_total">Cash = Total</button>
+   <button id="fuelShiftSaveBtn" class="action green" onclick="saveFuelShift()" data-fuel-i18n="save_shift">Save Meter Sale</button>
+   <button id="fuelShiftCancelBtn" class="action gray" onclick="resetFuelShiftForm()" style="display:none" data-fuel-i18n="cancel_edit">Cancel Edit</button>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th data-fuel-i18n="date">Date</th><th data-fuel-i18n="shift">Shift</th><th data-fuel-i18n="nozzle">Nozzle</th><th data-fuel-i18n="invoice_no">Invoice</th><th data-fuel-i18n="customer">Customer</th><th data-fuel-i18n="salesman">Salesman</th><th class="money" data-fuel-i18n="opening_meter">Opening</th><th class="money" data-fuel-i18n="closing_meter">Closing</th><th class="money" data-fuel-i18n="liters">Liters</th><th class="money" data-fuel-i18n="total">Total</th><th class="money" data-fuel-i18n="cash_received">Cash</th><th class="money" data-fuel-i18n="due">Due</th><th></th></tr></thead><tbody id="fuelShiftsBody"></tbody></table></div>
+ </div>
+
+ <div class="card fuel-admin-only" style="margin-top:12px">
+  <h2 data-fuel-i18n="adjust_title">Tank Dip / Stock Adjustment</h2>
+  <div class="notice" data-fuel-i18n="adjust_notice">Use + or − liters to reconcile physical tank stock. The same adjustment is posted to the main Stock Ledger.</div>
+  <div class="row">
+   <div><label data-fuel-i18n="date">Date</label><input id="fuelAdjDate" type="date"></div>
+   <div><label data-fuel-i18n="tank">Tank</label><select id="fuelAdjTank"></select></div>
+   <div><label data-fuel-i18n="adjust_liters">Adjustment Liters (+/−)</label><input id="fuelAdjQty" type="number" step="0.001"></div>
+   <div class="grow"><label data-fuel-i18n="note">Reason / Note</label><input id="fuelAdjNote"></div>
+   <button class="action green" onclick="saveFuelTankAdjustment()" data-fuel-i18n="save_adjust">Save Adjustment</button>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th data-fuel-i18n="date">Date</th><th data-fuel-i18n="tank">Tank</th><th data-fuel-i18n="product">Product</th><th class="money" data-fuel-i18n="adjust_liters">Adjustment</th><th data-fuel-i18n="note">Note</th><th></th></tr></thead><tbody id="fuelAdjustmentsBody"></tbody></table></div>
+ </div>
+
+ <div class="card fuel-admin-only" style="margin-top:12px">
+  <h2 data-fuel-i18n="closing_title">Fuel Pump Daily Cash Closing</h2>
+  <div class="notice" data-fuel-i18n="closing_notice">Expected Closing Cash = Opening Cash + all Cash In − all Cash Out from the Cash Book for the selected date. Variance shows shortage or overage.</div>
+  <div class="row">
+   <div><label data-fuel-i18n="date">Date</label><input id="fuelClosingDate" type="date" onchange="renderFuelClosingPreview()"></div>
+   <div><label data-fuel-i18n="opening_cash">Opening Cash</label><input id="fuelClosingOpening" type="number" step="0.01" value="0" oninput="renderFuelClosingPreview()"></div>
+   <div><label data-fuel-i18n="actual_cash">Actual Cash Counted</label><input id="fuelClosingActual" type="number" step="0.01" value="0" oninput="renderFuelClosingPreview()"></div>
+   <div class="grow"><label data-fuel-i18n="note">Note</label><input id="fuelClosingNote"></div>
+   <button class="action green" onclick="saveFuelClosing()" data-fuel-i18n="save_closing">Save Daily Closing</button>
+  </div>
+  <div class="grid g4" style="margin-top:10px">
+   <div class="card kpi"><div class="num" id="fuelClosingIn">0</div><div class="lbl" data-fuel-i18n="cash_in">Cash In</div></div>
+   <div class="card kpi"><div class="num" id="fuelClosingOut">0</div><div class="lbl" data-fuel-i18n="cash_out">Cash Out</div></div>
+   <div class="card kpi"><div class="num" id="fuelClosingExpected">0</div><div class="lbl" data-fuel-i18n="expected_cash">Expected Closing</div></div>
+   <div class="card kpi"><div class="num" id="fuelClosingVariance">0</div><div class="lbl" data-fuel-i18n="variance">Variance</div></div>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th data-fuel-i18n="date">Date</th><th class="money" data-fuel-i18n="opening_cash">Opening Cash</th><th class="money" data-fuel-i18n="cash_in">Cash In</th><th class="money" data-fuel-i18n="cash_out">Cash Out</th><th class="money" data-fuel-i18n="expected_cash">Expected</th><th class="money" data-fuel-i18n="actual_cash">Actual</th><th class="money" data-fuel-i18n="variance">Variance</th><th data-fuel-i18n="note">Note</th><th></th></tr></thead><tbody id="fuelClosingsBody"></tbody></table></div>
  </div>
 </section>
 
@@ -1742,14 +1875,14 @@ function emptyDB(){
  return {
   products:SEED_PRODUCTS.map(p=>({id:makeId(),name:p.name,salePrice:p.salePrice,costPrice:0,openingQty:0})),
   salesmen:[],customers:[],suppliers:[],sales:[],purchases:[],customerLoans:[],salesmanLoans:[],supplierTransactions:[],
-  expenses:[],capital:[],stockAdjustments:[],recycleBin:[]
+  expenses:[],capital:[],stockAdjustments:[],fuelTanks:[],fuelNozzles:[],fuelShifts:[],fuelClosings:[],recycleBin:[]
  };
 }
 function normalizeDB(x){
  const fallback=emptyDB();
  if(!x || typeof x!=="object") return fallback;
  if(x.data && typeof x.data==="object") x=x.data;
- const arrays=["salesmen","customers","suppliers","sales","purchases","customerLoans","salesmanLoans","supplierTransactions","expenses","capital","stockAdjustments","recycleBin"];
+ const arrays=["salesmen","customers","suppliers","sales","purchases","customerLoans","salesmanLoans","supplierTransactions","expenses","capital","stockAdjustments","fuelTanks","fuelNozzles","fuelShifts","fuelClosings","recycleBin"];
  const out={};
  out.products=Array.isArray(x.products) ? x.products : fallback.products;
  arrays.forEach(k=>out[k]=Array.isArray(x[k]) ? x[k] : []);
@@ -2122,7 +2255,7 @@ function lockApp(){
 function allowedPagesForUser(user){
  if(!user) return [];
  if(user.role==="Admin") return ["*"];
- return ["saleInvoice","stock","stockLedger","customerStatement","salesmanStatement"];
+ return ["saleInvoice","fuelPump","stock","stockLedger","customerStatement","salesmanStatement"];
 }
 function canAccessPage(pageId){
  const u = currentUser(); if(!u) return false;
@@ -2136,7 +2269,8 @@ function applyRoleUI(){
  document.querySelectorAll("#nav button").forEach(btn=>{
   const page = btn.dataset.page;
   const adminOnly = btn.classList.contains("auth-admin-only");
-  const show = canAccessPage(page) && (!adminOnly || u.role==="Admin");
+  const fuelAllowed = page!=="fuelPump" || getBusinessSettings()?.businessType==="fuel";
+  const show = canAccessPage(page) && (!adminOnly || u.role==="Admin") && fuelAllowed;
   btn.style.display = show ? "block" : "none";
  });
  if(u.role==="Salesman"){
@@ -2144,9 +2278,12 @@ function applyRoleUI(){
   invSalesman.value = sid; invSalesman.disabled = true; refreshInvoiceCustomers();
   salesmanStmtSelect.value = sid; salesmanStmtSelect.disabled = true;
   csCustomer.disabled = false;
+  if(document.getElementById("fuelShiftSalesman")){ fuelShiftSalesman.value=sid; fuelShiftSalesman.disabled=true; refreshFuelCustomers(); }
  }else{
   invSalesman.disabled = false; salesmanStmtSelect.disabled = false;
+  if(document.getElementById("fuelShiftSalesman")) fuelShiftSalesman.disabled=false;
  }
+ document.querySelectorAll(".fuel-admin-only").forEach(el=>el.style.display = u.role==="Admin" ? "" : "none");
 }
 
 function openAuthenticatedApp(){
@@ -2378,6 +2515,20 @@ function softDelete(sec,id){
  if(sec==="sales"){
   item.linkedRecords = db.salesmanLoans.filter(x=>x.linkedSaleId===id).map(x=>({section:"salesmanLoans",record:JSON.parse(JSON.stringify(x))}));
   db.salesmanLoans = db.salesmanLoans.filter(x=>x.linkedSaleId!==id);
+  const fuelShift = (db.fuelShifts||[]).find(x=>x.saleId===id);
+  if(fuelShift){
+   item.linkedRecords.push({section:"fuelShifts",record:JSON.parse(JSON.stringify(fuelShift))});
+   db.fuelShifts = db.fuelShifts.filter(x=>x.id!==fuelShift.id);
+  }
+ }
+ if(sec==="fuelShifts"){
+  const sale = db.sales.find(x=>x.id===record.saleId);
+  if(sale){
+   item.linkedRecords.push({section:"sales",record:JSON.parse(JSON.stringify(sale))});
+   db.sales = db.sales.filter(x=>x.id!==sale.id);
+   db.salesmanLoans.filter(x=>x.linkedSaleId===sale.id).forEach(x=>item.linkedRecords.push({section:"salesmanLoans",record:JSON.parse(JSON.stringify(x))}));
+   db.salesmanLoans = db.salesmanLoans.filter(x=>x.linkedSaleId!==sale.id);
+  }
  }
  db[sec] = arr.filter(x=>x.id!==id);
  db.recycleBin.unshift(item);
@@ -2494,6 +2645,7 @@ document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{
   if(b.dataset.page==="dailyClosing") renderDailyClosing();
   if(b.dataset.page==="stockLedger") renderStockLedger();
   if(b.dataset.page==="cashBook") renderCashBook();
+  if(b.dataset.page==="fuelPump") renderFuelPump();
   if(b.dataset.page==="recycleBin") renderRecycleBin();
   if(b.dataset.page==="safetyCenter"){ renderSafetyCenter(); renderSecurityStatus(); }
   if(b.dataset.page==="userManagement") renderUsers();
@@ -2542,7 +2694,9 @@ function wizardFinish(businessType){
  };
  localStorage.setItem(WIZARD_KEY, JSON.stringify(settings));
  document.getElementById("setupWizardOverlay").style.display="none";
+ if(businessType==="fuel") seedFuelProducts(true);
  applyBusinessSettingsToUI();
+ applyRoleUI();
 }
 function applyBusinessSettingsToUI(){
  const s = getBusinessSettings(); if(!s) return;
@@ -2552,6 +2706,11 @@ function applyBusinessSettingsToUI(){
  }
  const title = document.querySelector(".mobile-topbar-title");
  if(title) title.textContent = s.name || "Offline POS & Accounts";
+ const fuelBtn = document.getElementById("fuelPumpNavBtn");
+ if(fuelBtn){
+  const u=currentUser();
+  fuelBtn.style.display = (s.businessType==="fuel" && u && canAccessPage("fuelPump")) ? "block" : "none";
+ }
 }
 function reopenSetupWizard(){
  document.getElementById("wizardStep1").style.display="block";
@@ -2564,9 +2723,9 @@ function reopenSetupWizard(){
 /* ==================== Language system (compact — translations trimmed for space) ==================== */
 
 const NAV_TRANSLATIONS = {
- ps:{dashboard:"ډشبورډ",quickSearch:"چټک لټون",saleInvoice:"پلورنه / نغدي راپور",stock:"ذخیره",stockLedger:"د ذخیرې دفتر",products:"محصولات",purchases:"پیرودنې",discounts:"تخفیف راپور",salesmen:"پلورونکي",customers:"مشتریان",customerLoans:"د مشتریانو پور",customerStatement:"د مشتري بیان",suppliers:"عرضه کونکي",supplierStatement:"د عرضه کونکي بیان",expenses:"لګښتونه",salesmanLoans:"د پلورونکي پور",salesmanStatement:"د پلورونکي بیان",capital:"د مالک/شریک پیسې",dailyClosing:"ورځنی بندول",cashBook:"د نغدو کتاب",reports:"راپورونه",recycleBin:"د ړنګو شویو سطل",deleteEntry:"ننوتنه حذف کول",safetyCenter:"د خوندیتوب مرکز",userManagement:"کارنان / لاگین",backup:"بیک اپ / بیرته راګرځول"},
- fa:{dashboard:"پیشخوان",quickSearch:"جستجوی سریع",saleInvoice:"فروش / راپور نقدی",stock:"ذخیره",stockLedger:"دفتر ذخیره",products:"محصولات",purchases:"خریداری‌ها",discounts:"راپور تخفیف",salesmen:"فروشندگان",customers:"مشتریان",customerLoans:"قرض مشتریان",customerStatement:"بیان مشتری",suppliers:"تهیه کنندگان",supplierStatement:"بیان تهیه کننده",expenses:"مصارف",salesmanLoans:"قرض فروشنده",salesmanStatement:"بیان فروشنده",capital:"پول مالک/شریک",dailyClosing:"مسدود روزانه",cashBook:"کتاب نقدی",reports:"راپورها",recycleBin:"سطل بازیافت",deleteEntry:"حذف ثبت",safetyCenter:"مرکز ایمنی",userManagement:"کاربران / ورود",backup:"بکاپ / بازیابی"},
- ur:{dashboard:"ڈیش بورڈ",quickSearch:"فوری تلاش",saleInvoice:"فروخت / نقد رپورٹ",stock:"اسٹاک",stockLedger:"اسٹاک لیجر",products:"مصنوعات",purchases:"خریداری",discounts:"رعایت رپورٹ",salesmen:"سیلز مین",customers:"گاہک",customerLoans:"گاہک قرض",customerStatement:"گاہک اسٹیٹمنٹ",suppliers:"سپلائرز",supplierStatement:"سپلائر اسٹیٹمنٹ",expenses:"اخراجات",salesmanLoans:"سیلز مین قرض",salesmanStatement:"سیلز مین اسٹیٹمنٹ",capital:"مالک/پارٹنر رقم",dailyClosing:"روزانہ بندش",cashBook:"کیش بک",reports:"رپورٹس",recycleBin:"ری سائیکل بن",deleteEntry:"اندراج حذف کریں",safetyCenter:"حفاظتی مرکز",userManagement:"صارفین / لاگ ان",backup:"بیک اپ / بحال کریں"}
+ ps:{dashboard:"ډشبورډ",quickSearch:"چټک لټون",saleInvoice:"پلورنه / نغدي راپور",fuelPump:"⛽ د تیلو پمپ",stock:"ذخیره",stockLedger:"د ذخیرې دفتر",products:"محصولات",purchases:"پیرودنې",discounts:"تخفیف راپور",salesmen:"پلورونکي",customers:"مشتریان",customerLoans:"د مشتریانو پور",customerStatement:"د مشتري بیان",suppliers:"عرضه کونکي",supplierStatement:"د عرضه کونکي بیان",expenses:"لګښتونه",salesmanLoans:"د پلورونکي پور",salesmanStatement:"د پلورونکي بیان",capital:"د مالک/شریک پیسې",dailyClosing:"ورځنی بندول",cashBook:"د نغدو کتاب",reports:"راپورونه",recycleBin:"د ړنګو شویو سطل",deleteEntry:"ننوتنه حذف کول",safetyCenter:"د خوندیتوب مرکز",userManagement:"کارنان / لاگین",backup:"بیک اپ / بیرته راګرځول"},
+ fa:{dashboard:"پیشخوان",quickSearch:"جستجوی سریع",saleInvoice:"فروش / راپور نقدی",fuelPump:"⛽ پمپ تیل",stock:"ذخیره",stockLedger:"دفتر ذخیره",products:"محصولات",purchases:"خریداری‌ها",discounts:"راپور تخفیف",salesmen:"فروشندگان",customers:"مشتریان",customerLoans:"قرض مشتریان",customerStatement:"بیان مشتری",suppliers:"تهیه کنندگان",supplierStatement:"بیان تهیه کننده",expenses:"مصارف",salesmanLoans:"قرض فروشنده",salesmanStatement:"بیان فروشنده",capital:"پول مالک/شریک",dailyClosing:"مسدود روزانه",cashBook:"کتاب نقدی",reports:"راپورها",recycleBin:"سطل بازیافت",deleteEntry:"حذف ثبت",safetyCenter:"مرکز ایمنی",userManagement:"کاربران / ورود",backup:"بکاپ / بازیابی"},
+ ur:{dashboard:"ڈیش بورڈ",quickSearch:"فوری تلاش",saleInvoice:"فروخت / نقد رپورٹ",fuelPump:"⛽ فیول / آئل پمپ",stock:"اسٹاک",stockLedger:"اسٹاک لیجر",products:"مصنوعات",purchases:"خریداری",discounts:"رعایت رپورٹ",salesmen:"سیلز مین",customers:"گاہک",customerLoans:"گاہک قرض",customerStatement:"گاہک اسٹیٹمنٹ",suppliers:"سپلائرز",supplierStatement:"سپلائر اسٹیٹمنٹ",expenses:"اخراجات",salesmanLoans:"سیلز مین قرض",salesmanStatement:"سیلز مین اسٹیٹمنٹ",capital:"مالک/پارٹنر رقم",dailyClosing:"روزانہ بندش",cashBook:"کیش بک",reports:"رپورٹس",recycleBin:"ری سائیکل بن",deleteEntry:"اندراج حذف کریں",safetyCenter:"حفاظتی مرکز",userManagement:"صارفین / لاگ ان",backup:"بیک اپ / بحال کریں"}
 };
 const PAGE_TRANSLATIONS = {
  en:{
@@ -2594,6 +2753,58 @@ const PAGE_TRANSLATIONS = {
   dyn_select:"منتخب کریں...",dyn_cashCustomer:"نقد / بغیر گاہک",dyn_product:"مصنوع",dyn_price:"قیمت",dyn_qty:"تعداد",dyn_amount:"رقم",dyn_discount:"رعایت",dyn_total:"کل",dyn_netTotal:"خالص کل"
  }
 };
+
+const FUEL_TRANSLATIONS = {
+ en:{
+  wizard_fuel:"⛽ Fuel / Oil Pump",title:"⛽ Fuel / Oil Pump Control",notice:"Fuel-pump mode connects meter sales, fuel deliveries, tank stock, customers, salesmen, suppliers, expenses, invoices and cash book. Use this page for nozzle meter sales so tank and product stock stay synchronized.",
+  open_invoice:"Sales Invoice",open_customers:"Customers",open_salesmen:"Salesmen",open_suppliers:"Suppliers",open_expenses:"Expenses",open_cashbook:"Cash Book",open_reports:"Reports",
+  kpi_liters:"Today's Liters Sold",kpi_sales:"Today's Fuel Sales",kpi_cash:"Today's Cash Received",kpi_due:"Today's Credit / Due",
+  tank_setup:"Fuel Tanks",tank_notice:"Create fuel products first (Petrol, Diesel, etc.), then link each tank to one product. Product opening stock is synchronized from the opening liters of all linked tanks.",tank_name:"Tank Name",fuel_product:"Fuel Product",capacity:"Capacity (L)",opening_liters:"Opening Liters",note:"Note",save_tank:"Save Tank",cancel_edit:"Cancel Edit",seed_products:"Create Default Fuel Products",tank:"Tank",product:"Product",capacity2:"Capacity",opening2:"Opening",current_stock:"Current Liters",ullage:"Free Capacity",status:"Status",
+  nozzle_setup:"Pumps / Nozzles",nozzle_name:"Nozzle / Pump Name",opening_meter:"Opening Meter",save_nozzle:"Save Nozzle",nozzle:"Nozzle",last_meter:"Last Meter",
+  delivery_title:"Fuel Purchase / Tank Delivery",date:"Date",supplier:"Supplier",invoice_no:"Invoice No",liters:"Liters",cost_per_liter:"Cost / Liter",paid:"Paid",total_purchase:"Purchase Total",save_delivery:"Save Fuel Delivery",total:"Total",
+  meter_sale_title:"Nozzle Meter Sale / Shift",meter_notice:"Closing Meter − Opening Meter = Liters Sold. Saving creates a normal sales invoice automatically, updates stock, customer/salesman balances, reports and cash book.",shift:"Shift",salesman:"Salesman",customer:"Customer",closing_meter:"Closing Meter",price_per_liter:"Price / Liter",cash_received:"Cash Received",liters_sold:"Liters Sold",gross_amount:"Gross Amount",due:"Due",recovery:"Recovery / Extra Received",cash_equals_total:"Cash = Total",save_shift:"Save Meter Sale",
+  adjust_title:"Tank Dip / Stock Adjustment",adjust_notice:"Use + or − liters to reconcile physical tank stock. The same adjustment is posted to the main Stock Ledger.",adjust_liters:"Adjustment Liters (+/−)",save_adjust:"Save Adjustment",
+  closing_title:"Fuel Pump Daily Cash Closing",closing_notice:"Expected Closing Cash = Opening Cash + all Cash In − all Cash Out from the Cash Book for the selected date. Variance shows shortage or overage.",opening_cash:"Opening Cash",actual_cash:"Actual Cash Counted",save_closing:"Save Daily Closing",cash_in:"Cash In",cash_out:"Cash Out",expected_cash:"Expected Closing",variance:"Variance"
+ },
+ ps:{
+  wizard_fuel:"⛽ د تیلو / پټرولو پمپ",title:"⛽ د تیلو پمپ بشپړ حساب",notice:"د تیلو پمپ برخه د میټر پلور، د تیلو پېرود، ټانک ذخیره، مشتریان، پلورونکي، عرضه کوونکي، مصارف، انوایسونه او نغدي کتاب سره نښلوي. د نوزل پلور له همدې ځایه ثبت کړئ تر څو ذخیره دقیقه پاتې شي.",
+  open_invoice:"د پلور انوایس",open_customers:"مشتریان",open_salesmen:"پلورونکي",open_suppliers:"عرضه کوونکي",open_expenses:"مصارف",open_cashbook:"نغدي کتاب",open_reports:"راپورونه",
+  kpi_liters:"د نن پلورل شوي لیتر",kpi_sales:"د نن د تیلو پلور",kpi_cash:"د نن ترلاسه شوې نغدې",kpi_due:"د نن پور / پاتې",
+  tank_setup:"د تیلو ټانکونه",tank_notice:"لومړی د تیلو محصولات لکه پټرول او ډیزل جوړ کړئ، بیا هر ټانک له یوه محصول سره ونښلوئ. د محصول لومړنۍ ذخیره د ټولو تړلو ټانکونو له لومړنیو لیترونو سره همغږي کېږي.",tank_name:"د ټانک نوم",fuel_product:"د تیلو محصول",capacity:"ظرفیت (لیتر)",opening_liters:"لومړني لیتر",note:"یادښت",save_tank:"ټانک ثبت کړئ",cancel_edit:"سمون لغوه",seed_products:"اصلي د تیلو محصولات جوړ کړئ",tank:"ټانک",product:"محصول",capacity2:"ظرفیت",opening2:"لومړنی",current_stock:"اوسني لیتر",ullage:"خالي ظرفیت",status:"حالت",
+  nozzle_setup:"پمپونه / نوزلونه",nozzle_name:"د نوزل / پمپ نوم",opening_meter:"لومړنی میټر",save_nozzle:"نوزل ثبت کړئ",nozzle:"نوزل",last_meter:"وروستی میټر",
+  delivery_title:"د تیلو پېرود / ټانک ته داخلول",date:"نېټه",supplier:"عرضه کوونکی",invoice_no:"د انوایس شمېره",liters:"لیتر",cost_per_liter:"د هر لیتر بیه",paid:"ورکړل شوي",total_purchase:"د پېرود ټول",save_delivery:"د تیلو پېرود ثبت کړئ",total:"ټول",
+  meter_sale_title:"د نوزل میټر پلور / شفټ",meter_notice:"وروستی میټر − لومړنی میټر = پلورل شوي لیتر. د ثبت سره عادي انوایس، ذخیره، د مشتری/پلورونکي حساب، راپورونه او نغدي کتاب په اوتومات ډول تازه کېږي.",shift:"شفټ",salesman:"پلورونکی",customer:"مشتری",closing_meter:"وروستی میټر",price_per_liter:"د هر لیتر د پلور بیه",cash_received:"ترلاسه شوې نغدې",liters_sold:"پلورل شوي لیتر",gross_amount:"ټول مبلغ",due:"پاتې",recovery:"وصولي / اضافه ترلاسه شوي",cash_equals_total:"نغدې = ټول",save_shift:"د میټر پلور ثبت کړئ",
+  adjust_title:"د ټانک ډیپ / ذخیرې تعدیل",adjust_notice:"د فزیکي ذخیرې د سمون لپاره مثبت یا منفي لیتر وکاروئ. همدا تعدیل اصلي Stock Ledger ته هم ځي.",adjust_liters:"د لیتر تعدیل (+/−)",save_adjust:"تعدیل ثبت کړئ",
+  closing_title:"د تیلو پمپ ورځنی نغدي بندول",closing_notice:"تمه شوې نغدې = لومړنۍ نغدې + ټول Cash In − ټول Cash Out. توپیر کمي یا زیاتي ښيي.",opening_cash:"لومړنۍ نغدې",actual_cash:"شمېرل شوې نغدې",save_closing:"ورځنی بندول ثبت کړئ",cash_in:"نغدې داخل",cash_out:"نغدې خارج",expected_cash:"تمه شوې نغدې",variance:"توپیر"
+ },
+ fa:{
+  wizard_fuel:"⛽ پمپ تیل / سوخت",title:"⛽ حساب کامل پمپ تیل",notice:"بخش پمپ تیل فروش متر، خرید سوخت، موجودی تانک، مشتریان، فروشندگان، تهیه‌کنندگان، مصارف، فاکتورها و کتاب نقدی را باهم وصل می‌کند. فروش نازل را از همین بخش ثبت کنید تا موجودی دقیق بماند.",
+  open_invoice:"فاکتور فروش",open_customers:"مشتریان",open_salesmen:"فروشندگان",open_suppliers:"تهیه‌کنندگان",open_expenses:"مصارف",open_cashbook:"کتاب نقدی",open_reports:"گزارش‌ها",
+  kpi_liters:"لیتر فروخته‌شده امروز",kpi_sales:"فروش سوخت امروز",kpi_cash:"نقد دریافتی امروز",kpi_due:"قرض / باقی امروز",
+  tank_setup:"تانک‌های سوخت",tank_notice:"ابتدا محصولات سوخت مانند پترول و دیزل را ایجاد کنید و هر تانک را به یک محصول وصل کنید. موجودی ابتدایی محصول از مجموع لیترهای ابتدایی تانک‌های مرتبط همگام می‌شود.",tank_name:"نام تانک",fuel_product:"محصول سوخت",capacity:"ظرفیت (لیتر)",opening_liters:"لیتر ابتدایی",note:"یادداشت",save_tank:"ثبت تانک",cancel_edit:"لغو ویرایش",seed_products:"ایجاد محصولات اصلی سوخت",tank:"تانک",product:"محصول",capacity2:"ظرفیت",opening2:"ابتدایی",current_stock:"لیتر فعلی",ullage:"ظرفیت خالی",status:"وضعیت",
+  nozzle_setup:"پمپ‌ها / نازل‌ها",nozzle_name:"نام نازل / پمپ",opening_meter:"متر ابتدایی",save_nozzle:"ثبت نازل",nozzle:"نازل",last_meter:"آخرین متر",
+  delivery_title:"خرید سوخت / تحویل به تانک",date:"تاریخ",supplier:"تهیه‌کننده",invoice_no:"شماره فاکتور",liters:"لیتر",cost_per_liter:"قیمت هر لیتر",paid:"پرداخت",total_purchase:"مجموع خرید",save_delivery:"ثبت خرید سوخت",total:"مجموع",
+  meter_sale_title:"فروش متر نازل / شیفت",meter_notice:"متر پایانی − متر ابتدایی = لیتر فروخته‌شده. با ثبت، فاکتور عادی، موجودی، حساب مشتری/فروشنده، گزارش‌ها و کتاب نقدی خودکار به‌روز می‌شوند.",shift:"شیفت",salesman:"فروشنده",customer:"مشتری",closing_meter:"متر پایانی",price_per_liter:"قیمت فروش هر لیتر",cash_received:"نقد دریافتی",liters_sold:"لیتر فروخته‌شده",gross_amount:"مبلغ مجموع",due:"باقی",recovery:"وصولی / دریافتی اضافه",cash_equals_total:"نقد = مجموع",save_shift:"ثبت فروش متر",
+  adjust_title:"دیپ تانک / تعدیل موجودی",adjust_notice:"برای تطبیق موجودی فزیکی، لیتر مثبت یا منفی وارد کنید. همین تعدیل به دفتر موجودی اصلی نیز ثبت می‌شود.",adjust_liters:"تعدیل لیتر (+/−)",save_adjust:"ثبت تعدیل",
+  closing_title:"بستن روزانه نقدی پمپ",closing_notice:"نقد مورد انتظار = نقد ابتدایی + تمام نقد داخل − تمام نقد خارج. تفاوت کمبود یا اضافه را نشان می‌دهد.",opening_cash:"نقد ابتدایی",actual_cash:"نقد شمارش‌شده",save_closing:"ثبت بستن روزانه",cash_in:"نقد داخل",cash_out:"نقد خارج",expected_cash:"نقد مورد انتظار",variance:"تفاوت"
+ },
+ ur:{
+  wizard_fuel:"⛽ فیول / آئل پمپ",title:"⛽ فیول / آئل پمپ مکمل حساب",notice:"فیول پمپ سیکشن میٹر سیل، فیول خریداری، ٹینک اسٹاک، گاہک، سیلز مین، سپلائر، اخراجات، انوائس اور کیش بک کو آپس میں جوڑتا ہے۔ نوزل سیل یہیں سے درج کریں تاکہ اسٹاک درست رہے۔",
+  open_invoice:"سیلز انوائس",open_customers:"گاہک",open_salesmen:"سیلز مین",open_suppliers:"سپلائرز",open_expenses:"اخراجات",open_cashbook:"کیش بک",open_reports:"رپورٹس",
+  kpi_liters:"آج فروخت لیٹر",kpi_sales:"آج کی فیول سیل",kpi_cash:"آج وصول نقد",kpi_due:"آج کا ادھار / بقایا",
+  tank_setup:"فیول ٹینکس",tank_notice:"پہلے پٹرول، ڈیزل وغیرہ کے پروڈکٹس بنائیں، پھر ہر ٹینک کو ایک پروڈکٹ کے ساتھ جوڑیں۔ پروڈکٹ کا اوپننگ اسٹاک تمام متعلقہ ٹینکس کے اوپننگ لیٹر سے ہم آہنگ ہوگا۔",tank_name:"ٹینک نام",fuel_product:"فیول پروڈکٹ",capacity:"گنجائش (لیٹر)",opening_liters:"اوپننگ لیٹر",note:"نوٹ",save_tank:"ٹینک محفوظ کریں",cancel_edit:"ترمیم منسوخ",seed_products:"ڈیفالٹ فیول پروڈکٹس بنائیں",tank:"ٹینک",product:"پروڈکٹ",capacity2:"گنجائش",opening2:"اوپننگ",current_stock:"موجودہ لیٹر",ullage:"خالی گنجائش",status:"حالت",
+  nozzle_setup:"پمپس / نوزلز",nozzle_name:"نوزل / پمپ نام",opening_meter:"اوپننگ میٹر",save_nozzle:"نوزل محفوظ کریں",nozzle:"نوزل",last_meter:"آخری میٹر",
+  delivery_title:"فیول خریداری / ٹینک ڈلیوری",date:"تاریخ",supplier:"سپلائر",invoice_no:"انوائس نمبر",liters:"لیٹر",cost_per_liter:"فی لیٹر لاگت",paid:"ادا شدہ",total_purchase:"کل خریداری",save_delivery:"فیول ڈلیوری محفوظ کریں",total:"کل",
+  meter_sale_title:"نوزل میٹر سیل / شفٹ",meter_notice:"کلوزنگ میٹر − اوپننگ میٹر = فروخت شدہ لیٹر۔ محفوظ کرنے سے انوائس، اسٹاک، گاہک/سیلز مین اکاؤنٹ، رپورٹس اور کیش بک خودکار اپڈیٹ ہوتے ہیں۔",shift:"شفٹ",salesman:"سیلز مین",customer:"گاہک",closing_meter:"کلوزنگ میٹر",price_per_liter:"فی لیٹر قیمت",cash_received:"وصول نقد",liters_sold:"فروخت شدہ لیٹر",gross_amount:"کل رقم",due:"بقایا",recovery:"وصولی / اضافی وصول",cash_equals_total:"نقد = کل",save_shift:"میٹر سیل محفوظ کریں",
+  adjust_title:"ٹینک ڈِپ / اسٹاک ایڈجسٹمنٹ",adjust_notice:"فزیکل اسٹاک ملانے کیلئے مثبت یا منفی لیٹر درج کریں۔ یہی ایڈجسٹمنٹ مین اسٹاک لیجر میں بھی جائے گی۔",adjust_liters:"لیٹر ایڈجسٹمنٹ (+/−)",save_adjust:"ایڈجسٹمنٹ محفوظ کریں",
+  closing_title:"فیول پمپ روزانہ کیش کلوزنگ",closing_notice:"متوقع کیش = اوپننگ کیش + تمام کیش اِن − تمام کیش آؤٹ۔ فرق کمی یا زیادتی دکھاتا ہے۔",opening_cash:"اوپننگ کیش",actual_cash:"گنا ہوا اصل کیش",save_closing:"روزانہ کلوزنگ محفوظ کریں",cash_in:"کیش اِن",cash_out:"کیش آؤٹ",expected_cash:"متوقع کلوزنگ",variance:"فرق"
+ }
+};
+function fuelT(key){
+ const lang=localStorage.getItem(APP_LANG_KEY)||"en";
+ return (FUEL_TRANSLATIONS[lang]||FUEL_TRANSLATIONS.en)[key] || FUEL_TRANSLATIONS.en[key] || key;
+}
+
 
 function appT(key){
  const lang=localStorage.getItem(APP_LANG_KEY)||"en";
@@ -2684,6 +2895,11 @@ function applyAppLanguage(lang){
    if(!el.dataset.enPlaceholder) el.dataset.enPlaceholder=el.getAttribute("placeholder")||"";
    el.setAttribute("placeholder", pageTable[key] || el.dataset.enPlaceholder);
  });
+ document.querySelectorAll("[data-fuel-i18n]").forEach(el=>{
+   const key=el.dataset.fuelI18n;
+   if(!el.dataset.fuelEnText) el.dataset.fuelEnText=el.textContent;
+   el.textContent=(FUEL_TRANSLATIONS[lang]||FUEL_TRANSLATIONS.en)[key] || el.dataset.fuelEnText;
+ });
  const langSel = document.getElementById("wzLanguage");
  if(langSel) langSel.value = lang;
  const table = NAV_TRANSLATIONS[lang];
@@ -2734,6 +2950,7 @@ function refreshSelects(){
  stockLedgerProduct.innerHTML = opt(db.products);
  if(document.getElementById("umSalesman")) umSalesman.innerHTML = opt(db.salesmen);
  refreshInvoiceCustomers();
+ if(document.getElementById("fuelPump")) refreshFuelSelects();
 }
 function refreshInvoiceCustomers(){
  const smid = invSalesman.value;
@@ -3089,7 +3306,8 @@ function savePurchase(){
   if(!confirm("This Supplier already has a Purchase with the same Invoice No. Save anyway?")) return;
  }
  const total = purchaseDraft.reduce((a,l)=>a+n(l.qty)*n(l.cost),0);
- const rec = {id: editingPurchaseId||makeId(), date:purDate.value||today(), supplierId:purSupplier.value, invoice:purNo.value.trim(), paid:n(purPaid.value), note:purNote.value.trim(), total, lines:purchaseDraft.map(x=>({...x}))};
+ const oldPurchase = editingPurchaseId ? db.purchases.find(x=>x.id===editingPurchaseId) : null;
+ const rec = {id: editingPurchaseId||makeId(), date:purDate.value||today(), supplierId:purSupplier.value, invoice:purNo.value.trim(), paid:n(purPaid.value), note:purNote.value.trim(), total, lines:purchaseDraft.map(x=>({...x})), source:oldPurchase?.source||"", fuelTankId:oldPurchase?.fuelTankId||""};
  if(editingPurchaseId){
   const idx = db.purchases.findIndex(x=>x.id===editingPurchaseId); if(idx<0) return alert("Purchase not found.");
   db.purchases[idx] = rec; save(); alert("Purchase updated.");
@@ -3167,6 +3385,327 @@ function saveCapital(){
  db.capital.push({id:makeId(), date:capDate.value||today(), name:capName.value.trim(), amount:n(capAmount.value), note:capNote.value.trim()});
  capAmount.value=""; capNote.value=""; save();
 }
+
+/* ==================== Fuel / Oil Pump A-Z Module ==================== */
+let editingFuelTankId="", editingFuelNozzleId="", editingFuelDeliveryId="", editingFuelShiftId="";
+
+function isFuelBusiness(){ return getBusinessSettings()?.businessType==="fuel"; }
+function fuelTankBy(id){ return (db.fuelTanks||[]).find(x=>x.id===id); }
+function fuelNozzleBy(id){ return (db.fuelNozzles||[]).find(x=>x.id===id); }
+function fuelSaleByShift(shift){ return shift ? db.sales.find(x=>x.id===shift.saleId) : null; }
+
+function seedFuelProducts(silent){
+ if(!db) return;
+ const defs=["Petrol / Gasoline","Diesel","Kerosene"];
+ let added=0;
+ defs.forEach(name=>{
+  if(!db.products.some(p=>(p.name||"").trim().toLowerCase()===name.toLowerCase())){
+   db.products.push({id:makeId(),name,salePrice:0,costPrice:0,openingQty:0,reorderLevel:0,fuelProduct:true});
+   added++;
+  }
+ });
+ if(added){ save(); if(!silent) alert(added+" fuel product(s) added. Set sale and cost prices in Products."); }
+ else if(!silent) alert("Default fuel products already exist.");
+}
+
+function syncFuelProductOpening(productId){
+ const p=productBy(productId); if(!p) return;
+ p.openingQty=(db.fuelTanks||[]).filter(t=>t.productId===productId).reduce((a,t)=>a+n(t.openingLiters),0);
+ p.fuelProduct=true;
+}
+
+function tankCurrentLiters(tankId){
+ const t=fuelTankBy(tankId); if(!t) return 0;
+ const deliveries=db.purchases.filter(p=>p.source==="fuel_delivery"&&p.fuelTankId===tankId)
+  .reduce((a,p)=>a+(p.lines||[]).filter(l=>l.productId===t.productId).reduce((q,l)=>q+n(l.qty),0),0);
+ const adjustments=db.stockAdjustments.filter(x=>x.fuelTankId===tankId).reduce((a,x)=>a+n(x.qty),0);
+ const sold=(db.fuelShifts||[]).filter(x=>x.tankId===tankId).reduce((a,x)=>a+n(x.liters),0);
+ return n(t.openingLiters)+deliveries+adjustments-sold;
+}
+function fuelLastClosingMeter(nozzleId){
+ const nz=fuelNozzleBy(nozzleId); if(!nz) return 0;
+ const rows=(db.fuelShifts||[]).filter(x=>x.nozzleId===nozzleId).slice().sort((a,b)=>String(a.date+" "+(a.createdAt||"")).localeCompare(String(b.date+" "+(b.createdAt||""))));
+ return rows.length ? n(rows[rows.length-1].closingMeter) : n(nz.openingMeter);
+}
+
+function refreshFuelSelects(){
+ if(!document.getElementById("fuelPump")||!db) return;
+ const keep=id=>document.getElementById(id)?.value||"";
+ const vals={
+  tankProduct:keep("fuelTankProduct"), nozzleTank:keep("fuelNozzleTank"), delSup:keep("fuelDeliverySupplier"),
+  delTank:keep("fuelDeliveryTank"), shiftNozzle:keep("fuelShiftNozzle"), shiftSm:keep("fuelShiftSalesman"),
+  shiftCu:keep("fuelShiftCustomer"), adjTank:keep("fuelAdjTank")
+ };
+ fuelTankProduct.innerHTML=opt(db.products,"name",fuelT("fuel_product"));
+ fuelNozzleTank.innerHTML=opt(db.fuelTanks||[],"name",fuelT("tank"));
+ fuelDeliverySupplier.innerHTML=opt(db.suppliers,"name",fuelT("supplier"));
+ fuelDeliveryTank.innerHTML=opt(db.fuelTanks||[],"name",fuelT("tank"));
+ fuelShiftNozzle.innerHTML=opt(db.fuelNozzles||[],"name",fuelT("nozzle"));
+ fuelShiftSalesman.innerHTML=opt(db.salesmen,"name",fuelT("salesman"));
+ fuelAdjTank.innerHTML=opt(db.fuelTanks||[],"name",fuelT("tank"));
+ fuelTankProduct.value=vals.tankProduct; fuelNozzleTank.value=vals.nozzleTank; fuelDeliverySupplier.value=vals.delSup;
+ fuelDeliveryTank.value=vals.delTank; fuelShiftNozzle.value=vals.shiftNozzle; fuelShiftSalesman.value=vals.shiftSm; fuelAdjTank.value=vals.adjTank;
+ refreshFuelCustomers();
+ if(vals.shiftCu) fuelShiftCustomer.value=vals.shiftCu;
+ const u=currentUser();
+ if(u?.role==="Salesman"){ fuelShiftSalesman.value=u.salesmanId||""; fuelShiftSalesman.disabled=true; refreshFuelCustomers(); }
+}
+function refreshFuelCustomers(){
+ if(!document.getElementById("fuelShiftCustomer")||!db) return;
+ const old=fuelShiftCustomer.value;
+ let list=db.customers;
+ const sid=fuelShiftSalesman.value;
+ if(sid) list=list.filter(x=>x.salesmanId===sid);
+ fuelShiftCustomer.innerHTML='<option value="">'+appT("dyn_cashCustomer")+'</option>'+list.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<option value="${e(x.id)}">${e(x.name)}</option>`).join("");
+ if(list.some(x=>x.id===old)) fuelShiftCustomer.value=old;
+}
+
+function resetFuelTankForm(){
+ editingFuelTankId="";
+ fuelTankName.value=""; fuelTankProduct.value=""; fuelTankCapacity.value=""; fuelTankOpening.value=""; fuelTankNote.value="";
+ fuelTankSaveBtn.textContent=fuelT("save_tank"); fuelTankCancelBtn.style.display="none";
+}
+function editFuelTank(id){
+ const t=fuelTankBy(id); if(!t) return;
+ editingFuelTankId=id; fuelTankName.value=t.name||""; fuelTankProduct.value=t.productId||"";
+ fuelTankCapacity.value=n(t.capacity); fuelTankOpening.value=n(t.openingLiters); fuelTankNote.value=t.note||"";
+ fuelTankSaveBtn.textContent="Update Tank"; fuelTankCancelBtn.style.display="inline-block"; window.scrollTo({top:0,behavior:"smooth"});
+}
+function saveFuelTank(){
+ if(currentUser()?.role!=="Admin") return alert("Admin only.");
+ const name=fuelTankName.value.trim(), pid=fuelTankProduct.value;
+ if(!name||!pid) return alert("Tank name and fuel product are required.");
+ const cap=n(fuelTankCapacity.value), opening=n(fuelTankOpening.value);
+ if(cap<0||opening<0) return alert("Capacity and opening liters cannot be negative.");
+ if(cap>0&&opening>cap&&!confirm("Opening liters exceed tank capacity. Save anyway?")) return;
+ const old=editingFuelTankId?fuelTankBy(editingFuelTankId):null;
+ if(old&&old.productId!==pid){
+  const used=(db.fuelShifts||[]).some(x=>x.tankId===old.id)||db.purchases.some(x=>x.source==="fuel_delivery"&&x.fuelTankId===old.id);
+  if(used) return alert("This tank already has fuel transactions. Its linked product cannot be changed.");
+ }
+ const rec={id:editingFuelTankId||makeId(),name,productId:pid,capacity:cap,openingLiters:opening,note:fuelTankNote.value.trim()};
+ if(editingFuelTankId){ const i=db.fuelTanks.findIndex(x=>x.id===editingFuelTankId); db.fuelTanks[i]=rec; }
+ else db.fuelTanks.push(rec);
+ syncFuelProductOpening(pid); if(old&&old.productId!==pid) syncFuelProductOpening(old.productId);
+ save(); resetFuelTankForm();
+}
+function deleteFuelTank(id){
+ if((db.fuelNozzles||[]).some(x=>x.tankId===id)) return alert("Delete linked nozzles first.");
+ if((db.fuelShifts||[]).some(x=>x.tankId===id)||db.purchases.some(x=>x.source==="fuel_delivery"&&x.fuelTankId===id)) return alert("This tank has transactions and cannot be deleted.");
+ const t=fuelTankBy(id); if(!t) return;
+ if(!confirm("Delete this empty tank?")) return;
+ db.fuelTanks=db.fuelTanks.filter(x=>x.id!==id); syncFuelProductOpening(t.productId); save();
+}
+
+function resetFuelNozzleForm(){
+ editingFuelNozzleId=""; fuelNozzleName.value=""; fuelNozzleTank.value=""; fuelNozzleOpeningMeter.value=""; fuelNozzleNote.value="";
+ fuelNozzleSaveBtn.textContent=fuelT("save_nozzle"); fuelNozzleCancelBtn.style.display="none";
+}
+function editFuelNozzle(id){
+ const x=fuelNozzleBy(id); if(!x) return;
+ editingFuelNozzleId=id; fuelNozzleName.value=x.name||""; fuelNozzleTank.value=x.tankId||""; fuelNozzleOpeningMeter.value=n(x.openingMeter); fuelNozzleNote.value=x.note||"";
+ fuelNozzleSaveBtn.textContent="Update Nozzle"; fuelNozzleCancelBtn.style.display="inline-block";
+}
+function saveFuelNozzle(){
+ if(currentUser()?.role!=="Admin") return alert("Admin only.");
+ const name=fuelNozzleName.value.trim(), tankId=fuelNozzleTank.value;
+ if(!name||!tankId) return alert("Nozzle name and tank are required.");
+ const old=editingFuelNozzleId?fuelNozzleBy(editingFuelNozzleId):null;
+ if(old&&old.tankId!==tankId&&(db.fuelShifts||[]).some(x=>x.nozzleId===old.id)) return alert("This nozzle already has meter sales. Its tank cannot be changed.");
+ const rec={id:editingFuelNozzleId||makeId(),name,tankId,openingMeter:n(fuelNozzleOpeningMeter.value),note:fuelNozzleNote.value.trim()};
+ if(editingFuelNozzleId){ const i=db.fuelNozzles.findIndex(x=>x.id===editingFuelNozzleId); db.fuelNozzles[i]=rec; }
+ else db.fuelNozzles.push(rec);
+ save(); resetFuelNozzleForm();
+}
+function deleteFuelNozzle(id){
+ if((db.fuelShifts||[]).some(x=>x.nozzleId===id)) return alert("This nozzle has meter sales and cannot be deleted.");
+ if(confirm("Delete nozzle?")){ db.fuelNozzles=db.fuelNozzles.filter(x=>x.id!==id); save(); }
+}
+
+function calcFuelDelivery(){
+ if(!document.getElementById("fuelDeliveryTotal")) return 0;
+ const total=n(fuelDeliveryLiters.value)*n(fuelDeliveryCost.value); fuelDeliveryTotal.textContent=m(total); return total;
+}
+function resetFuelDeliveryForm(){
+ editingFuelDeliveryId=""; fuelDeliveryDate.value=today(); fuelDeliverySupplier.value=""; fuelDeliveryTank.value="";
+ fuelDeliveryInvoice.value=""; fuelDeliveryLiters.value=""; fuelDeliveryCost.value=""; fuelDeliveryPaid.value=0; fuelDeliveryNote.value="";
+ fuelDeliverySaveBtn.textContent=fuelT("save_delivery"); fuelDeliveryCancelBtn.style.display="none"; calcFuelDelivery();
+}
+function editFuelDelivery(id){
+ const p=db.purchases.find(x=>x.id===id&&x.source==="fuel_delivery"); if(!p) return alert("Fuel delivery not found.");
+ const l=(p.lines||[])[0]||{};
+ editingFuelDeliveryId=id; fuelDeliveryDate.value=p.date||today(); fuelDeliverySupplier.value=p.supplierId||""; fuelDeliveryTank.value=p.fuelTankId||"";
+ fuelDeliveryInvoice.value=p.invoice||""; fuelDeliveryLiters.value=n(l.qty); fuelDeliveryCost.value=n(l.cost); fuelDeliveryPaid.value=n(p.paid); fuelDeliveryNote.value=p.note||"";
+ fuelDeliverySaveBtn.textContent="Update Fuel Delivery"; fuelDeliveryCancelBtn.style.display="inline-block"; calcFuelDelivery();
+}
+function saveFuelDelivery(){
+ if(currentUser()?.role!=="Admin") return alert("Admin only.");
+ const sid=fuelDeliverySupplier.value, tankId=fuelDeliveryTank.value, t=fuelTankBy(tankId);
+ const liters=n(fuelDeliveryLiters.value), cost=n(fuelDeliveryCost.value);
+ if(!sid||!t) return alert("Select supplier and tank.");
+ if(liters<=0||cost<0) return alert("Enter valid liters and cost.");
+ const product=productBy(t.productId); if(!product) return alert("Tank product not found.");
+ const old=editingFuelDeliveryId?db.purchases.find(x=>x.id===editingFuelDeliveryId):null;
+ const oldLiters=old?(old.lines||[]).reduce((a,l)=>a+n(l.qty),0):0;
+ const projected=tankCurrentLiters(tankId)-(old&&old.fuelTankId===tankId?oldLiters:0)+liters;
+ if(n(t.capacity)>0&&projected>n(t.capacity)&&!confirm("This delivery will exceed tank capacity. Save anyway?")) return;
+ const invoice=fuelDeliveryInvoice.value.trim();
+ if(invoice&&db.purchases.some(p=>p.id!==editingFuelDeliveryId&&p.supplierId===sid&&(p.invoice||"").trim().toLowerCase()===invoice.toLowerCase())){
+  if(!confirm("Supplier already has this invoice number. Save anyway?")) return;
+ }
+ const total=liters*cost, paid=n(fuelDeliveryPaid.value);
+ if(paid>total&&!confirm("Paid amount is greater than purchase total. Save anyway?")) return;
+ const rec={id:editingFuelDeliveryId||makeId(),date:fuelDeliveryDate.value||today(),supplierId:sid,invoice,paid,note:fuelDeliveryNote.value.trim(),total,source:"fuel_delivery",fuelTankId:tankId,
+  lines:[{id:makeId(),productId:product.id,productName:product.name,qty:liters,cost}]};
+ if(editingFuelDeliveryId){ const i=db.purchases.findIndex(x=>x.id===editingFuelDeliveryId); db.purchases[i]=rec; }
+ else db.purchases.push(rec);
+ save(); resetFuelDeliveryForm();
+}
+
+function onFuelNozzleChange(){
+ const nz=fuelNozzleBy(fuelShiftNozzle.value);
+ if(!nz) return;
+ const t=fuelTankBy(nz.tankId), p=t?productBy(t.productId):null;
+ fuelShiftOpening.value=fuelLastClosingMeter(nz.id);
+ if(p) fuelShiftPrice.value=n(p.salePrice);
+ calcFuelShift();
+}
+function calcFuelShift(){
+ if(!document.getElementById("fuelShiftLiters")) return {liters:0,gross:0,due:0,recovery:0};
+ const open=n(fuelShiftOpening.value), close=n(fuelShiftClosing.value), price=n(fuelShiftPrice.value), received=n(fuelShiftReceived.value);
+ const liters=Math.max(close-open,0), gross=liters*price, due=Math.max(gross-received,0), recovery=Math.max(received-gross,0);
+ fuelShiftLiters.textContent=m(liters); fuelShiftGross.textContent=m(gross); fuelShiftDue.textContent=m(due); fuelShiftRecovery.textContent=m(recovery);
+ return {liters,gross,due,recovery};
+}
+function fuelUseTotalAsCash(){ const x=calcFuelShift(); fuelShiftReceived.value=x.gross; calcFuelShift(); }
+function resetFuelShiftForm(){
+ editingFuelShiftId=""; fuelShiftDate.value=today(); fuelShiftName.value=""; fuelShiftNozzle.value=""; fuelShiftInvoice.value="";
+ const u=currentUser(); fuelShiftSalesman.value=u?.role==="Salesman"?(u.salesmanId||""):""; refreshFuelCustomers(); fuelShiftCustomer.value="";
+ fuelShiftOpening.value=""; fuelShiftClosing.value=""; fuelShiftPrice.value=""; fuelShiftReceived.value=0; fuelShiftNote.value="";
+ fuelShiftSaveBtn.textContent=fuelT("save_shift"); fuelShiftCancelBtn.style.display="none"; calcFuelShift();
+}
+function editFuelShift(id){
+ const sh=(db.fuelShifts||[]).find(x=>x.id===id); if(!sh) return alert("Fuel shift not found.");
+ editingFuelShiftId=id; refreshFuelSelects(); fuelShiftDate.value=sh.date||today(); fuelShiftName.value=sh.shiftName||""; fuelShiftNozzle.value=sh.nozzleId||""; fuelShiftInvoice.value=sh.invoice||"";
+ fuelShiftSalesman.value=sh.salesmanId||""; refreshFuelCustomers(); fuelShiftCustomer.value=sh.customerId||""; fuelShiftOpening.value=n(sh.openingMeter); fuelShiftClosing.value=n(sh.closingMeter);
+ fuelShiftPrice.value=n(sh.price); fuelShiftReceived.value=n(sh.received); fuelShiftNote.value=sh.note||"";
+ fuelShiftSaveBtn.textContent="Update Meter Sale"; fuelShiftCancelBtn.style.display="inline-block"; calcFuelShift();
+}
+function fuelOldCustomerBalance(customerId, saleId){
+ let b=customerBalance(customerId);
+ const old=db.sales.find(x=>x.id===saleId);
+ if(old&&old.customerId===customerId) b-=saleNet(old)-n(old.received);
+ return b;
+}
+function saveFuelShift(){
+ const nz=fuelNozzleBy(fuelShiftNozzle.value); if(!nz) return alert("Select nozzle.");
+ const t=fuelTankBy(nz.tankId), p=t?productBy(t.productId):null; if(!t||!p) return alert("Nozzle tank/product setup is incomplete.");
+ const open=n(fuelShiftOpening.value), close=n(fuelShiftClosing.value), price=n(fuelShiftPrice.value), received=n(fuelShiftReceived.value);
+ if(close<=open) return alert("Closing meter must be greater than opening meter.");
+ if(price<=0) return alert("Enter sale price per liter.");
+ const liters=close-open, gross=liters*price, due=Math.max(gross-received,0), recovery=Math.max(received-gross,0);
+ const customerId=fuelShiftCustomer.value, salesmanId=fuelShiftSalesman.value, salesmanName=salesmanBy(salesmanId)?.name||"";
+ if((due>0||recovery>0)&&!customerId&&!salesmanId) return alert("Select Customer or Salesman for due/recovery.");
+ const oldShift=editingFuelShiftId?(db.fuelShifts||[]).find(x=>x.id===editingFuelShiftId):null;
+ const oldSale=oldShift?db.sales.find(x=>x.id===oldShift.saleId):null;
+ let available=currentQty(p);
+ if(oldSale){ const oldLine=(oldSale.lines||[]).find(l=>l.productId===p.id); available+=n(oldLine?.qty); }
+ if(liters>available&&available>=0&&!confirm("Fuel stock is lower than meter sale liters. Save anyway?")) return;
+ const saleId=oldShift?.saleId||makeId();
+ const oldBalance=customerId?fuelOldCustomerBalance(customerId,saleId):(salesmanId?salesmanBalanceById(salesmanId,saleId):0);
+ const newBalance=(customerId||salesmanId)?oldBalance+gross-received:0;
+ if(customerId){ const lim=n(customerBy(customerId)?.creditLimit); if(lim>0&&newBalance>lim&&!confirm("Customer credit limit will be exceeded. Save anyway?")) return; }
+ else if(salesmanId){ const lim=n(salesmanBy(salesmanId)?.creditLimit); if(lim>0&&newBalance>lim&&!confirm("Salesman credit limit will be exceeded. Save anyway?")) return; }
+ let invoice=fuelShiftInvoice.value.trim();
+ if(!invoice) invoice="FUEL-"+(fuelShiftDate.value||today()).replaceAll("-","")+"-"+String(Date.now()).slice(-5);
+ if(db.sales.some(s=>s.id!==saleId&&(s.invoice||"").trim().toLowerCase()===invoice.toLowerCase())&&!confirm("This invoice number already exists. Save anyway?")) return;
+ db.salesmanLoans=db.salesmanLoans.filter(x=>x.linkedSaleId!==saleId);
+ const sale={id:saleId,date:fuelShiftDate.value||today(),vehicle:"",salesmanId,salesman:salesmanName,customerId,invoice,
+  lines:[{productId:p.id,productName:p.name,price,qty:liters,haji:0,costAtSale:currentCost(p)}],received,oil:0,other:0,oldShort:oldBalance,recovery,newShort:due,totalShort:newBalance,
+  source:"fuel_shift",fuelShiftId:editingFuelShiftId||"",fuelNozzleId:nz.id,fuelTankId:t.id,meterOpening:open,meterClosing:close};
+ if(oldSale){ const i=db.sales.findIndex(x=>x.id===saleId); db.sales[i]=sale; } else db.sales.push(sale);
+ const shiftId=editingFuelShiftId||makeId();
+ sale.fuelShiftId=shiftId;
+ const shift={id:shiftId,saleId,date:sale.date,shiftName:fuelShiftName.value.trim(),nozzleId:nz.id,tankId:t.id,productId:p.id,invoice,salesmanId,customerId,
+  openingMeter:open,closingMeter:close,liters,price,gross,received,note:fuelShiftNote.value.trim(),createdAt:oldShift?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ if(oldShift){ const i=db.fuelShifts.findIndex(x=>x.id===shiftId); db.fuelShifts[i]=shift; } else db.fuelShifts.push(shift);
+ if(!customerId&&salesmanId){
+  if(due>0) db.salesmanLoans.push({id:makeId(),date:sale.date,salesmanId,name:salesmanName,given:due,received:0,note:`Automatic fuel invoice due / ${invoice}`,source:"sale_due",linkedSaleId:saleId});
+  if(recovery>0) db.salesmanLoans.push({id:makeId(),date:sale.date,salesmanId,name:salesmanName,given:0,received:recovery,note:`Automatic fuel invoice recovery / ${invoice}`,source:"sale_recovery",linkedSaleId:saleId});
+ }
+ save(); resetFuelShiftForm();
+}
+function deleteFuelShift(id){ if(confirm("Move this fuel meter sale and its linked invoice to Recycle Bin?")) softDelete("fuelShifts",id); }
+
+function saveFuelTankAdjustment(){
+ if(currentUser()?.role!=="Admin") return alert("Admin only.");
+ const t=fuelTankBy(fuelAdjTank.value), qty=n(fuelAdjQty.value); if(!t) return alert("Select tank."); if(!qty) return alert("Enter adjustment liters.");
+ db.stockAdjustments.push({id:makeId(),date:fuelAdjDate.value||today(),productId:t.productId,qty,note:fuelAdjNote.value.trim(),source:"fuel_tank_adjustment",fuelTankId:t.id});
+ fuelAdjQty.value=""; fuelAdjNote.value=""; save();
+}
+function deleteFuelTankAdjustment(id){
+ const x=db.stockAdjustments.find(a=>a.id===id&&a.source==="fuel_tank_adjustment"); if(!x) return;
+ if(confirm("Delete this tank adjustment?")){ db.stockAdjustments=db.stockAdjustments.filter(a=>a.id!==id); save(); }
+}
+
+function fuelCashForDate(date){
+ const rows=buildCashBookRows().filter(r=>r.date===date);
+ const cashIn=rows.reduce((a,r)=>a+n(r.cashIn),0), cashOut=rows.reduce((a,r)=>a+n(r.cashOut),0);
+ return {cashIn,cashOut,rows};
+}
+function renderFuelClosingPreview(){
+ if(!document.getElementById("fuelClosingDate")) return;
+ const d=fuelClosingDate.value||today(), x=fuelCashForDate(d), opening=n(fuelClosingOpening.value), actual=n(fuelClosingActual.value);
+ const expected=opening+x.cashIn-x.cashOut, variance=actual-expected;
+ fuelClosingIn.textContent=m(x.cashIn); fuelClosingOut.textContent=m(x.cashOut); fuelClosingExpected.textContent=m(expected); fuelClosingVariance.textContent=m(variance);
+ fuelClosingVariance.className="num "+(variance<0?"negative":variance>0?"positive":"");
+}
+function saveFuelClosing(){
+ if(currentUser()?.role!=="Admin") return alert("Admin only.");
+ const date=fuelClosingDate.value||today(), x=fuelCashForDate(date), opening=n(fuelClosingOpening.value), actual=n(fuelClosingActual.value), expected=opening+x.cashIn-x.cashOut;
+ const rec={id:makeId(),date,openingCash:opening,cashIn:x.cashIn,cashOut:x.cashOut,expectedCash:expected,actualCash:actual,variance:actual-expected,note:fuelClosingNote.value.trim(),closedAt:new Date().toISOString()};
+ const old=(db.fuelClosings||[]).find(z=>z.date===date);
+ if(old){ if(!confirm("A closing already exists for this date. Replace it?")) return; rec.id=old.id; db.fuelClosings[db.fuelClosings.findIndex(z=>z.id===old.id)]=rec; }
+ else db.fuelClosings.push(rec);
+ save();
+}
+function editFuelClosing(id){
+ const x=(db.fuelClosings||[]).find(z=>z.id===id); if(!x) return;
+ fuelClosingDate.value=x.date; fuelClosingOpening.value=n(x.openingCash); fuelClosingActual.value=n(x.actualCash); fuelClosingNote.value=x.note||""; renderFuelClosingPreview();
+}
+function deleteFuelClosing(id){ if(confirm("Delete daily closing?")){ db.fuelClosings=db.fuelClosings.filter(x=>x.id!==id); save(); } }
+
+function renderFuelPump(){
+ if(!document.getElementById("fuelPump")||!db) return;
+ ["fuelDeliveryDate","fuelShiftDate","fuelAdjDate","fuelClosingDate"].forEach(id=>{const el=document.getElementById(id);if(el&&!el.value)el.value=today();});
+ refreshFuelSelects();
+ const day=today(), shifts=(db.fuelShifts||[]).filter(x=>x.date===day);
+ fuelTodayLiters.textContent=m(shifts.reduce((a,x)=>a+n(x.liters),0));
+ fuelTodaySales.textContent=m(shifts.reduce((a,x)=>a+n(x.gross),0));
+ fuelTodayCash.textContent=m(shifts.reduce((a,x)=>a+n(x.received),0));
+ fuelTodayDue.textContent=m(shifts.reduce((a,x)=>a+Math.max(n(x.gross)-n(x.received),0),0));
+
+ fuelTanksBody.innerHTML=(db.fuelTanks||[]).map(t=>{
+  const p=productBy(t.productId), cur=tankCurrentLiters(t.id), cap=n(t.capacity), free=cap>0?cap-cur:0, status=cur<0?"NEGATIVE":(cap>0&&cur>cap?"OVER CAPACITY":"OK");
+  return `<tr><td>${e(t.name)}</td><td>${e(p?.name||"")}</td><td class="money">${m(cap)}</td><td class="money">${m(t.openingLiters)}</td><td class="money ${cur<0?'negative':''}">${m(cur)}</td><td class="money">${cap>0?m(free):"—"}</td><td class="${status==="OK"?"":"negative"}">${status}</td><td><button class="action gray" onclick="editFuelTank('${t.id}')">Edit</button> <button class="action red" onclick="deleteFuelTank('${t.id}')">Delete</button></td></tr>`;
+ }).join("");
+
+ fuelNozzlesBody.innerHTML=(db.fuelNozzles||[]).map(x=>{const t=fuelTankBy(x.tankId),p=t?productBy(t.productId):null;return `<tr><td>${e(x.name)}</td><td>${e(t?.name||"")}</td><td>${e(p?.name||"")}</td><td class="money">${m(fuelLastClosingMeter(x.id))}</td><td>${e(x.note||"")}</td><td><button class="action gray" onclick="editFuelNozzle('${x.id}')">Edit</button> <button class="action red" onclick="deleteFuelNozzle('${x.id}')">Delete</button></td></tr>`;}).join("");
+
+ const dels=db.purchases.filter(p=>p.source==="fuel_delivery").slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+ fuelDeliveriesBody.innerHTML=dels.map(p=>{const l=(p.lines||[])[0]||{},t=fuelTankBy(p.fuelTankId);return `<tr><td>${e(p.date)}</td><td>${e(supplierBy(p.supplierId)?.name||"")}</td><td>${e(t?.name||"")}</td><td>${e(p.invoice||"")}</td><td class="money">${m(l.qty)}</td><td class="money">${m(l.cost)}</td><td class="money">${m(p.total)}</td><td class="money">${m(p.paid)}</td><td><button class="action gray" onclick="editFuelDelivery('${p.id}')">Edit</button> <button class="action red" onclick="del('purchases','${p.id}')">Delete</button></td></tr>`;}).join("");
+
+ fuelShiftsBody.innerHTML=(db.fuelShifts||[]).slice().sort((a,b)=>String(b.date+" "+(b.createdAt||"")).localeCompare(String(a.date+" "+(a.createdAt||"")))).map(x=>{
+  const nz=fuelNozzleBy(x.nozzleId), sale=db.sales.find(s=>s.id===x.saleId), due=Math.max(n(x.gross)-n(x.received),0);
+  return `<tr><td>${e(x.date)}</td><td>${e(x.shiftName||"")}</td><td>${e(nz?.name||"")}</td><td>${e(x.invoice||"")}</td><td>${e(customerBy(x.customerId)?.name||"Cash")}</td><td>${e(salesmanBy(x.salesmanId)?.name||sale?.salesman||"")}</td><td class="money">${m(x.openingMeter)}</td><td class="money">${m(x.closingMeter)}</td><td class="money">${m(x.liters)}</td><td class="money">${m(x.gross)}</td><td class="money">${m(x.received)}</td><td class="money">${m(due)}</td><td><button class="action gray" onclick="editFuelShift('${x.id}')">Edit</button> <button class="action red" onclick="deleteFuelShift('${x.id}')">Delete</button></td></tr>`;
+ }).join("");
+
+ fuelAdjustmentsBody.innerHTML=db.stockAdjustments.filter(x=>x.source==="fuel_tank_adjustment").slice().reverse().map(x=>{const t=fuelTankBy(x.fuelTankId),p=productBy(x.productId);return `<tr><td>${e(x.date)}</td><td>${e(t?.name||"")}</td><td>${e(p?.name||"")}</td><td class="money">${m(x.qty)}</td><td>${e(x.note||"")}</td><td><button class="action red" onclick="deleteFuelTankAdjustment('${x.id}')">Delete</button></td></tr>`;}).join("");
+
+ fuelClosingsBody.innerHTML=(db.fuelClosings||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(x=>`<tr><td>${e(x.date)}</td><td class="money">${m(x.openingCash)}</td><td class="money">${m(x.cashIn)}</td><td class="money">${m(x.cashOut)}</td><td class="money">${m(x.expectedCash)}</td><td class="money">${m(x.actualCash)}</td><td class="money ${n(x.variance)<0?'negative':n(x.variance)>0?'positive':''}">${m(x.variance)}</td><td>${e(x.note||"")}</td><td><button class="action gray" onclick="editFuelClosing('${x.id}')">Edit</button> <button class="action red" onclick="deleteFuelClosing('${x.id}')">Delete</button></td></tr>`).join("");
+ renderFuelClosingPreview();
+}
+
 
 /* ==================== Renderers ==================== */
 
@@ -4379,7 +4918,7 @@ function renderAll(){
  renderCustomers(); renderSuppliers(); renderSupplierTransactions(); renderCustomerLoans(); renderExpenses();
  renderSalesmanLoans(); renderCapital(); renderDiscounts(); renderDashboard(); renderReports();
  renderCustomerStatement(); renderSupplierStatement(); renderSalesmanStatement(); renderDailyClosing();
- renderStockLedger(); renderCashBook(); renderRecycleBin(); renderSafetyCenter();
+ renderStockLedger(); renderCashBook(); renderFuelPump(); renderRecycleBin(); renderSafetyCenter();
  if(currentUser()?.role==="Admin") renderUsers();
 }
 function deleteById(){

@@ -437,6 +437,7 @@ window.__argon2LoadingPromise = (async ()=>{
   <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password">
   <button class="action auth-btn" onclick="loginUser()">🔓 Login & Unlock Data</button>
   <button class="action gray auth-btn" style="margin-top:8px" onclick="startQrLoginScan()">📷 Login with QR Code</button>
+  <button class="action gold auth-btn" style="margin-top:8px" onclick="showCloudRestorePanel()">☁️ Restore Account from Cloud</button>
   <button class="action gray auth-btn" id="loginCreateAccountBtn" style="margin-top:8px" onclick="showSignUpPanel()">＋ Create New Account</button>
   <div style="text-align:center;margin-top:10px"><a href="javascript:void(0)" onclick="showForgotPasswordInfo()" style="color:var(--brass);font-size:12px;text-decoration:underline">Forgot Password?</a></div>
   <div id="mobileStorageNote" class="auth-note" style="margin-top:8px"></div>
@@ -455,12 +456,27 @@ window.__argon2LoadingPromise = (async ()=>{
   <label style="margin-top:10px">Confirm Password</label>
   <input id="setupPassword2" type="password" autocomplete="new-password" placeholder="Repeat password">
   <button class="action green auth-btn" onclick="createFirstAdmin()">Sign Up & Encrypt Data</button>
-  <button class="action gray auth-btn" style="margin-top:8px" onclick="showLoginPanel()">🔓 Already have an account? Login</button>
+  <button class="action gold auth-btn" style="margin-top:8px" onclick="showCloudRestorePanel()">☁️ Restore Existing Account from Cloud</button>
+  <button class="action gray auth-btn" style="margin-top:8px" onclick="showLoginPanel()">🔓 Local Login</button>
   <div id="setupError" class="auth-error"></div>
   <div class="auth-note">
     <b style="color:#dc2626">⚠️ IMPORTANT — Write down your Recovery Code.</b><br>
     You will be shown a one-time Recovery Code. If you forget your password AND lose this code, your business data <b>cannot be recovered by anyone</b>. This is by design.
   </div>
+ </div>
+
+ <div id="cloudRestoreAuthPanel" class="auth-card" style="display:none">
+  <div class="auth-logo">☁️</div>
+  <div class="auth-title">Restore QAMVIO Account</div>
+  <div class="auth-sub">Sign in to your QAMVIO cloud account. The app will download your encrypted backup, then ask for your local QAMVIO username and password to decrypt it.</div>
+  <label>Cloud Email</label>
+  <input id="cloudRestoreEmail" type="email" autocomplete="email" placeholder="you@example.com">
+  <label style="margin-top:10px">Cloud Password</label>
+  <input id="cloudRestorePassword" type="password" autocomplete="current-password" placeholder="Cloud account password">
+  <button class="action green auth-btn" onclick="cloudFreshRestoreClick()">☁️ Login & Restore Encrypted Backup</button>
+  <button class="action gray auth-btn" style="margin-top:8px" onclick="closeCloudRestorePanel()">← Back</button>
+  <div id="cloudRestoreAuthStatus" class="auth-error"></div>
+  <div class="auth-note">Your business records are stored in cloud as an <b>encrypted backup</b>. After download, your original local QAMVIO password is still required to unlock the business data.</div>
  </div>
 </div>
 
@@ -1386,11 +1402,11 @@ window.__argon2LoadingPromise = (async ()=>{
 
  <div class="card" style="margin-bottom:12px">
   <h2>☁️ Cloud Sync <span class="badge-soft">Beta</span></h2>
-  <div class="notice">Optional. Sign in with a cloud account to sync your data and open it again on another phone. Your local login (username/password on this device) is unaffected either way.</div>
+  <div class="notice">Optional but recommended. Your cloud account stores an <b>encrypted QAMVIO backup</b>. After reinstalling the app or moving to another phone, use “Restore Account from Cloud”, then unlock the downloaded data with your original local QAMVIO password.</div>
   <div id="cloudLoggedOutBox">
    <div class="row">
     <div class="grow"><label>Email</label><input id="cloudEmail" type="email" placeholder="you@example.com"></div>
-    <div><label>Password</label><input id="cloudPassword" type="password" placeholder="Minimum 6 characters"></div>
+    <div><label>Password</label><input id="cloudPassword" type="password" placeholder="Minimum 8 characters"></div>
    </div>
    <div style="margin-top:8px">
     <button class="action green" onclick="cloudSignUpClick()">Sign Up for Cloud</button>
@@ -1399,11 +1415,12 @@ window.__argon2LoadingPromise = (async ()=>{
   </div>
   <div id="cloudLoggedInBox" style="display:none">
    <div class="notice">Signed in as <b id="cloudLoggedInEmail"></b></div>
-   <button class="action green" onclick="cloudSyncNow()">⬆️ Sync Now (upload this device's data)</button>
-   <button class="action gold" onclick="cloudRestoreNow()">⬇️ Restore from Cloud (pull to this device)</button>
+   <button class="action green" onclick="cloudSyncNow(false)">⬆️ Sync Encrypted Backup Now</button>
+   <button class="action gold" onclick="cloudRestoreNow()">⬇️ Restore Encrypted Backup</button>
    <button class="action gray" onclick="cloudLogout()">Logout of Cloud</button>
   </div>
   <div id="cloudSyncStatus" class="report-formula" style="margin-top:10px">Not connected.</div>
+  <div class="small" style="margin-top:8px">When cloud login is active, QAMVIO automatically uploads a fresh encrypted backup a few seconds after local data changes.</div>
  </div>
 
  <div class="grid g3">
@@ -1502,6 +1519,7 @@ const WIZARD_KEY         = KEY + "_business_settings_v1";
 const APP_LANG_KEY       = KEY + "_app_language_v1";
 const CLOUD_SESSION_KEY  = KEY + "_cloud_session_v1";
 const CLOUD_LAST_SYNC_KEY= KEY + "_cloud_last_sync_v1";
+const CLOUD_PENDING_EXTRAS_KEY = KEY + "_cloud_pending_extras_v1";
 
 /* ==================== Native SQLite persistence adapter ====================
    Android APK: SQLite is the primary persistent copy; WebView localStorage is
@@ -1946,6 +1964,7 @@ function authError(id,msg){
 function showLoginPanel(){
  authOverlay.style.display="flex";
  setupPanel.style.display="none";
+ const cloudPanel=document.getElementById("cloudRestoreAuthPanel"); if(cloudPanel) cloudPanel.style.display="none";
  loginPanel.style.display="block";
  authError("setupError","");
  authError("loginError","");
@@ -1963,6 +1982,7 @@ function showLoginPanel(){
 function showSignUpPanel(){
  authOverlay.style.display="flex";
  loginPanel.style.display="none";
+ const cloudPanel=document.getElementById("cloudRestoreAuthPanel"); if(cloudPanel) cloudPanel.style.display="none";
  setupPanel.style.display="block";
  authError("loginError","");
  authError("setupError","");
@@ -1970,6 +1990,31 @@ function showSignUpPanel(){
  setupPassword.value="";
  setupPassword2.value="";
  setTimeout(()=>setupUsername.focus(),50);
+}
+
+function setCloudRestoreAuthStatus(msg,isError){
+ const el=document.getElementById("cloudRestoreAuthStatus");
+ if(!el) return;
+ el.style.display=msg?"block":"none";
+ el.style.background=isError?"#fff1f2":"#ecfdf5";
+ el.style.borderColor=isError?"#fda4af":"#86efac";
+ el.style.color=isError?"#9f1239":"#166534";
+ el.textContent=msg||"";
+}
+function showCloudRestorePanel(){
+ authOverlay.style.display="flex";
+ loginPanel.style.display="none";
+ setupPanel.style.display="none";
+ const p=document.getElementById("cloudRestoreAuthPanel");
+ if(p) p.style.display="block";
+ setCloudRestoreAuthStatus(cloudConfigured()?"Enter your cloud account.":"Cloud service is not activated yet.",!cloudConfigured());
+ setTimeout(()=>document.getElementById("cloudRestoreEmail")?.focus(),50);
+}
+function closeCloudRestorePanel(){
+ const p=document.getElementById("cloudRestoreAuthPanel");
+ if(p) p.style.display="none";
+ setCloudRestoreAuthStatus("",false);
+ if(getAuthUsers().length) showLoginPanel(); else showSignUpPanel();
 }
 
 /* ==================== Database save / load (encrypted v16) ==================== */
@@ -2079,6 +2124,7 @@ function save(){
    posStoreSet(KEY, JSON.stringify(box));
    writeIntegrityTag(plainJson);
    lastSavedDbJSON = plainJson;
+   try{ scheduleCloudAutoSync(); }catch(e){}
  }).catch(e=>{
    console.error("[v16] save failed:", e);
    alert("⚠️ Failed to save encrypted data:\n"+e.message);
@@ -2227,6 +2273,8 @@ async function loginUser(){
   // Decrypt DB
   try{
    await loadEncryptedIntoMemory();
+   try{ await restorePendingCloudExtras(); }
+   catch(extraErr){ console.warn("[cloud] extra settings restore failed:", extraErr); }
   }catch(err){
    DATA_KEY_BYTES = null;
    hideKdfOverlay();
@@ -5287,95 +5335,252 @@ window.POSSecurityStatus = Object.assign(
 
 const CLOUD_SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
 const CLOUD_SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+const CLOUD_TABLE = "qamvio_cloud_backups";
 
-function cloudConfigured(){ return CLOUD_SUPABASE_URL.indexOf("YOUR-PROJECT")<0 && CLOUD_SUPABASE_ANON_KEY.indexOf("YOUR-ANON")<0; }
-function getCloudSession(){ try{ return JSON.parse(posStoreGet(CLOUD_SESSION_KEY)||"null"); }catch(e){ return null; } }
-function setCloudSession(s){ if(s) posStoreSet(CLOUD_SESSION_KEY, JSON.stringify(s)); else posStoreRemove(CLOUD_SESSION_KEY); }
-function setCloudStatus(msg){ const el = document.getElementById("cloudSyncStatus"); if(el) el.textContent = msg; }
-function applyCloudUIState(){
- const session = getCloudSession();
- const loggedOut = document.getElementById("cloudLoggedOutBox");
- const loggedIn = document.getElementById("cloudLoggedInBox");
- if(!loggedOut || !loggedIn) return;
- if(session){
-  loggedOut.style.display = "none"; loggedIn.style.display = "block";
-  document.getElementById("cloudLoggedInEmail").textContent = session.email||"";
-  const lastSync = posStoreGet(CLOUD_LAST_SYNC_KEY);
-  setCloudStatus(lastSync ? ("Last synced: " + new Date(lastSync).toLocaleString()) : "Logged in. Not synced yet.");
- }else{
-  loggedOut.style.display = "block"; loggedIn.style.display = "none";
-  setCloudStatus(cloudConfigured() ? "Not connected." : "Cloud Sync is not set up (Supabase URL/key missing).");
- }
+function cloudConfigured(){
+ return CLOUD_SUPABASE_URL.indexOf("YOUR-PROJECT")<0 && CLOUD_SUPABASE_ANON_KEY.indexOf("YOUR-ANON")<0;
 }
-async function cloudAuthRequest(path, email, password){
- const r = await fetch(CLOUD_SUPABASE_URL + path, {
-  method: "POST",
-  headers: {"apikey":CLOUD_SUPABASE_ANON_KEY, "Content-Type":"application/json"},
-  body: JSON.stringify({email, password})
+function getCloudSession(){ try{ return JSON.parse(posStoreGet(CLOUD_SESSION_KEY)||"null"); }catch(e){ return null; } }
+function setCloudSession(s){ if(s) posStoreSet(CLOUD_SESSION_KEY,JSON.stringify(s)); else posStoreRemove(CLOUD_SESSION_KEY); }
+function setCloudStatus(msg){ const el=document.getElementById("cloudSyncStatus"); if(el) el.textContent=msg; }
+
+function cloudSessionFromAuth(data,email){
+ return {
+  access_token:data.access_token,
+  refresh_token:data.refresh_token||"",
+  expires_at:Date.now()+Math.max(60,Number(data.expires_in)||3600)*1000,
+  user_id:data.user?.id||data.user_id||"",
+  email:email||data.user?.email||""
+ };
+}
+async function cloudAuthRequest(path,email,password){
+ if(!cloudConfigured()) throw new Error("Cloud Sync is not configured yet.");
+ const r=await fetch(CLOUD_SUPABASE_URL+path,{
+  method:"POST",
+  headers:{"apikey":CLOUD_SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+  body:JSON.stringify({email,password})
  });
- const data = await r.json();
- if(!r.ok) throw new Error(data.msg||data.error_description||data.error||"Request failed.");
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok) throw new Error(data.msg||data.error_description||data.error||"Cloud authentication failed.");
  return data;
 }
+async function ensureCloudAccessToken(){
+ let s=getCloudSession();
+ if(!s) throw new Error("Login to cloud first.");
+ if(s.access_token && (!s.expires_at || s.expires_at>Date.now()+60000)) return s;
+ if(!s.refresh_token) throw new Error("Cloud session expired. Login to cloud again.");
+ const r=await fetch(CLOUD_SUPABASE_URL+"/auth/v1/token?grant_type=refresh_token",{
+  method:"POST",
+  headers:{"apikey":CLOUD_SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+  body:JSON.stringify({refresh_token:s.refresh_token})
+ });
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok) throw new Error(data.msg||data.error_description||data.error||"Cloud session refresh failed.");
+ s=cloudSessionFromAuth(data,s.email);
+ setCloudSession(s);
+ return s;
+}
+function applyCloudUIState(){
+ const session=getCloudSession();
+ const loggedOut=document.getElementById("cloudLoggedOutBox");
+ const loggedIn=document.getElementById("cloudLoggedInBox");
+ if(!loggedOut||!loggedIn) return;
+ if(session){
+  loggedOut.style.display="none";
+  loggedIn.style.display="block";
+  document.getElementById("cloudLoggedInEmail").textContent=session.email||"";
+  const lastSync=posStoreGet(CLOUD_LAST_SYNC_KEY);
+  setCloudStatus(lastSync?("Encrypted backup synced: "+new Date(lastSync).toLocaleString()):"Logged in. Encrypted backup not synced yet.");
+ }else{
+  loggedOut.style.display="block";
+  loggedIn.style.display="none";
+  setCloudStatus(cloudConfigured()?"Not connected.":"Cloud Sync is not activated yet.");
+ }
+}
+
+async function buildEncryptedCloudPayload(){
+ if(!DATA_KEY_BYTES||!currentUser()) throw new Error("Unlock QAMVIO locally before syncing.");
+ const dbRaw=posStoreGet(KEY);
+ const authRaw=posStoreGet(AUTH_KEY);
+ const metaRaw=posStoreGet(DB_META_KEY);
+ if(!dbRaw||!authRaw||!metaRaw) throw new Error("Local encrypted database/login metadata is incomplete.");
+ const integrityRaw=posStoreGet(INTEGRITY_KEY);
+ const extras={
+  businessSettings:posStoreGet(WIZARD_KEY)||"",
+  appLanguage:posStoreGet(APP_LANG_KEY)||"",
+  lastBackup:posStoreGet(LAST_BACKUP_KEY)||""
+ };
+ const extrasBox=await encryptDBWithKey(extras,DATA_KEY_BYTES);
+ return {
+  format:2,
+  app:"QAMVIO POS",
+  encrypted:true,
+  db_box:JSON.parse(dbRaw),
+  auth_users:JSON.parse(authRaw),
+  db_meta:JSON.parse(metaRaw),
+  integrity:integrityRaw?JSON.parse(integrityRaw):null,
+  extras_box:extrasBox,
+  synced_at:new Date().toISOString()
+ };
+}
+async function restorePendingCloudExtras(){
+ const raw=posStoreGet(CLOUD_PENDING_EXTRAS_KEY);
+ if(!raw||!DATA_KEY_BYTES) return;
+ const box=JSON.parse(raw);
+ const extras=await decryptDBWithKey(box,DATA_KEY_BYTES);
+ if(extras.businessSettings) posStoreSet(WIZARD_KEY,extras.businessSettings);
+ if(extras.appLanguage) posStoreSet(APP_LANG_KEY,extras.appLanguage);
+ if(extras.lastBackup) posStoreSet(LAST_BACKUP_KEY,extras.lastBackup);
+ posStoreRemove(CLOUD_PENDING_EXTRAS_KEY);
+ try{ initAppLanguage(); }catch(e){}
+ try{ applyBusinessSettingsToUI(); }catch(e){}
+}
+
 async function cloudSignUpClick(){
- if(!cloudConfigured()){ alert("Cloud Sync is not set up yet."); return; }
- const email = cloudEmail.value.trim(), password = cloudPassword.value;
- if(!email || password.length<6){ alert("Enter email and password (min 6 chars)."); return; }
+ if(!cloudConfigured()){ alert("Cloud Sync is not activated yet."); return; }
+ const email=cloudEmail.value.trim(),password=cloudPassword.value;
+ if(!email||password.length<8){ alert("Enter a valid email and a cloud password of at least 8 characters."); return; }
  try{
-  setCloudStatus("Signing up...");
-  const data = await cloudAuthRequest("/auth/v1/signup", email, password);
+  setCloudStatus("Creating cloud account...");
+  const data=await cloudAuthRequest("/auth/v1/signup",email,password);
   if(data.access_token){
-   setCloudSession({access_token:data.access_token, user_id:data.user.id, email});
+   setCloudSession(cloudSessionFromAuth(data,email));
    applyCloudUIState();
-   await cloudSyncNow();
-  }else{ setCloudStatus("Check your email to confirm, then Login."); }
- }catch(err){ setCloudStatus("Sign up failed: " + err.message); }
+   await cloudSyncNow(false);
+  }else{
+   setCloudStatus("Account created. Confirm your email, then use Login to Cloud.");
+  }
+ }catch(err){ setCloudStatus("Cloud sign up failed: "+err.message); }
 }
 async function cloudLoginClick(){
- if(!cloudConfigured()){ alert("Cloud Sync is not set up yet."); return; }
- const email = cloudEmail.value.trim(), password = cloudPassword.value;
- if(!email || !password){ alert("Enter email and password."); return; }
+ if(!cloudConfigured()){ alert("Cloud Sync is not activated yet."); return; }
+ const email=cloudEmail.value.trim(),password=cloudPassword.value;
+ if(!email||!password){ alert("Enter cloud email and password."); return; }
  try{
   setCloudStatus("Logging in...");
-  const data = await cloudAuthRequest("/auth/v1/token?grant_type=password", email, password);
-  setCloudSession({access_token:data.access_token, user_id:data.user.id, email});
+  const data=await cloudAuthRequest("/auth/v1/token?grant_type=password",email,password);
+  setCloudSession(cloudSessionFromAuth(data,email));
   applyCloudUIState();
- }catch(err){ setCloudStatus("Login failed: " + err.message); }
+  setCloudStatus("Cloud login successful. Tap Sync Now to upload the latest encrypted backup.");
+ }catch(err){ setCloudStatus("Cloud login failed: "+err.message); }
 }
 function cloudLogout(){ setCloudSession(null); applyCloudUIState(); }
-async function cloudSyncNow(){
- const session = getCloudSession(); if(!session){ alert("Login to cloud first."); return; }
+
+async function cloudSyncNow(silent){
  try{
-  setCloudStatus("Syncing...");
-  const payload = {user_id:session.user_id, business_name:(getBusinessSettings()?.name)||"", data:db, updated_at:new Date().toISOString()};
-  const r = await fetch(CLOUD_SUPABASE_URL + "/rest/v1/pos_cloud_backups?on_conflict=user_id", {
+  if(!cloudConfigured()) throw new Error("Cloud Sync is not activated yet.");
+  const session=await ensureCloudAccessToken();
+  const payload=await buildEncryptedCloudPayload();
+  if(!silent) setCloudStatus("Uploading encrypted backup...");
+  const row={user_id:session.user_id,payload,updated_at:new Date().toISOString()};
+  const r=await fetch(CLOUD_SUPABASE_URL+"/rest/v1/"+CLOUD_TABLE+"?on_conflict=user_id",{
    method:"POST",
-   headers:{"apikey":CLOUD_SUPABASE_ANON_KEY, "Authorization":"Bearer "+session.access_token, "Content-Type":"application/json", "Prefer":"resolution=merge-duplicates"},
-   body: JSON.stringify(payload)
+   headers:{
+    "apikey":CLOUD_SUPABASE_ANON_KEY,
+    "Authorization":"Bearer "+session.access_token,
+    "Content-Type":"application/json",
+    "Prefer":"resolution=merge-duplicates"
+   },
+   body:JSON.stringify(row)
   });
-  if(!r.ok){ const e = await r.json().catch(()=>({})); throw new Error(e.message||"Sync failed."); }
-  posStoreSet(CLOUD_LAST_SYNC_KEY, new Date().toISOString());
+  if(!r.ok){
+   const e=await r.json().catch(()=>({}));
+   throw new Error(e.message||e.error||"Encrypted cloud upload failed.");
+  }
+  posStoreSet(CLOUD_LAST_SYNC_KEY,new Date().toISOString());
   applyCloudUIState();
- }catch(err){ setCloudStatus("Sync failed: " + err.message); }
+  if(!silent) setCloudStatus("✅ Encrypted cloud backup is up to date.");
+  return true;
+ }catch(err){
+  if(!silent) setCloudStatus("Cloud sync failed: "+err.message);
+  else console.warn("[cloud] auto sync failed:",err);
+  return false;
+ }
 }
+
+async function fetchCloudBackup(session){
+ const r=await fetch(CLOUD_SUPABASE_URL+"/rest/v1/"+CLOUD_TABLE+"?user_id=eq."+encodeURIComponent(session.user_id)+"&select=payload,updated_at&limit=1",{
+  headers:{"apikey":CLOUD_SUPABASE_ANON_KEY,"Authorization":"Bearer "+session.access_token}
+ });
+ const rows=await r.json().catch(()=>[]);
+ if(!r.ok) throw new Error(rows?.message||rows?.error||"Cloud backup lookup failed.");
+ if(!Array.isArray(rows)||!rows.length) throw new Error("No encrypted QAMVIO backup exists for this cloud account yet.");
+ return rows[0];
+}
+function validateCloudPayload(payload){
+ if(!payload||payload.format!==2||payload.encrypted!==true) throw new Error("Unsupported or old cloud backup format.");
+ if(!payload.db_box||!payload.auth_users||!payload.db_meta) throw new Error("Cloud backup is incomplete.");
+ if(!Array.isArray(payload.auth_users)||!payload.auth_users.length) throw new Error("Cloud backup has no local login account.");
+}
+function installCloudPayloadLocally(payload){
+ validateCloudPayload(payload);
+ posStoreSet(KEY,JSON.stringify(payload.db_box));
+ posStoreSet(AUTH_KEY,JSON.stringify(payload.auth_users));
+ posStoreSet(DB_META_KEY,JSON.stringify(payload.db_meta));
+ if(payload.integrity) posStoreSet(INTEGRITY_KEY,JSON.stringify(payload.integrity)); else posStoreRemove(INTEGRITY_KEY);
+ if(payload.extras_box) posStoreSet(CLOUD_PENDING_EXTRAS_KEY,JSON.stringify(payload.extras_box));
+ posStoreRemove(INVOICE_DRAFT_KEY);
+ sessionStorage.removeItem(AUTH_SESSION_KEY);
+ DATA_KEY_BYTES=null;
+ db=null;
+ lastSavedDbJSON="";
+}
+
 async function cloudRestoreNow(){
- const session = getCloudSession(); if(!session){ alert("Login to cloud first."); return; }
  try{
-  setCloudStatus("Checking cloud data...");
-  const r = await fetch(CLOUD_SUPABASE_URL + "/rest/v1/pos_cloud_backups?user_id=eq." + session.user_id + "&select=data,updated_at", {
-   headers:{"apikey":CLOUD_SUPABASE_ANON_KEY, "Authorization":"Bearer "+session.access_token}
-  });
-  const rows = await r.json();
-  if(!r.ok || !rows.length) throw new Error("No cloud backup found for this account yet.");
-  const row = rows[0];
-  if(!confirm("Restore cloud data from " + new Date(row.updated_at).toLocaleString() + "?\n\nThis REPLACES the data on THIS device.")){ setCloudStatus("Restore cancelled."); return; }
-  storeSafetySnapshot(JSON.stringify(db), "Before cloud restore");
-  db = normalizeDB(row.data);
-  lastSavedDbJSON = "";
-  save();
-  setCloudStatus("Restored from cloud: " + new Date(row.updated_at).toLocaleString());
-  alert("Cloud data restored to this device.");
- }catch(err){ setCloudStatus("Restore failed: " + err.message); }
+  if(!cloudConfigured()) throw new Error("Cloud Sync is not activated yet.");
+  const session=await ensureCloudAccessToken();
+  setCloudStatus("Downloading encrypted backup...");
+  const row=await fetchCloudBackup(session);
+  if(!confirm("Restore encrypted cloud backup from "+new Date(row.updated_at).toLocaleString()+"?\n\nThis replaces the local QAMVIO database on this device.")){
+   setCloudStatus("Restore cancelled.");
+   return;
+  }
+  if(db) storeSafetySnapshot(JSON.stringify(db),"Before cloud restore");
+  installCloudPayloadLocally(row.payload);
+  setCloudStatus("Encrypted backup downloaded. Login with your original local QAMVIO username/password.");
+  showLoginPanel();
+  const first=getAuthUsers()[0];
+  if(first) loginUsername.value=first.username||"";
+  authError("loginError","☁️ Cloud backup restored. Enter your original local QAMVIO username and password to decrypt the data.");
+ }catch(err){ setCloudStatus("Cloud restore failed: "+err.message); }
+}
+
+async function cloudFreshRestoreClick(){
+ if(!cloudConfigured()){
+  setCloudRestoreAuthStatus("Cloud service is not activated yet.",true);
+  return;
+ }
+ const email=document.getElementById("cloudRestoreEmail")?.value.trim()||"";
+ const password=document.getElementById("cloudRestorePassword")?.value||"";
+ if(!email||!password){ setCloudRestoreAuthStatus("Enter your cloud email and password.",true); return; }
+ try{
+  setCloudRestoreAuthStatus("Logging in and checking encrypted backup...",false);
+  const data=await cloudAuthRequest("/auth/v1/token?grant_type=password",email,password);
+  const session=cloudSessionFromAuth(data,email);
+  setCloudSession(session);
+  const row=await fetchCloudBackup(session);
+  validateCloudPayload(row.payload);
+  installCloudPayloadLocally(row.payload);
+  const p=document.getElementById("cloudRestoreAuthPanel");
+  if(p) p.style.display="none";
+  showLoginPanel();
+  const first=getAuthUsers()[0];
+  if(first) loginUsername.value=first.username||"";
+  authError("loginError","✅ Encrypted cloud backup downloaded. Now enter your original local QAMVIO password to unlock and restore all business data.");
+ }catch(err){
+  setCloudRestoreAuthStatus("Restore failed: "+err.message,true);
+ }
+}
+
+let __cloudAutoSyncTimer=null;
+function scheduleCloudAutoSync(){
+ if(!cloudConfigured()||!getCloudSession()||!DATA_KEY_BYTES||!currentUser()) return;
+ if(__cloudAutoSyncTimer) clearTimeout(__cloudAutoSyncTimer);
+ __cloudAutoSyncTimer=setTimeout(()=>{
+  __cloudAutoSyncTimer=null;
+  cloudSyncNow(true);
+ },3000);
 }
 
 /* ==================== Startup ==================== */

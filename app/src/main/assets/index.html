@@ -5467,10 +5467,49 @@ async function cloudLoginClick(){
 }
 function cloudLogout(){ setCloudSession(null); applyCloudUIState(); }
 
+function cloudBusinessRecordCount(x){
+ if(!x||typeof x!=="object") return 0;
+ const keys=["products","salesmen","customers","suppliers","sales","purchases","customerLoans","salesmanLoans","supplierTransactions","expenses","capital","stockAdjustments","fuelTanks","fuelNozzles","fuelShifts","fuelClosings"];
+ return keys.reduce((a,k)=>a+(Array.isArray(x[k])?x[k].length:0),0);
+}
+async function fetchCloudBackupOptional(session){
+ const r=await fetch(CLOUD_SUPABASE_URL+"/rest/v1/"+CLOUD_TABLE+"?user_id=eq."+encodeURIComponent(session.user_id)+"&select=payload,updated_at&limit=1",{
+  headers:{"apikey":CLOUD_SUPABASE_ANON_KEY,"Authorization":"Bearer "+session.access_token}
+ });
+ const rows=await r.json().catch(()=>[]);
+ if(!r.ok) throw new Error(rows?.message||rows?.error||"Cloud backup lookup failed.");
+ return Array.isArray(rows)&&rows.length ? rows[0] : null;
+}
+async function cloudOverwriteAllowed(session,silent){
+ const existing=await fetchCloudBackupOptional(session);
+ if(!existing?.payload?.db_box) return true;
+
+ const localCount=cloudBusinessRecordCount(db);
+ try{
+  const remoteDb=await decryptDBWithKey(existing.payload.db_box,DATA_KEY_BYTES);
+  const remoteCount=cloudBusinessRecordCount(remoteDb);
+  if(remoteCount>localCount && remoteCount>=5 && localCount<Math.ceil(remoteCount*0.7)){
+   const msg="Cloud backup has more business records than this device ("+remoteCount+" vs "+localCount+").";
+   if(silent){
+    setCloudStatus("⚠️ Auto-sync paused to protect the larger cloud backup. Restore from Cloud first.");
+    return false;
+   }
+   return confirm(msg+"\n\nUploading now may replace newer/complete cloud data with a smaller local database. Continue only if this is intentional.");
+  }
+ }catch(err){
+  if(silent){
+   setCloudStatus("⚠️ Auto-sync paused because the existing cloud backup could not be verified with this device key. Restore from Cloud first.");
+   return false;
+  }
+  return confirm("An existing cloud backup uses a different encryption key or could not be verified.\n\nOverwrite it with this device's encrypted database?");
+ }
+ return true;
+}
 async function cloudSyncNow(silent){
  try{
   if(!cloudConfigured()) throw new Error("Cloud Sync is not activated yet.");
   const session=await ensureCloudAccessToken();
+  if(!(await cloudOverwriteAllowed(session,!!silent))) return false;
   const payload=await buildEncryptedCloudPayload();
   if(!silent) setCloudStatus("Uploading encrypted backup...");
   const row={user_id:session.user_id,payload,updated_at:new Date().toISOString()};
@@ -5490,7 +5529,7 @@ async function cloudSyncNow(silent){
   }
   posStoreSet(CLOUD_LAST_SYNC_KEY,new Date().toISOString());
   applyCloudUIState();
-  if(!silent) setCloudStatus("✅ Encrypted cloud backup is up to date.");
+  if(!silent) setCloudStatus("✅ Encrypted cloud backup is up to date. Previous versions are protected in cloud history.");
   return true;
  }catch(err){
   if(!silent) setCloudStatus("Cloud sync failed: "+err.message);
@@ -5500,13 +5539,9 @@ async function cloudSyncNow(silent){
 }
 
 async function fetchCloudBackup(session){
- const r=await fetch(CLOUD_SUPABASE_URL+"/rest/v1/"+CLOUD_TABLE+"?user_id=eq."+encodeURIComponent(session.user_id)+"&select=payload,updated_at&limit=1",{
-  headers:{"apikey":CLOUD_SUPABASE_ANON_KEY,"Authorization":"Bearer "+session.access_token}
- });
- const rows=await r.json().catch(()=>[]);
- if(!r.ok) throw new Error(rows?.message||rows?.error||"Cloud backup lookup failed.");
- if(!Array.isArray(rows)||!rows.length) throw new Error("No encrypted QAMVIO backup exists for this cloud account yet.");
- return rows[0];
+ const row=await fetchCloudBackupOptional(session);
+ if(!row) throw new Error("No encrypted QAMVIO backup exists for this cloud account yet.");
+ return row;
 }
 function validateCloudPayload(payload){
  if(!payload||payload.format!==2||payload.encrypted!==true) throw new Error("Unsupported or old cloud backup format.");

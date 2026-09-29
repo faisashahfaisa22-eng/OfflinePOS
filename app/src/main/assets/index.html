@@ -1406,7 +1406,7 @@ window.__argon2LoadingPromise = (async ()=>{
   <div id="cloudLoggedOutBox">
    <div class="row">
     <div class="grow"><label>Email</label><input id="cloudEmail" type="email" placeholder="you@example.com"></div>
-    <div><label>Password</label><input id="cloudPassword" type="password" placeholder="Minimum 6 characters"></div>
+    <div><label>Password</label><input id="cloudPassword" type="password" placeholder="Minimum 8 characters"></div>
    </div>
    <div style="margin-top:8px">
     <button class="action green" onclick="cloudSignUpClick()">Sign Up for Cloud</button>
@@ -1420,6 +1420,7 @@ window.__argon2LoadingPromise = (async ()=>{
    <button class="action gray" onclick="cloudLogout()">Logout of Cloud</button>
   </div>
   <div id="cloudSyncStatus" class="report-formula" style="margin-top:10px">Not connected.</div>
+  <div class="small" style="margin-top:8px">When cloud login is active, QAMVIO automatically uploads a fresh encrypted backup a few seconds after local data changes.</div>
  </div>
 
  <div class="grid g3">
@@ -5431,6 +5432,8 @@ async function restorePendingCloudExtras(){
  if(extras.appLanguage) posStoreSet(APP_LANG_KEY,extras.appLanguage);
  if(extras.lastBackup) posStoreSet(LAST_BACKUP_KEY,extras.lastBackup);
  posStoreRemove(CLOUD_PENDING_EXTRAS_KEY);
+ try{ initAppLanguage(); }catch(e){}
+ try{ applyBusinessSettingsToUI(); }catch(e){}
 }
 
 async function cloudSignUpClick(){

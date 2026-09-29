@@ -437,6 +437,7 @@ window.__argon2LoadingPromise = (async ()=>{
   <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password">
   <button class="action auth-btn" onclick="loginUser()">🔓 Login & Unlock Data</button>
   <button class="action gray auth-btn" style="margin-top:8px" onclick="startQrLoginScan()">📷 Login with QR Code</button>
+  <button class="action gray auth-btn" id="loginCreateAccountBtn" style="margin-top:8px" onclick="showSignUpPanel()">＋ Create New Account</button>
   <div style="text-align:center;margin-top:10px"><a href="javascript:void(0)" onclick="showForgotPasswordInfo()" style="color:var(--brass);font-size:12px;text-decoration:underline">Forgot Password?</a></div>
   <div id="mobileStorageNote" class="auth-note" style="margin-top:8px"></div>
   <div id="loginError" class="auth-error"></div>
@@ -454,6 +455,7 @@ window.__argon2LoadingPromise = (async ()=>{
   <label style="margin-top:10px">Confirm Password</label>
   <input id="setupPassword2" type="password" autocomplete="new-password" placeholder="Repeat password">
   <button class="action green auth-btn" onclick="createFirstAdmin()">Sign Up & Encrypt Data</button>
+  <button class="action gray auth-btn" style="margin-top:8px" onclick="showLoginPanel()">🔓 Already have an account? Login</button>
   <div id="setupError" class="auth-error"></div>
   <div class="auth-note">
     <b style="color:#dc2626">⚠️ IMPORTANT — Write down your Recovery Code.</b><br>
@@ -1941,6 +1943,35 @@ function authError(id,msg){
  el.style.display=msg?"block":"none"; el.textContent=msg||"";
 }
 
+function showLoginPanel(){
+ authOverlay.style.display="flex";
+ setupPanel.style.display="none";
+ loginPanel.style.display="block";
+ authError("setupError","");
+ authError("loginError","");
+ loginUsername.value="";
+ loginPassword.value="";
+ const users=getAuthUsers();
+ const createBtn=document.getElementById("loginCreateAccountBtn");
+ if(createBtn) createBtn.style.display=users.length ? "none" : "block";
+ if(!users.length){
+  authError("loginError","No local account is stored on this installation yet. If this app was reinstalled, restore your backup/cloud account first, or create a new account.");
+ }
+ setTimeout(()=>loginUsername.focus(),50);
+}
+
+function showSignUpPanel(){
+ authOverlay.style.display="flex";
+ loginPanel.style.display="none";
+ setupPanel.style.display="block";
+ authError("loginError","");
+ authError("setupError","");
+ setupUsername.value="";
+ setupPassword.value="";
+ setupPassword2.value="";
+ setTimeout(()=>setupUsername.focus(),50);
+}
+
 /* ==================== Database save / load (encrypted v16) ==================== */
 
 let db = null;
@@ -2157,7 +2188,11 @@ async function loginUser(){
   if(lock.locked) return authError("loginError", `Too many failed attempts. Try again in ${lock.seconds} seconds.`);
   const username = loginUsername.value.trim().toLowerCase();
   const pw = loginPassword.value;
-  const user = getAuthUsers().find(x=>(x.username||"").trim().toLowerCase()===username);
+  const localUsers = getAuthUsers();
+  if(!localUsers.length){
+   return authError("loginError","No local account exists on this installation. A deleted/reinstalled app cannot recover an old local account by username alone; use backup/cloud restore, or create a new account.");
+  }
+  const user = localUsers.find(x=>(x.username||"").trim().toLowerCase()===username);
   if(!user || user.active===false){ registerFailedLogin(); return authError("loginError","Invalid username or password."); }
 
   showKdfOverlay("Unlocking your data…", "Verifying your password and deriving your encryption key.");
@@ -2311,10 +2346,11 @@ function logoutUser(){
  authOverlay.style.display="flex";
  const users = getAuthUsers();
  if(!users.length){
-  loginPanel.style.display="none"; setupPanel.style.display="block";
-  setupUsername.value="";setupPassword.value="";setupPassword2.value="";setupUsername.focus();
+  showSignUpPanel();
  }else{
   loginPanel.style.display="block"; setupPanel.style.display="none";
+  const createBtn=document.getElementById("loginCreateAccountBtn");
+  if(createBtn) createBtn.style.display="none";
   loginUsername.value="";loginPassword.value="";loginUsername.focus();
  }
 }
@@ -2479,8 +2515,19 @@ function initAuth(){
  appShell.style.display="none";
  if(document.getElementById("mobileTopbar")) mobileTopbar.style.display="none";
  authOverlay.style.display="flex";
- if(!users.length){ loginPanel.style.display="none"; setupPanel.style.display="block"; setupUsername.focus(); }
- else{ setupPanel.style.display="none"; loginPanel.style.display="block"; loginUsername.focus(); }
+ if(!users.length){
+  loginPanel.style.display="none";
+  setupPanel.style.display="block";
+  const createBtn=document.getElementById("loginCreateAccountBtn");
+  if(createBtn) createBtn.style.display="block";
+  setupUsername.focus();
+ }else{
+  setupPanel.style.display="none";
+  loginPanel.style.display="block";
+  const createBtn=document.getElementById("loginCreateAccountBtn");
+  if(createBtn) createBtn.style.display="none";
+  loginUsername.focus();
+ }
 }
 
 function updateUserRoleFields(){

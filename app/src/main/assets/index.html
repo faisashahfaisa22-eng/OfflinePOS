@@ -1540,12 +1540,17 @@ function posStoreGet(key){
 }
 function posStoreSet(key,value){
  const k=String(key), v=String(value);
+ const nativeAvailable=posNativeStoreAvailable();
  let nativeOk=false, webOk=false;
- if(posNativeStoreAvailable()){
+ if(nativeAvailable){
   try{ nativeOk=AndroidBridge.nativeStoreSet(k,v)===true; }
   catch(e){ console.warn("[SQLite] native write failed:",e); }
  }
  try{ window.localStorage.setItem(k,v); webOk=true; }catch(e){}
+ // Never leave an older native value ahead of a newer WebView fallback value.
+ if(nativeAvailable && !nativeOk && webOk){
+  try{ AndroidBridge.nativeStoreRemove(k); }catch(e){}
+ }
  if(!nativeOk && !webOk) throw new Error("Persistent storage is unavailable.");
  return true;
 }

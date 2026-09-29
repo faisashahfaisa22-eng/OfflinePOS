@@ -2980,6 +2980,7 @@ function invoiceAddItemAction(){
  }
  const u=currentUser();
  if(u?.role==="Admin"){
+  window.__returnToInvoiceAfterProductAdd = true;
   openPage("products");
   setTimeout(()=>{ const el=document.getElementById("prodName"); if(el) el.focus(); },180);
  }else{
@@ -3195,6 +3196,7 @@ function editProduct(id){
 function cancelEditProduct(){ if(confirm("Cancel product edit?")) resetProductEditMode(); }
 function addProduct(){
  const name = prodName.value.trim(); if(!name) return alert("Product name required.");
+ const wasEditing = !!editingProductId;
  const rec = {id: editingProductId||makeId(), name, salePrice:n(prodSale.value), costPrice:n(prodCost.value), openingQty:n(prodOpening.value), reorderLevel:n(prodReorder.value)};
  if(editingProductId){
   const idx = db.products.findIndex(x=>x.id===editingProductId); if(idx<0) return alert("Product not found.");
@@ -3202,7 +3204,21 @@ function addProduct(){
  }else{
   db.products.push(rec); save(); alert("Product added.");
  }
- resetProductEditMode(); renderInvoiceRows();
+ const returnToInvoice = !wasEditing && window.__returnToInvoiceAfterProductAdd===true;
+ window.__returnToInvoiceAfterProductAdd = false;
+ resetProductEditMode();
+ renderInvoiceRows();
+ if(returnToInvoice){
+  openPage("saleInvoice");
+  setTimeout(()=>{
+   const row = invoiceRows.querySelector(`tr.invoice-row[data-pid="${rec.id}"]`);
+   const qty = row?.querySelector(".ir-qty");
+   if(qty){
+    qty.scrollIntoView({behavior:"smooth",block:"center"});
+    qty.focus();
+   }
+  },220);
+ }
 }
 function addAdjustment(){
  if(!adjProduct.value) return alert("Select product.");

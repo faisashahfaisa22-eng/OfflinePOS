@@ -86,6 +86,11 @@ const OfflinePOSWizard = {
         </button>
 
 
+        <button onclick="OfflinePOSWizard.finish('fuel')">
+        Fuel / Oil Pump
+        </button>
+
+
         <button onclick="OfflinePOSWizard.finish('sarafi')">
         Sarafi
         </button>

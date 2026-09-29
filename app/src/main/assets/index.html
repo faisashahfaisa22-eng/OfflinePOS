@@ -437,6 +437,7 @@ window.__argon2LoadingPromise = (async ()=>{
   <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password">
   <button class="action auth-btn" onclick="loginUser()">🔓 Login & Unlock Data</button>
   <button class="action gray auth-btn" style="margin-top:8px" onclick="startQrLoginScan()">📷 Login with QR Code</button>
+  <button class="action gold auth-btn" style="margin-top:8px" onclick="showCloudRestorePanel()">☁️ Restore Account from Cloud</button>
   <button class="action gray auth-btn" id="loginCreateAccountBtn" style="margin-top:8px" onclick="showSignUpPanel()">＋ Create New Account</button>
   <div style="text-align:center;margin-top:10px"><a href="javascript:void(0)" onclick="showForgotPasswordInfo()" style="color:var(--brass);font-size:12px;text-decoration:underline">Forgot Password?</a></div>
   <div id="mobileStorageNote" class="auth-note" style="margin-top:8px"></div>
@@ -455,12 +456,27 @@ window.__argon2LoadingPromise = (async ()=>{
   <label style="margin-top:10px">Confirm Password</label>
   <input id="setupPassword2" type="password" autocomplete="new-password" placeholder="Repeat password">
   <button class="action green auth-btn" onclick="createFirstAdmin()">Sign Up & Encrypt Data</button>
-  <button class="action gray auth-btn" style="margin-top:8px" onclick="showLoginPanel()">🔓 Already have an account? Login</button>
+  <button class="action gold auth-btn" style="margin-top:8px" onclick="showCloudRestorePanel()">☁️ Restore Existing Account from Cloud</button>
+  <button class="action gray auth-btn" style="margin-top:8px" onclick="showLoginPanel()">🔓 Local Login</button>
   <div id="setupError" class="auth-error"></div>
   <div class="auth-note">
     <b style="color:#dc2626">⚠️ IMPORTANT — Write down your Recovery Code.</b><br>
     You will be shown a one-time Recovery Code. If you forget your password AND lose this code, your business data <b>cannot be recovered by anyone</b>. This is by design.
   </div>
+ </div>
+
+ <div id="cloudRestoreAuthPanel" class="auth-card" style="display:none">
+  <div class="auth-logo">☁️</div>
+  <div class="auth-title">Restore QAMVIO Account</div>
+  <div class="auth-sub">Sign in to your QAMVIO cloud account. The app will download your encrypted backup, then ask for your local QAMVIO username and password to decrypt it.</div>
+  <label>Cloud Email</label>
+  <input id="cloudRestoreEmail" type="email" autocomplete="email" placeholder="you@example.com">
+  <label style="margin-top:10px">Cloud Password</label>
+  <input id="cloudRestorePassword" type="password" autocomplete="current-password" placeholder="Cloud account password">
+  <button class="action green auth-btn" onclick="cloudFreshRestoreClick()">☁️ Login & Restore Encrypted Backup</button>
+  <button class="action gray auth-btn" style="margin-top:8px" onclick="closeCloudRestorePanel()">← Back</button>
+  <div id="cloudRestoreAuthStatus" class="auth-error"></div>
+  <div class="auth-note">Your business records are stored in cloud as an <b>encrypted backup</b>. After download, your original local QAMVIO password is still required to unlock the business data.</div>
  </div>
 </div>
 
@@ -1386,7 +1402,7 @@ window.__argon2LoadingPromise = (async ()=>{
 
  <div class="card" style="margin-bottom:12px">
   <h2>☁️ Cloud Sync <span class="badge-soft">Beta</span></h2>
-  <div class="notice">Optional. Sign in with a cloud account to sync your data and open it again on another phone. Your local login (username/password on this device) is unaffected either way.</div>
+  <div class="notice">Optional but recommended. Your cloud account stores an <b>encrypted QAMVIO backup</b>. After reinstalling the app or moving to another phone, use “Restore Account from Cloud”, then unlock the downloaded data with your original local QAMVIO password.</div>
   <div id="cloudLoggedOutBox">
    <div class="row">
     <div class="grow"><label>Email</label><input id="cloudEmail" type="email" placeholder="you@example.com"></div>
@@ -1399,8 +1415,8 @@ window.__argon2LoadingPromise = (async ()=>{
   </div>
   <div id="cloudLoggedInBox" style="display:none">
    <div class="notice">Signed in as <b id="cloudLoggedInEmail"></b></div>
-   <button class="action green" onclick="cloudSyncNow()">⬆️ Sync Now (upload this device's data)</button>
-   <button class="action gold" onclick="cloudRestoreNow()">⬇️ Restore from Cloud (pull to this device)</button>
+   <button class="action green" onclick="cloudSyncNow(false)">⬆️ Sync Encrypted Backup Now</button>
+   <button class="action gold" onclick="cloudRestoreNow()">⬇️ Restore Encrypted Backup</button>
    <button class="action gray" onclick="cloudLogout()">Logout of Cloud</button>
   </div>
   <div id="cloudSyncStatus" class="report-formula" style="margin-top:10px">Not connected.</div>
@@ -1502,6 +1518,7 @@ const WIZARD_KEY         = KEY + "_business_settings_v1";
 const APP_LANG_KEY       = KEY + "_app_language_v1";
 const CLOUD_SESSION_KEY  = KEY + "_cloud_session_v1";
 const CLOUD_LAST_SYNC_KEY= KEY + "_cloud_last_sync_v1";
+const CLOUD_PENDING_EXTRAS_KEY = KEY + "_cloud_pending_extras_v1";
 
 /* ==================== Native SQLite persistence adapter ====================
    Android APK: SQLite is the primary persistent copy; WebView localStorage is
@@ -1946,6 +1963,7 @@ function authError(id,msg){
 function showLoginPanel(){
  authOverlay.style.display="flex";
  setupPanel.style.display="none";
+ const cloudPanel=document.getElementById("cloudRestoreAuthPanel"); if(cloudPanel) cloudPanel.style.display="none";
  loginPanel.style.display="block";
  authError("setupError","");
  authError("loginError","");
@@ -1963,6 +1981,7 @@ function showLoginPanel(){
 function showSignUpPanel(){
  authOverlay.style.display="flex";
  loginPanel.style.display="none";
+ const cloudPanel=document.getElementById("cloudRestoreAuthPanel"); if(cloudPanel) cloudPanel.style.display="none";
  setupPanel.style.display="block";
  authError("loginError","");
  authError("setupError","");
@@ -1970,6 +1989,31 @@ function showSignUpPanel(){
  setupPassword.value="";
  setupPassword2.value="";
  setTimeout(()=>setupUsername.focus(),50);
+}
+
+function setCloudRestoreAuthStatus(msg,isError){
+ const el=document.getElementById("cloudRestoreAuthStatus");
+ if(!el) return;
+ el.style.display=msg?"block":"none";
+ el.style.background=isError?"#fff1f2":"#ecfdf5";
+ el.style.borderColor=isError?"#fda4af":"#86efac";
+ el.style.color=isError?"#9f1239":"#166534";
+ el.textContent=msg||"";
+}
+function showCloudRestorePanel(){
+ authOverlay.style.display="flex";
+ loginPanel.style.display="none";
+ setupPanel.style.display="none";
+ const p=document.getElementById("cloudRestoreAuthPanel");
+ if(p) p.style.display="block";
+ setCloudRestoreAuthStatus(cloudConfigured()?"Enter your cloud account.":"Cloud service is not activated yet.",!cloudConfigured());
+ setTimeout(()=>document.getElementById("cloudRestoreEmail")?.focus(),50);
+}
+function closeCloudRestorePanel(){
+ const p=document.getElementById("cloudRestoreAuthPanel");
+ if(p) p.style.display="none";
+ setCloudRestoreAuthStatus("",false);
+ if(getAuthUsers().length) showLoginPanel(); else showSignUpPanel();
 }
 
 /* ==================== Database save / load (encrypted v16) ==================== */
@@ -2079,6 +2123,7 @@ function save(){
    posStoreSet(KEY, JSON.stringify(box));
    writeIntegrityTag(plainJson);
    lastSavedDbJSON = plainJson;
+   try{ scheduleCloudAutoSync(); }catch(e){}
  }).catch(e=>{
    console.error("[v16] save failed:", e);
    alert("⚠️ Failed to save encrypted data:\n"+e.message);
@@ -2227,6 +2272,8 @@ async function loginUser(){
   // Decrypt DB
   try{
    await loadEncryptedIntoMemory();
+   try{ await restorePendingCloudExtras(); }
+   catch(extraErr){ console.warn("[cloud] extra settings restore failed:", extraErr); }
   }catch(err){
    DATA_KEY_BYTES = null;
    hideKdfOverlay();

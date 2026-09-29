@@ -35,6 +35,7 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 1001;
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
+    private NativeStore nativeStore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +49,8 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.parseColor("#102B4C"));
         getWindow().setNavigationBarColor(Color.parseColor("#102B4C"));
         setTitle("Offline POS & Accounts Pro v11");
+
+        nativeStore = new NativeStore(this);
 
         webView = new WebView(this);
         setContentView(webView);
@@ -127,6 +130,20 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onDestroy() {
+        if (webView != null) {
+            webView.removeJavascriptInterface("AndroidBridge");
+            webView.destroy();
+            webView = null;
+        }
+        if (nativeStore != null) {
+            nativeStore.close();
+            nativeStore = null;
+        }
+        super.onDestroy();
+    }
+
+    @Override
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
@@ -140,6 +157,59 @@ public class MainActivity extends Activity {
 
         AndroidBridge(Activity activity) {
             this.activity = activity;
+        }
+
+        @JavascriptInterface
+        public String nativeStoreGet(String key) {
+            try {
+                return nativeStore == null ? null : nativeStore.get(key);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean nativeStoreSet(String key, String value) {
+            try {
+                return nativeStore != null && nativeStore.put(key, value);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean nativeStoreRemove(String key) {
+            try {
+                return nativeStore != null && nativeStore.remove(key);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean nativeStoreHas(String key) {
+            try {
+                return nativeStore != null && nativeStore.contains(key);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public int nativeStoreCount() {
+            try {
+                return nativeStore == null ? 0 : nativeStore.count();
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+
+        @JavascriptInterface
+        public void nativeStoreClearAll() {
+            try {
+                if (nativeStore != null) nativeStore.clearAll();
+            } catch (Exception ignored) {
+            }
         }
 
         @JavascriptInterface

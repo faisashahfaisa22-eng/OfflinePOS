@@ -486,7 +486,7 @@ window.__argon2LoadingPromise = (async ()=>{
   <div class="auth-title">Business Type</div>
   <div class="auth-sub">Step 2 of 2 — Choose what best matches your business</div>
   <div class="row" style="justify-content:center;margin-top:12px">
-   <button class="action gray auth-btn" onclick="wizardFinish('general')">🏪 General Store</button>
+   <button class="action gray auth-btn" onclick="wizardFinish('general')">🏪 Retail / General Store</button>
    <button class="action gray auth-btn" onclick="wizardFinish('hotel')">🏨 Hotel</button>
    <button class="action gray auth-btn" onclick="wizardFinish('restaurant')">🍽 Restaurant</button>
    <button class="action gray auth-btn" onclick="wizardFinish('pharmacy')">💊 Pharmacy</button>
@@ -3491,7 +3491,7 @@ function saveFuelTank(){
 }
 function deleteFuelTank(id){
  if((db.fuelNozzles||[]).some(x=>x.tankId===id)) return alert("Delete linked nozzles first.");
- if((db.fuelShifts||[]).some(x=>x.tankId===id)||db.purchases.some(x=>x.source==="fuel_delivery"&&x.fuelTankId===id)) return alert("This tank has transactions and cannot be deleted.");
+ if((db.fuelShifts||[]).some(x=>x.tankId===id)||db.purchases.some(x=>x.source==="fuel_delivery"&&x.fuelTankId===id)||db.stockAdjustments.some(x=>x.fuelTankId===id)) return alert("This tank has transactions or adjustments and cannot be deleted.");
  const t=fuelTankBy(id); if(!t) return;
  if(!confirm("Delete this empty tank?")) return;
  db.fuelTanks=db.fuelTanks.filter(x=>x.id!==id); syncFuelProductOpening(t.productId); save();
@@ -3610,7 +3610,10 @@ function saveFuelShift(){
  const oldSale=oldShift?db.sales.find(x=>x.id===oldShift.saleId):null;
  let available=currentQty(p);
  if(oldSale){ const oldLine=(oldSale.lines||[]).find(l=>l.productId===p.id); available+=n(oldLine?.qty); }
- if(liters>available&&available>=0&&!confirm("Fuel stock is lower than meter sale liters. Save anyway?")) return;
+ let tankAvailable=tankCurrentLiters(t.id);
+ if(oldShift&&oldShift.tankId===t.id) tankAvailable+=n(oldShift.liters);
+ if(liters>tankAvailable&&tankAvailable>=0&&!confirm("This tank has only "+m(tankAvailable)+" liters available. Save this meter sale anyway?")) return;
+ if(liters>available&&available>=0&&!confirm("Total product stock is lower than meter sale liters. Save anyway?")) return;
  const saleId=oldShift?.saleId||makeId();
  const oldBalance=customerId?fuelOldCustomerBalance(customerId,saleId):(salesmanId?salesmanBalanceById(salesmanId,saleId):0);
  const newBalance=(customerId||salesmanId)?oldBalance+gross-received:0;

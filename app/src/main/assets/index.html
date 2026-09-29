@@ -5336,6 +5336,7 @@ window.POSSecurityStatus = Object.assign(
 const CLOUD_SUPABASE_URL = "https://noosoaxtwiacbmrjaugh.supabase.co";
 const CLOUD_SUPABASE_ANON_KEY = "sb_publishable_ZVWWnnhsabhe-LwZPQwffg_Gz1QMxDy";
 const CLOUD_TABLE = "qamvio_cloud_backups";
+const CLOUD_CONFIRM_REDIRECT = "https://faisashahfaisa22-eng.github.io/OfflinePOS/cloud-confirmed.html";
 
 function cloudConfigured(){
  return CLOUD_SUPABASE_URL.indexOf("YOUR-PROJECT")<0 && CLOUD_SUPABASE_ANON_KEY.indexOf("YOUR-ANON")<0;
@@ -5442,7 +5443,7 @@ async function cloudSignUpClick(){
  if(!email||password.length<8){ alert("Enter a valid email and a cloud password of at least 8 characters."); return; }
  try{
   setCloudStatus("Creating cloud account...");
-  const data=await cloudAuthRequest("/auth/v1/signup",email,password);
+  const data=await cloudAuthRequest("/auth/v1/signup?redirect_to="+encodeURIComponent(CLOUD_CONFIRM_REDIRECT),email,password);
   if(data.access_token){
    setCloudSession(cloudSessionFromAuth(data,email));
    applyCloudUIState();

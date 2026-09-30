@@ -1523,6 +1523,9 @@ const WIZARD_KEY         = KEY + "_business_settings_v1";
 const APP_LANG_KEY       = KEY + "_app_language_v1";
 const CLOUD_SESSION_KEY  = KEY + "_cloud_session_v1";
 const CLOUD_LAST_SYNC_KEY= KEY + "_cloud_last_sync_v1";
+const CLOUD_LAST_DAILY_KEY = KEY + "_cloud_last_daily_v1";
+const CLOUD_BACKGROUND_STATUS_KEY = KEY + "_cloud_background_status_v1";
+const CLOUD_PENDING_VERIFY_KEY = KEY + "_cloud_pending_verify_v1";
 const CLOUD_PENDING_EXTRAS_KEY = KEY + "_cloud_pending_extras_v1";
 
 /* ==================== Native SQLite persistence adapter ====================
@@ -1593,6 +1596,39 @@ function posPersistentStorageLabel(){
  return posNativeStoreAvailable()
   ? "Native SQLite database active (encrypted business data mirrored safely)."
   : "Browser local storage active.";
+}
+
+function normalizeLoginIdentifier(raw){
+ let v=String(raw||"").trim();
+ if(v.includes("@")) return v.toLowerCase();
+ v=v.replace(/[\s\-()]/g,"");
+ if(v.startsWith("00")) v="+"+v.slice(2);
+ return v;
+}
+function loginIdentifierType(raw){
+ const v=normalizeLoginIdentifier(raw);
+ if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "email";
+ if(/^\+[1-9][0-9]{7,14}$/.test(v)) return "phone";
+ return "";
+}
+function primaryLoginIdentifierError(raw){
+ const v=normalizeLoginIdentifier(raw);
+ if(!v) return "Email or mobile number is required.";
+ if(!loginIdentifierType(v)) return "Enter a valid email, or a mobile number with country code (example: +93...).";
+ return "";
+}
+function userLoginIdentifier(user){
+ return normalizeLoginIdentifier(user?.loginId || user?.email || user?.phone || user?.username || "");
+}
+function identityFieldsFor(loginId){
+ const id=normalizeLoginIdentifier(loginId);
+ const type=loginIdentifierType(id);
+ return {
+  loginId:id,
+  username:id,
+  email:type==="email"?id:"",
+  phone:type==="phone"?id:""
+ };
 }
 
 
@@ -1952,7 +1988,13 @@ function authSession(){
  try{ return JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY)||"null"); }catch(e){ return null; }
 }
 function setAuthSession(user){
- if(user) sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({id:user.id,username:user.username,role:user.role,salesmanId:user.salesmanId||""}));
+ if(user) sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+  id:user.id,
+  loginId:userLoginIdentifier(user),
+  username:user.username||userLoginIdentifier(user),
+  role:user.role,
+  salesmanId:user.salesmanId||""
+ }));
  else sessionStorage.removeItem(AUTH_SESSION_KEY);
 }
 function currentUser(){

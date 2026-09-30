@@ -10,8 +10,8 @@ android {
         applicationId "com.offlinepos.accounts"
         minSdk 23
         targetSdk 35
-        versionCode 14
-        versionName "14.0"
+        versionCode 15
+        versionName "15.0"
     }
 
     signingConfigs {
@@ -49,5 +49,5 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.webkit:webkit:1.11.0'\n    implementation 'androidx.work:work-runtime:2.9.1'
 }

@@ -1,11 +1,13 @@
 package com.offlinepos.accounts;
 
 import android.app.Activity;
+import android.Manifest;
 import android.print.PrintManager;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -13,6 +15,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -20,6 +23,13 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+
+import androidx.work.Constraints;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.NetworkType;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 
 
 import java.io.File;
@@ -30,27 +40,29 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 1001;
+    private static final int CAMERA_PERMISSION_REQUEST = 1002;
+    private static final String DAILY_CLOUD_WORK = "QAMVIO_DAILY_CLOUD_BACKUP";
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
+    private PermissionRequest pendingWebPermissionRequest;
     private NativeStore nativeStore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // TEMPORARY — lets you see real JS errors via chrome://inspect on a
-        // computer while the phone is connected by USB. Remove this line
-        // once the navigation bug is found and fixed, before publishing.
-        WebView.setWebContentsDebuggingEnabled(true);
+        WebView.setWebContentsDebuggingEnabled(false);
 
         getWindow().setStatusBarColor(Color.parseColor("#102B4C"));
         getWindow().setNavigationBarColor(Color.parseColor("#102B4C"));
-        setTitle("QAMVIO POS v13");
+        setTitle("QAMVIO POS v15");
 
         nativeStore = new NativeStore(this);
+        scheduleDailyCloudBackup();
 
         webView = new WebView(this);
         setContentView(webView);
@@ -127,6 +139,30 @@ public class MainActivity extends Activity {
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
+            public void onPermissionRequest(PermissionRequest request) {
+                runOnUiThread(() -> {
+                    boolean wantsCamera = false;
+                    for (String resource : request.getResources()) {
+                        if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                            wantsCamera = true;
+                            break;
+                        }
+                    }
+                    if (!wantsCamera) {
+                        request.deny();
+                        return;
+                    }
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                            || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+                    } else {
+                        pendingWebPermissionRequest = request;
+                        requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST);
+                    }
+                });
+            }
+
+            @Override
             public boolean onShowFileChooser(WebView webView,
                                              ValueCallback<Uri[]> filePathCallback,
                                              FileChooserParams fileChooserParams) {
@@ -152,6 +188,47 @@ public class MainActivity extends Activity {
 
         // Load the bundled offline app directly from Android assets.
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void scheduleDailyCloudBackup() {
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build();
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(
+                NativeCloudBackupWorker.class,
+                24,
+                TimeUnit.HOURS
+        ).setConstraints(constraints).build();
+        WorkManager.getInstance(getApplicationContext()).enqueueUniquePeriodicWork(
+                DAILY_CLOUD_WORK,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                request
+        );
+    }
+
+    private void runCloudBackupNow() {
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build();
+        OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(NativeCloudBackupWorker.class)
+                .setConstraints(constraints)
+                .build();
+        WorkManager.getInstance(getApplicationContext()).enqueue(request);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == CAMERA_PERMISSION_REQUEST && pendingWebPermissionRequest != null) {
+            PermissionRequest request = pendingWebPermissionRequest;
+            pendingWebPermissionRequest = null;
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+            } else {
+                request.deny();
+                Toast.makeText(this, "Camera permission is required for offline QR login.", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     @Override
@@ -250,6 +327,16 @@ public class MainActivity extends Activity {
                 if (nativeStore != null) nativeStore.clearAll();
             } catch (Exception ignored) {
             }
+        }
+
+        @JavascriptInterface
+        public void scheduleDailyCloudBackup() {
+            activity.runOnUiThread(() -> MainActivity.this.scheduleDailyCloudBackup());
+        }
+
+        @JavascriptInterface
+        public void runCloudBackupNow() {
+            activity.runOnUiThread(() -> MainActivity.this.runCloudBackupNow());
         }
 
         @JavascriptInterface
@@ -370,7 +457,7 @@ public class MainActivity extends Activity {
                     zos.closeEntry();
                 }
 
-    String info = "Offline POS & Accounts Pro\nVersion: 11.0\nGitHub: https://github.com/faisashahfaisa22-eng/OfflinePOS\n";            // 4) Small app/repository reference file
+    String info = "QAMVIO POS\nVersion: 15.0\nGitHub: https://github.com/faisashahfaisa22-eng/OfflinePOS\n";            // 4) Small app/repository reference file
                 zos.putNextEntry(new ZipEntry("APP_AND_GITHUB_INFO.txt"));
                 zos.write(info.getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();

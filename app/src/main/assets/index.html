@@ -2203,10 +2203,11 @@ function storeSafetySnapshot(data, reason){
 /* ==================== Auth actions ==================== */
 
 async function createFirstAdmin(){
- const username = setupUsername.value.trim();
+ const loginId = normalizeLoginIdentifier(setupUsername.value);
+ const idErr = primaryLoginIdentifierError(loginId);
  const pw = setupPassword.value;
  const pw2 = setupPassword2.value;
- if(!username) return authError("setupError","Username is required.");
+ if(idErr) return authError("setupError",idErr);
  const pwerr = validatePasswordStrength(pw);
  if(pwerr) return authError("setupError", pwerr);
  if(pw !== pw2) return authError("setupError","Passwords do not match.");
@@ -2235,8 +2236,14 @@ async function createFirstAdmin(){
    setDBMeta(meta);
 
    const user = {
-     id: makeId(), username, passwordHash: pwHash, recoveryHash: recHash,
-     role:"Admin", salesmanId:"", active:true, createdAt: new Date().toISOString()
+     id: makeId(),
+     ...identityFieldsFor(loginId),
+     passwordHash: pwHash,
+     recoveryHash: recHash,
+     role:"Admin",
+     salesmanId:"",
+     active:true,
+     createdAt: new Date().toISOString()
    };
    setAuthUsers([user]);
    setAuthSession(user);
@@ -2256,6 +2263,10 @@ async function createFirstAdmin(){
      await writeIntegrityTag(JSON.stringify(db));
    }
 
+   if(!isRecovery){
+     try{ await autoRegisterPrimaryCloudAccount(loginId,pw); }
+     catch(cloudErr){ console.warn("[cloud] automatic account registration:",cloudErr); }
+   }
    hideKdfOverlay();
    showRecoveryCode(code, isRecovery);
    window.__pendingOpenApp = true;
@@ -2278,14 +2289,14 @@ async function loginUser(){
   if(!storageWorks()) return authError("loginError","Storage is blocked. Use Chrome/Edge or the APK.");
   const lock = checkLoginLock();
   if(lock.locked) return authError("loginError", `Too many failed attempts. Try again in ${lock.seconds} seconds.`);
-  const username = loginUsername.value.trim().toLowerCase();
+  const loginId = normalizeLoginIdentifier(loginUsername.value);
   const pw = loginPassword.value;
   const localUsers = getAuthUsers();
   if(!localUsers.length){
-   return authError("loginError","No local account exists on this installation. A deleted/reinstalled app cannot recover an old local account by username alone; use backup/cloud restore, or create a new account.");
+   return authError("loginError","No local account exists on this installation. Use Restore Account from Cloud, or create a new account with email/mobile.");
   }
-  const user = localUsers.find(x=>(x.username||"").trim().toLowerCase()===username);
-  if(!user || user.active===false){ registerFailedLogin(); return authError("loginError","Invalid username or password."); }
+  const user = localUsers.find(x=>userLoginIdentifier(x)===loginId);
+  if(!user || user.active===false){ registerFailedLogin(); return authError("loginError","Invalid email/mobile or password."); }
 
   showKdfOverlay("Unlocking your data…", "Verifying your password and deriving your encryption key.");
   await window.__argon2LoadingPromise;
@@ -2295,7 +2306,7 @@ async function loginUser(){
    hideKdfOverlay();
    registerFailedLogin();
    if(res.legacyFormat) return authError("loginError","This account uses the old legacy hash format. Use «Forgot Password?» with your Recovery Code to reset it.");
-   return authError("loginError","Invalid username or password.");
+   return authError("loginError","Invalid email/mobile or password.");
   }
 
   // Derive DEK
@@ -2313,7 +2324,7 @@ async function loginUser(){
   }catch(e){
    hideKdfOverlay();
    registerFailedLogin();
-   return authError("loginError","Invalid username or password.");
+   return authError("loginError","Invalid email/mobile or password.");
   }
 
   // Decrypt DB

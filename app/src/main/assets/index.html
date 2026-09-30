@@ -2526,6 +2526,7 @@ function openAuthenticatedApp(){
  if(u.role==="Admin") renderUsers();
  applyBusinessSettingsToUI();
  if(u.role==="Admin") maybeShowSetupWizard();
+ setTimeout(()=>maybeRunDailyCloudBackup(false),1500);
 }
 
 /* ==================== Forgot password / reset ==================== */
@@ -5680,7 +5681,10 @@ async function cloudSyncNow(silent){
    const e=await r.json().catch(()=>({}));
    throw new Error(e.message||e.error||"Encrypted cloud upload failed.");
   }
-  posStoreSet(CLOUD_LAST_SYNC_KEY,new Date().toISOString());
+  const syncNow=new Date().toISOString();
+  posStoreSet(CLOUD_LAST_SYNC_KEY,syncNow);
+  posStoreSet(CLOUD_LAST_DAILY_KEY,syncNow);
+  try{ posStoreSet(CLOUD_BACKGROUND_STATUS_KEY,"Encrypted cloud backup completed: "+syncNow); }catch(e){}
   applyCloudUIState();
   if(!silent) setCloudStatus("✅ Encrypted cloud backup is up to date. Previous versions are protected in cloud history.");
   return true;
@@ -5727,11 +5731,11 @@ async function cloudRestoreNow(){
   }
   if(db) storeSafetySnapshot(JSON.stringify(db),"Before cloud restore");
   installCloudPayloadLocally(row.payload);
-  setCloudStatus("Encrypted backup downloaded. Login with your original local QAMVIO username/password.");
+  setCloudStatus("Encrypted backup downloaded. Login with your original QAMVIO email/mobile and password.");
   showLoginPanel();
   const first=getAuthUsers()[0];
-  if(first) loginUsername.value=first.username||"";
-  authError("loginError","☁️ Cloud backup restored. Enter your original local QAMVIO username and password to decrypt the data.");
+  if(first) loginUsername.value=userLoginIdentifier(first);
+  authError("loginError","☁️ Cloud backup restored. Enter your original QAMVIO email/mobile and password to decrypt the data.");
  }catch(err){ setCloudStatus("Cloud restore failed: "+err.message); }
 }
 
@@ -5740,13 +5744,13 @@ async function cloudFreshRestoreClick(){
   setCloudRestoreAuthStatus("Cloud service is not activated yet.",true);
   return;
  }
- const email=document.getElementById("cloudRestoreEmail")?.value.trim()||"";
+ const identifier=normalizeLoginIdentifier(document.getElementById("cloudRestoreEmail")?.value||"");
  const password=document.getElementById("cloudRestorePassword")?.value||"";
- if(!email||!password){ setCloudRestoreAuthStatus("Enter your cloud email and password.",true); return; }
+ if(!loginIdentifierType(identifier)||!password){ setCloudRestoreAuthStatus("Enter your cloud email/mobile and password.",true); return; }
  try{
   setCloudRestoreAuthStatus("Logging in and checking encrypted backup...",false);
-  const data=await cloudAuthRequest("/auth/v1/token?grant_type=password",email,password);
-  const session=cloudSessionFromAuth(data,email);
+  const data=await cloudAuthRequest("/auth/v1/token?grant_type=password",identifier,password);
+  const session=cloudSessionFromAuth(data,identifier);
   setCloudSession(session);
   const row=await fetchCloudBackup(session);
   validateCloudPayload(row.payload);
@@ -5755,14 +5759,35 @@ async function cloudFreshRestoreClick(){
   if(p) p.style.display="none";
   showLoginPanel();
   const first=getAuthUsers()[0];
-  if(first) loginUsername.value=first.username||"";
-  authError("loginError","✅ Encrypted cloud backup downloaded. Now enter your original local QAMVIO password to unlock and restore all business data.");
+  if(first) loginUsername.value=userLoginIdentifier(first);
+  authError("loginError","✅ Encrypted cloud backup downloaded. Now enter your original QAMVIO email/mobile and local password to unlock all business data.");
  }catch(err){
   setCloudRestoreAuthStatus("Restore failed: "+err.message,true);
  }
 }
 
 let __cloudAutoSyncTimer=null;
+async function maybeRunDailyCloudBackup(force){
+ if(!cloudConfigured()||!getCloudSession()||!DATA_KEY_BYTES||!currentUser()) return false;
+ try{
+  if(typeof AndroidBridge!=="undefined" && typeof AndroidBridge.scheduleDailyCloudBackup==="function"){
+   AndroidBridge.scheduleDailyCloudBackup();
+  }
+ }catch(e){}
+ const lastRaw=posStoreGet(CLOUD_LAST_DAILY_KEY);
+ const lastMs=lastRaw ? Date.parse(lastRaw) : 0;
+ const due=!lastMs || (Date.now()-lastMs) >= 20*60*60*1000;
+ if(!force && !due) return true;
+ const ok=await cloudSyncNow(true);
+ if(ok){
+  try{
+   if(typeof AndroidBridge!=="undefined" && typeof AndroidBridge.runCloudBackupNow==="function"){
+    AndroidBridge.runCloudBackupNow();
+   }
+  }catch(e){}
+ }
+ return !!ok;
+}
 function scheduleCloudAutoSync(){
  if(!cloudConfigured()||!getCloudSession()||!DATA_KEY_BYTES||!currentUser()) return;
  if(__cloudAutoSyncTimer) clearTimeout(__cloudAutoSyncTimer);

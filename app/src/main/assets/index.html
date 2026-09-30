@@ -2581,7 +2581,7 @@ async function verifyRecoveryAndReset(code){
   return;
  }
 
- if(!confirm("Recovery code verified.\n\nYour encrypted business data will be kept and reopened automatically. You will now set a NEW username and password.\n\nContinue?")) return;
+ if(!confirm("Recovery code verified.\n\nYour encrypted business data will be kept and reopened automatically. You will now set a NEW email/mobile and password.\n\nContinue?")) return;
  try{
   window.__recoveryDEK = recoveredDek;
   posStoreRemove(AUTH_KEY);
@@ -2589,7 +2589,7 @@ async function verifyRecoveryAndReset(code){
   authError("loginError","");
   loginPanel.style.display="none"; setupPanel.style.display="block";
   setupUsername.value=""; setupPassword.value=""; setupPassword2.value=""; setupUsername.focus();
-  authError("setupError","Recovery verified — set a new username & password. Your existing business data will reopen automatically.");
+  authError("setupError","Recovery verified — set a new email/mobile & password. Your existing business data will reopen automatically.");
  }catch(e){ authError("loginError","Reset failed: "+e.message); }
 }
 
@@ -2643,13 +2643,13 @@ function updateUserRoleFields(){
 async function createManagedUser(){
  const admin = currentUser();
  if(!admin || admin.role!=="Admin") return alert("Admin access required.");
- const username = umUsername.value.trim(), pw = umPassword.value, role = umRole.value, salesmanId = role==="Salesman" ? umSalesman.value : "";
- if(!username) return userManageMessage.textContent = "Username is required.";
+ const loginId = normalizeLoginIdentifier(umUsername.value), pw = umPassword.value, role = umRole.value, salesmanId = role==="Salesman" ? umSalesman.value : "";
+ if(!loginId) return userManageMessage.textContent = "Login ID is required.";
  const pwerr = validatePasswordStrength(pw);
  if(pwerr) return userManageMessage.textContent = pwerr;
  if(role==="Salesman" && !salesmanId) return userManageMessage.textContent = "Select a linked Salesman.";
  const users = getAuthUsers();
- if(users.some(x=>(x.username||"").trim().toLowerCase()===username.toLowerCase())) return userManageMessage.textContent = "Username already exists.";
+ if(users.some(x=>userLoginIdentifier(x)===loginId)) return userManageMessage.textContent = "Login ID already exists.";
 
  try{
   showKdfOverlay("Creating user…", "Hashing password with " + (window.__argon2Ready?"Argon2id":"PBKDF2-600k"));
@@ -2657,7 +2657,7 @@ async function createManagedUser(){
   const pwHash = await portablePasswordHashV16(pw);
   const recCode = generateRecoveryCode();
   const recHash = await portablePasswordHashV16(recCode);
-  const newUser = { id:makeId(), username, passwordHash:pwHash, recoveryHash:recHash, role, salesmanId, active:true, createdAt:new Date().toISOString() };
+  const newUser = { id:makeId(), ...identityFieldsFor(loginId), passwordHash:pwHash, recoveryHash:recHash, role, salesmanId, active:true, createdAt:new Date().toISOString() };
   users.push(newUser);
   setAuthUsers(users);
   try{ posStoreSet(RECOVERY_PENDING_KEY, JSON.stringify({userId:newUser.id, code:recCode, isUpgrade:false, at:Date.now()})); }catch(e){}
@@ -2677,7 +2677,7 @@ function renderUsers(){
  const u = currentUser(); if(!u || u.role!=="Admin") return;
  umSalesman.innerHTML = opt(db.salesmen); updateUserRoleFields();
  const users = getAuthUsers();
- usersBody.innerHTML = users.map(x=>`<tr><td>${e(x.username)}</td><td>${e(x.role)}</td><td>${e(salesmanBy(x.salesmanId)?.name||"")}</td><td class="${x.active===false?'user-status-disabled':'user-status-active'}">${x.active===false?'Disabled':'Active'}</td><td>${e((x.createdAt||"").slice(0,10))}</td><td><button class="action gray" onclick="resetUserPassword('${x.id}')">Password</button> <button class="action gold" onclick="toggleUserActive('${x.id}')">${x.active===false?'Enable':'Disable'}</button> <button class="action red" onclick="deleteManagedUser('${x.id}')">Delete</button></td></tr>`).join("");
+ usersBody.innerHTML = users.map(x=>`<tr><td>${e(userLoginIdentifier(x))}</td><td>${e(x.role)}</td><td>${e(salesmanBy(x.salesmanId)?.name||"")}</td><td class="${x.active===false?'user-status-disabled':'user-status-active'}">${x.active===false?'Disabled':'Active'}</td><td>${e((x.createdAt||"").slice(0,10))}</td><td><button class="action gray" onclick="resetUserPassword('${x.id}')">Password</button> <button class="action gold" onclick="toggleUserActive('${x.id}')">${x.active===false?'Enable':'Disable'}</button> <button class="action red" onclick="deleteManagedUser('${x.id}')">Delete</button></td></tr>`).join("");
 }
 
 async function resetUserPassword(id){
@@ -2714,7 +2714,7 @@ function deleteManagedUser(id){
  const users = getAuthUsers(), x = users.find(u=>u.id===id); if(!x) return;
  if(x.id===admin.id) return alert("You cannot delete the account currently signed in.");
  if(x.role==="Admin" && users.filter(u=>u.role==="Admin"&&u.active!==false).length<=1) return alert("At least one active Admin must remain.");
- if(confirm(`Delete login user "${x.username}"?`)){ setAuthUsers(users.filter(u=>u.id!==id)); renderUsers(); }
+ if(confirm(`Delete login user "${userLoginIdentifier(x)}"?`)){ setAuthUsers(users.filter(u=>u.id!==id)); renderUsers(); }
 }
 
 /* ==================== Data helpers ==================== */

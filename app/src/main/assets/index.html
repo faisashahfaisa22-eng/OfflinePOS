@@ -5399,24 +5399,44 @@ function cloudConfigured(){
  return CLOUD_SUPABASE_URL.indexOf("YOUR-PROJECT")<0 && CLOUD_SUPABASE_ANON_KEY.indexOf("YOUR-ANON")<0;
 }
 function getCloudSession(){ try{ return JSON.parse(posStoreGet(CLOUD_SESSION_KEY)||"null"); }catch(e){ return null; } }
-function setCloudSession(s){ if(s) posStoreSet(CLOUD_SESSION_KEY,JSON.stringify(s)); else posStoreRemove(CLOUD_SESSION_KEY); }
+function setCloudSession(s){
+ if(s){
+  posStoreSet(CLOUD_SESSION_KEY,JSON.stringify(s));
+  try{
+   if(typeof AndroidBridge!=="undefined" && typeof AndroidBridge.scheduleDailyCloudBackup==="function"){
+    AndroidBridge.scheduleDailyCloudBackup();
+   }
+  }catch(e){}
+ }else{
+  posStoreRemove(CLOUD_SESSION_KEY);
+ }
+}
 function setCloudStatus(msg){ const el=document.getElementById("cloudSyncStatus"); if(el) el.textContent=msg; }
 
-function cloudSessionFromAuth(data,email){
+function cloudSessionFromAuth(data,identifier){
+ const id=normalizeLoginIdentifier(identifier || data.user?.email || data.user?.phone || "");
+ const type=loginIdentifierType(id);
  return {
   access_token:data.access_token,
   refresh_token:data.refresh_token||"",
   expires_at:Date.now()+Math.max(60,Number(data.expires_in)||3600)*1000,
   user_id:data.user?.id||data.user_id||"",
-  email:email||data.user?.email||""
+  identifier:id,
+  email:type==="email" ? id : (data.user?.email||""),
+  phone:type==="phone" ? id : (data.user?.phone||"")
  };
 }
-async function cloudAuthRequest(path,email,password){
+async function cloudAuthRequest(path,identifier,password){
  if(!cloudConfigured()) throw new Error("Cloud Sync is not configured yet.");
+ const id=normalizeLoginIdentifier(identifier);
+ const type=loginIdentifierType(id);
+ if(!type) throw new Error("Enter a valid email or mobile number with country code.");
+ const body={password};
+ body[type]=id;
  const r=await fetch(CLOUD_SUPABASE_URL+path,{
   method:"POST",
   headers:{"apikey":CLOUD_SUPABASE_ANON_KEY,"Content-Type":"application/json"},
-  body:JSON.stringify({email,password})
+  body:JSON.stringify(body)
  });
  const data=await r.json().catch(()=>({}));
  if(!r.ok) throw new Error(data.msg||data.error_description||data.error||"Cloud authentication failed.");
@@ -5434,7 +5454,7 @@ async function ensureCloudAccessToken(){
  });
  const data=await r.json().catch(()=>({}));
  if(!r.ok) throw new Error(data.msg||data.error_description||data.error||"Cloud session refresh failed.");
- s=cloudSessionFromAuth(data,s.email);
+ s=cloudSessionFromAuth(data,s.identifier||s.email||s.phone||"");
  setCloudSession(s);
  return s;
 }
@@ -5443,16 +5463,34 @@ function applyCloudUIState(){
  const loggedOut=document.getElementById("cloudLoggedOutBox");
  const loggedIn=document.getElementById("cloudLoggedInBox");
  if(!loggedOut||!loggedIn) return;
+ const cloudInput=document.getElementById("cloudEmail");
+ const otpWrap=document.getElementById("cloudOtpWrap");
  if(session){
   loggedOut.style.display="none";
   loggedIn.style.display="block";
-  document.getElementById("cloudLoggedInEmail").textContent=session.email||"";
+  if(otpWrap) otpWrap.style.display="none";
+  document.getElementById("cloudLoggedInEmail").textContent=session.identifier||session.email||session.phone||"Cloud account";
   const lastSync=posStoreGet(CLOUD_LAST_SYNC_KEY);
-  setCloudStatus(lastSync?("Encrypted backup synced: "+new Date(lastSync).toLocaleString()):"Logged in. Encrypted backup not synced yet.");
+  const daily=posStoreGet(CLOUD_LAST_DAILY_KEY);
+  const bg=posStoreGet(CLOUD_BACKGROUND_STATUS_KEY);
+  let msg=lastSync?("Encrypted backup synced: "+new Date(lastSync).toLocaleString()):"Cloud connected. Waiting for first automatic encrypted backup.";
+  if(daily) msg+=" • Daily backup: "+new Date(daily).toLocaleString();
+  if(bg && /paused|failed/i.test(bg)) msg+=" • "+bg;
+  setCloudStatus(msg);
  }else{
   loggedOut.style.display="block";
   loggedIn.style.display="none";
-  setCloudStatus(cloudConfigured()?"Not connected.":"Cloud Sync is not activated yet.");
+  const pending=posStoreGet(CLOUD_PENDING_VERIFY_KEY);
+  if(cloudInput && !cloudInput.value){
+   const u=currentUser();
+   if(u && loginIdentifierType(userLoginIdentifier(u))) cloudInput.value=userLoginIdentifier(u);
+   else if(pending){ try{ cloudInput.value=JSON.parse(pending).identifier||""; }catch(e){} }
+  }
+  let pendingObj=null; try{ pendingObj=JSON.parse(pending||"null"); }catch(e){}
+  if(otpWrap) otpWrap.style.display=pendingObj?.type==="phone" ? "flex" : "none";
+  if(pendingObj?.type==="phone") setCloudStatus("SMS verification is pending for "+pendingObj.identifier+". Enter the code above.");
+  else if(pendingObj?.type==="email") setCloudStatus("Email confirmation is pending for "+pendingObj.identifier+". Confirm the email, then Login to Cloud.");
+  else setCloudStatus(cloudConfigured()?"Not connected.":"Cloud Sync is not activated yet.");
  }
 }
 
@@ -5494,32 +5532,90 @@ async function restorePendingCloudExtras(){
  try{ applyBusinessSettingsToUI(); }catch(e){}
 }
 
+async function autoRegisterPrimaryCloudAccount(identifier,password){
+ if(!cloudConfigured()||getCloudSession()) return;
+ const id=normalizeLoginIdentifier(identifier);
+ const type=loginIdentifierType(id);
+ if(!type) return;
+ try{
+  const path=type==="email"
+   ? "/auth/v1/signup?redirect_to="+encodeURIComponent(CLOUD_CONFIRM_REDIRECT)
+   : "/auth/v1/signup";
+  const data=await cloudAuthRequest(path,id,password);
+  if(data.access_token){
+   setCloudSession(cloudSessionFromAuth(data,id));
+   posStoreRemove(CLOUD_PENDING_VERIFY_KEY);
+   setTimeout(()=>cloudSyncNow(true),1200);
+  }else{
+   posStoreSet(CLOUD_PENDING_VERIFY_KEY,JSON.stringify({identifier:id,type,at:Date.now()}));
+  }
+ }catch(err){
+  console.warn("[cloud] automatic signup did not complete:",err);
+ }
+}
 async function cloudSignUpClick(){
  if(!cloudConfigured()){ alert("Cloud Sync is not activated yet."); return; }
- const email=cloudEmail.value.trim(),password=cloudPassword.value;
- if(!email||password.length<8){ alert("Enter a valid email and a cloud password of at least 8 characters."); return; }
+ const identifier=normalizeLoginIdentifier(cloudEmail.value);
+ const password=cloudPassword.value;
+ const idErr=primaryLoginIdentifierError(identifier);
+ if(idErr||password.length<8){ alert(idErr||"Cloud password must be at least 8 characters."); return; }
+ const type=loginIdentifierType(identifier);
  try{
   setCloudStatus("Creating cloud account...");
-  const data=await cloudAuthRequest("/auth/v1/signup?redirect_to="+encodeURIComponent(CLOUD_CONFIRM_REDIRECT),email,password);
+  const path=type==="email"
+   ? "/auth/v1/signup?redirect_to="+encodeURIComponent(CLOUD_CONFIRM_REDIRECT)
+   : "/auth/v1/signup";
+  const data=await cloudAuthRequest(path,identifier,password);
   if(data.access_token){
-   setCloudSession(cloudSessionFromAuth(data,email));
+   setCloudSession(cloudSessionFromAuth(data,identifier));
+   posStoreRemove(CLOUD_PENDING_VERIFY_KEY);
    applyCloudUIState();
    await cloudSyncNow(false);
   }else{
-   setCloudStatus("Account created. Confirm your email, then use Login to Cloud.");
+   posStoreSet(CLOUD_PENDING_VERIFY_KEY,JSON.stringify({identifier,type,at:Date.now()}));
+   const otpWrap=document.getElementById("cloudOtpWrap");
+   if(otpWrap) otpWrap.style.display=type==="phone"?"flex":"none";
+   setCloudStatus(type==="phone"
+    ? "SMS verification code requested. Enter it above to finish phone signup."
+    : "Account created. Confirm the email, then use Login to Cloud.");
   }
  }catch(err){ setCloudStatus("Cloud sign up failed: "+err.message); }
 }
+async function cloudVerifyPhoneOtp(){
+ if(!cloudConfigured()) return;
+ const identifier=normalizeLoginIdentifier(cloudEmail.value || (()=>{try{return JSON.parse(posStoreGet(CLOUD_PENDING_VERIFY_KEY)||"{}").identifier||""}catch(e){return""}})());
+ const token=(document.getElementById("cloudOtp")?.value||"").trim();
+ if(loginIdentifierType(identifier)!=="phone") return setCloudStatus("Enter the mobile number used for signup.");
+ if(!token) return setCloudStatus("Enter the SMS verification code.");
+ try{
+  setCloudStatus("Verifying mobile number...");
+  const r=await fetch(CLOUD_SUPABASE_URL+"/auth/v1/verify",{
+   method:"POST",
+   headers:{"apikey":CLOUD_SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+   body:JSON.stringify({phone:identifier,token,type:"sms"})
+  });
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.msg||data.error_description||data.error||"Phone verification failed.");
+  if(!data.access_token) throw new Error("Phone verified but no cloud session was returned. Use Login to Cloud.");
+  setCloudSession(cloudSessionFromAuth(data,identifier));
+  posStoreRemove(CLOUD_PENDING_VERIFY_KEY);
+  if(document.getElementById("cloudOtp")) cloudOtp.value="";
+  applyCloudUIState();
+  await cloudSyncNow(false);
+ }catch(err){ setCloudStatus("Phone verification failed: "+err.message); }
+}
 async function cloudLoginClick(){
  if(!cloudConfigured()){ alert("Cloud Sync is not activated yet."); return; }
- const email=cloudEmail.value.trim(),password=cloudPassword.value;
- if(!email||!password){ alert("Enter cloud email and password."); return; }
+ const identifier=normalizeLoginIdentifier(cloudEmail.value);
+ const password=cloudPassword.value;
+ if(!loginIdentifierType(identifier)||!password){ alert("Enter cloud email/mobile and password."); return; }
  try{
   setCloudStatus("Logging in...");
-  const data=await cloudAuthRequest("/auth/v1/token?grant_type=password",email,password);
-  setCloudSession(cloudSessionFromAuth(data,email));
+  const data=await cloudAuthRequest("/auth/v1/token?grant_type=password",identifier,password);
+  setCloudSession(cloudSessionFromAuth(data,identifier));
+  posStoreRemove(CLOUD_PENDING_VERIFY_KEY);
   applyCloudUIState();
-  setCloudStatus("Cloud login successful. Tap Sync Now to upload the latest encrypted backup.");
+  await maybeRunDailyCloudBackup(true);
  }catch(err){ setCloudStatus("Cloud login failed: "+err.message); }
 }
 function cloudLogout(){ setCloudSession(null); applyCloudUIState(); }

@@ -431,8 +431,8 @@ window.__argon2LoadingPromise = (async ()=>{
   <div class="auth-logo">POS</div>
   <div class="auth-title">Login</div>
   <div class="auth-sub">Your data is encrypted with your password. Login to unlock it.</div>
-  <label>Username</label>
-  <input id="loginUsername" autocomplete="username" placeholder="Username">
+  <label>Email or Mobile Number</label>
+  <input id="loginUsername" autocomplete="username" inputmode="email" placeholder="email@example.com or +93...">
   <label style="margin-top:10px">Password</label>
   <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password">
   <button class="action auth-btn" onclick="loginUser()">🔓 Login & Unlock Data</button>
@@ -448,9 +448,9 @@ window.__argon2LoadingPromise = (async ()=>{
  <div id="setupPanel" class="auth-card" style="display:none">
   <div class="auth-logo">A</div>
   <div class="auth-title">Sign Up</div>
-  <div class="auth-sub">First-time setup. Create your main administrator account. This password will ALSO encrypt your business data.</div>
-  <label>Admin Username</label>
-  <input id="setupUsername" autocomplete="username" placeholder="e.g. admin">
+  <div class="auth-sub">First-time setup. Create your main administrator account with an email address or mobile number. This password will ALSO encrypt your business data.</div>
+  <label>Email or Mobile Number</label>
+  <input id="setupUsername" autocomplete="username" inputmode="email" placeholder="email@example.com or +93...">
   <label style="margin-top:10px">Password (min 8, letter + number)</label>
   <input id="setupPassword" type="password" autocomplete="new-password" placeholder="Minimum 8 characters">
   <label style="margin-top:10px">Confirm Password</label>
@@ -468,9 +468,9 @@ window.__argon2LoadingPromise = (async ()=>{
  <div id="cloudRestoreAuthPanel" class="auth-card" style="display:none">
   <div class="auth-logo">☁️</div>
   <div class="auth-title">Restore QAMVIO Account</div>
-  <div class="auth-sub">Sign in to your QAMVIO cloud account. The app will download your encrypted backup, then ask for your local QAMVIO username and password to decrypt it.</div>
-  <label>Cloud Email</label>
-  <input id="cloudRestoreEmail" type="email" autocomplete="email" placeholder="you@example.com">
+  <div class="auth-sub">Sign in to your QAMVIO cloud account. The app will download your encrypted backup, then ask for your local QAMVIO account password to decrypt it.</div>
+  <label>Cloud Email or Mobile Number</label>
+  <input id="cloudRestoreEmail" type="text" autocomplete="username" placeholder="you@example.com or +93...">
   <label style="margin-top:10px">Cloud Password</label>
   <input id="cloudRestorePassword" type="password" autocomplete="current-password" placeholder="Cloud account password">
   <button class="action green auth-btn" onclick="cloudFreshRestoreClick()">☁️ Login & Restore Encrypted Backup</button>
@@ -1405,12 +1405,16 @@ window.__argon2LoadingPromise = (async ()=>{
   <div class="notice">Optional but recommended. Your cloud account stores an <b>encrypted QAMVIO backup</b>. After reinstalling the app or moving to another phone, use “Restore Account from Cloud”, then unlock the downloaded data with your original local QAMVIO password.</div>
   <div id="cloudLoggedOutBox">
    <div class="row">
-    <div class="grow"><label>Email</label><input id="cloudEmail" type="email" placeholder="you@example.com"></div>
+    <div class="grow"><label>Email or Mobile Number</label><input id="cloudEmail" type="text" inputmode="email" placeholder="you@example.com or +93..."></div>
     <div><label>Password</label><input id="cloudPassword" type="password" placeholder="Minimum 8 characters"></div>
    </div>
    <div style="margin-top:8px">
     <button class="action green" onclick="cloudSignUpClick()">Sign Up for Cloud</button>
     <button class="action" onclick="cloudLoginClick()">Login to Cloud</button>
+   </div>
+   <div id="cloudOtpWrap" class="row" style="display:none;margin-top:8px">
+    <div class="grow"><label>SMS Verification Code</label><input id="cloudOtp" inputmode="numeric" placeholder="6-digit code"></div>
+    <button class="action gold" onclick="cloudVerifyPhoneOtp()">Verify Phone</button>
    </div>
   </div>
   <div id="cloudLoggedInBox" style="display:none">
@@ -1420,7 +1424,7 @@ window.__argon2LoadingPromise = (async ()=>{
    <button class="action gray" onclick="cloudLogout()">Logout of Cloud</button>
   </div>
   <div id="cloudSyncStatus" class="report-formula" style="margin-top:10px">Not connected.</div>
-  <div class="small" style="margin-top:8px">When cloud login is active, QAMVIO automatically uploads a fresh encrypted backup a few seconds after local data changes.</div>
+  <div class="small" style="margin-top:8px">Automatic protection is ON when cloud login is active: QAMVIO syncs after changes and Android also runs a daily encrypted cloud backup in the background when internet is available.</div>
  </div>
 
  <div class="grid g3">
@@ -1446,7 +1450,7 @@ window.__argon2LoadingPromise = (async ()=>{
  <div class="card">
   <div class="notice">Admin can create login accounts. A Salesman login is linked to one Salesman and gets limited access to operational pages. Each new user receives a Recovery Code that must be written down.</div>
   <div class="row">
-   <div class="grow"><label>Username</label><input id="umUsername" placeholder="username"></div>
+   <div class="grow"><label>Email / Mobile / Login ID</label><input id="umUsername" placeholder="email@example.com or +93..."></div>
    <div><label>Password (min 8, letter + number)</label><input id="umPassword" type="password" placeholder="minimum 8 characters"></div>
    <div><label>Role</label><select id="umRole" onchange="updateUserRoleFields()"><option>Admin</option><option>Salesman</option></select></div>
    <div id="umSalesmanWrap"><label>Linked Salesman</label><select id="umSalesman"></select></div>
@@ -5733,8 +5737,8 @@ function scheduleCloudAutoSync(){
  </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.0.11/html5-qrcode.min.js"></script>
+<script src="./vendor/qrcode.min.js"></script>
+<script src="./vendor/html5-qrcode.min.js"></script>
 <script>
 /* ==================== QR Login (v16 — same trust model as v15.2) ==================== */
 let qrSendFrames = [], qrSendIndex = 0, qrSendTimer = null, qrSendInstance = null;
@@ -5748,7 +5752,7 @@ function setQrStatus(msg, isError){
 async function startQrGenerate(){
  const u = typeof currentUser==="function" ? currentUser() : null;
  if(!u){ setQrStatus("You must be logged in to authorize another device.", true); return; }
- if(typeof QRCode === "undefined"){ setQrStatus("QR library did not load. Check your internet connection once, then try again.", true); return; }
+ if(typeof QRCode === "undefined"){ setQrStatus("Offline QR generator library did not load from the app package.", true); return; }
  if(!DATA_KEY_BYTES){ setQrStatus("Internal error: encryption key not available.", true); return; }
  try{
   setQrStatus("Preparing and encrypting login data…");
@@ -5799,7 +5803,7 @@ function closeQrSend(){ clearInterval(qrSendTimer); qrSendTimer = null; const o 
 
 let qrScanHtml5 = null, qrScanChunks = new Map(), qrScanTotal = 0, qrScanSid = null, qrScanKey = null, qrScanBusy = false;
 function startQrLoginScan(){
- if(typeof Html5Qrcode === "undefined"){ authError("loginError", "Camera-scan library did not load."); return; }
+ if(typeof Html5Qrcode === "undefined"){ authError("loginError", "Offline QR scanner library did not load from the app package."); return; }
  qrScanChunks = new Map(); qrScanTotal = 0; qrScanSid = null; qrScanKey = null; qrScanBusy = false;
  const overlay = document.getElementById("qrScanOverlay");
  overlay.style.display = "flex";

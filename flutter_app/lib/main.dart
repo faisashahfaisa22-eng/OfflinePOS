@@ -1,3 +1,4 @@
+import 'package:cryptography_flutter/cryptography_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
@@ -6,10 +7,11 @@ import 'core/cloud/cloud_config.dart';
 import 'core/database/app_database.dart';
 import 'core/localization/language_controller.dart';
 import 'features/auth/login_page.dart';
-import 'features/dashboard/dashboard_page.dart';
+import 'features/migration/legacy_migration_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterCryptography.enable();
   await Supabase.initialize(url:CloudConfig.supabaseUrl,publishableKey:CloudConfig.supabaseAnonKey);
   await Workmanager().initialize(cloudBackupDispatcher);
   await scheduleDailyCloudBackup();
@@ -43,7 +45,7 @@ class QamvioApp extends StatelessWidget {
             builder:(context,snapshot){
               return Supabase.instance.client.auth.currentSession==null
                 ? const LoginPage()
-                : const DashboardPage();
+                : const LegacyMigrationGate();
             },
           ),
         );

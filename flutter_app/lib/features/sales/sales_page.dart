@@ -33,7 +33,14 @@ class _SalesPageState extends State<SalesPage>{
             Padding(padding:const EdgeInsets.all(6),child:Text('${x['product_name']}')),
             Padding(padding:const EdgeInsets.all(6),child:Text('${x['qty']}')),
             Padding(padding:const EdgeInsets.all(6),child:Text('${x['price']}')),
-            Padding(padding:const EdgeInsets.all(6),child:Text('${((x['qty'] as num)*(x['price'] as num)).toStringAsFixed(2)}')),
+            Padding(
+              padding: const EdgeInsets.all(6),
+              child: Text(
+                (((x['qty'] as num?)?.toDouble() ?? 0) *
+                        ((x['price'] as num?)?.toDouble() ?? 0))
+                    .toStringAsFixed(2),
+              ),
+            ),
           ]))
         ]),
         TextField(controller:discount,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Discount')),

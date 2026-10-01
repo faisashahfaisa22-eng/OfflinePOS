@@ -98,13 +98,13 @@ class LegacyCrypto {
     final iterations=(meta['iter'] as num?)?.toInt()??600000;
     final kek=await _pbkdf2(password,salt,iterations);
 
-    List<int> dek=kek;
-    final wrapped=meta['wdek_pw'];
-    if(wrapped is Map) {
-      dek=await _decryptBox(Map<String,dynamic>.from(wrapped),kek);
-    }
-
     try {
+      List<int> dek=kek;
+      final wrapped=meta['wdek_pw'];
+      if(wrapped is Map) {
+        dek=await _decryptBox(Map<String,dynamic>.from(wrapped),kek);
+      }
+
       final clear=await _decryptBox(box,dek);
       final decoded=jsonDecode(utf8.decode(clear));
       if(decoded is! Map) {

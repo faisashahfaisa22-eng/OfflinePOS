@@ -1,7 +1,7 @@
 name: Build QAMVIO Flutter APK
 on:
   push:
-    branches: [ main ]
+    branches: [ flutter/qamvio-core ]
     paths:
       - "flutter_app/**"
       - ".github/workflows/build-flutter.yml"

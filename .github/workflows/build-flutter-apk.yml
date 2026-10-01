@@ -1,0 +1,38 @@
+name: Build QAMVIO Flutter APK
+
+on:
+  push:
+    branches: [ "flutter/qamvio-core" ]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/build-flutter-apk.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Create Android platform
+        working-directory: flutter_app
+        run: flutter create --platforms=android --org com.qamvio --project-name qamvio_pos .
+      - name: Get packages
+        working-directory: flutter_app
+        run: flutter pub get
+      - name: Analyze
+        working-directory: flutter_app
+        run: flutter analyze
+      - name: Test
+        working-directory: flutter_app
+        run: flutter test
+      - name: Build APK
+        working-directory: flutter_app
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Flutter-APK
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk

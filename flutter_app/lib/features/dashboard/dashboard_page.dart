@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/database/app_database.dart';
 import '../products/products_page.dart';
+import '../sales/sales_page.dart';
+import '../parties/party_page.dart';
+import '../expenses/expenses_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -127,10 +130,10 @@ class QamvioDrawer extends StatelessWidget {
         },
       ),
       const Divider(),
-      const ListTile(leading: Icon(Icons.point_of_sale), title: Text('Sales & Invoice'), subtitle: Text('Migration next')),
-      const ListTile(leading: Icon(Icons.people), title: Text('Customers'), subtitle: Text('Migration next')),
-      const ListTile(leading: Icon(Icons.local_shipping), title: Text('Suppliers'), subtitle: Text('Migration next')),
-      const ListTile(leading: Icon(Icons.receipt_long), title: Text('Expenses'), subtitle: Text('Migration next')),
+      ListTile(leading: const Icon(Icons.point_of_sale), title: const Text('Sales & Invoice'), onTap:() async { Navigator.pop(context); await Navigator.push(context,MaterialPageRoute(builder:(_)=>const SalesPage())); onReturn(); }),
+      ListTile(leading: const Icon(Icons.people), title: const Text('Customers'), onTap:() async { Navigator.pop(context); await Navigator.push(context,MaterialPageRoute(builder:(_)=>const PartyPage(type:PartyType.customer))); onReturn(); }),
+      ListTile(leading: const Icon(Icons.local_shipping), title: const Text('Suppliers'), onTap:() async { Navigator.pop(context); await Navigator.push(context,MaterialPageRoute(builder:(_)=>const PartyPage(type:PartyType.supplier))); onReturn(); }),
+      ListTile(leading: const Icon(Icons.receipt_long), title: const Text('Expenses'), onTap:() async { Navigator.pop(context); await Navigator.push(context,MaterialPageRoute(builder:(_)=>const ExpensesPage())); onReturn(); }),
       const ListTile(leading: Icon(Icons.local_gas_station), title: Text('Oil / Fuel Pump'), subtitle: Text('Schema ready')),
       const ListTile(leading: Icon(Icons.local_pharmacy), title: Text('Pharmacy'), subtitle: Text('Migration next')),
       const ListTile(leading: Icon(Icons.bar_chart), title: Text('Reports'), subtitle: Text('Migration next')),

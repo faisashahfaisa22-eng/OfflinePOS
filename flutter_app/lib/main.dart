@@ -10,7 +10,7 @@ import 'features/dashboard/dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url:CloudConfig.supabaseUrl,anonKey:CloudConfig.supabaseAnonKey);
+  await Supabase.initialize(url:CloudConfig.supabaseUrl,publishableKey:CloudConfig.supabaseAnonKey);
   await Workmanager().initialize(cloudBackupDispatcher);
   await scheduleDailyCloudBackup();
   await AppDatabase.instance.database;

@@ -332,13 +332,7 @@ class LegacyMigrationService {
     }
 
     final now=DateTime.now().toUtc().toIso8601String();
-    final archiveId=await db.insert('legacy_archives',{
-      'source':'qamvio_cloud_backups_v2',
-      'source_updated_at':sourceUpdatedAt,
-      'archived_at':now,
-      'status':'archived',
-      'payload':jsonEncode(legacy),
-    });
+    int? archiveId;
 
     final products=_rows(legacy,'products');
     final customers=_rows(legacy,'customers');
@@ -488,6 +482,17 @@ class LegacyMigrationService {
 
     try {
       await db.transaction((txn) async {
+        // Keep the recovery archive in the SAME transaction as the normalized
+        // import. If any validation or insert fails, both archive and imported
+        // rows roll back together and the Flutter database stays untouched.
+        archiveId=await txn.insert('legacy_archives',{
+          'source':'qamvio_cloud_backups_v2',
+          'source_updated_at':sourceUpdatedAt,
+          'archived_at':now,
+          'status':'imported',
+          'payload':jsonEncode(legacy),
+        });
+
         for(var i=0;i<products.length;i++) {
           final row=products[i];
           final oldId=_text(row['id']).trim();
@@ -900,27 +905,18 @@ class LegacyMigrationService {
           'settings',
           {
             'key':'legacy_migration_archive_id',
-            'value':archiveId.toString(),
+            'value':archiveId!.toString(),
             'updated_at':now,
           },
           conflictAlgorithm:ConflictAlgorithm.replace,
         );
       });
 
-      await db.update(
-        'legacy_archives',
-        {'status':'imported'},
-        where:'id=?',
-        whereArgs:[archiveId],
-      );
       return inserted;
     } catch(e) {
-      await db.update(
-        'legacy_archives',
-        {'status':'import_failed'},
-        where:'id=?',
-        whereArgs:[archiveId],
-      );
+      // The transaction above guarantees rollback of every normalized row and
+      // the recovery archive. Do not write a failure marker outside it, because
+      // production-safe migration must leave a previously empty DB unchanged.
       rethrow;
     }
   }

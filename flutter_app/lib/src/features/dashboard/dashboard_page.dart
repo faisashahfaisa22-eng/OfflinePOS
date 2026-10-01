@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../data/app_database.dart';
+import '../products/products_page.dart';
+import '../customers/customers_page.dart';
+import '../expenses/expenses_page.dart';
+import '../sales/sales_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -24,11 +28,11 @@ class _DashboardPageState extends State<DashboardPage> {
           padding: EdgeInsets.zero,
           children: const [
             DrawerHeader(child: Text('QAMVIO POS')),
-            ListTile(leading: Icon(Icons.point_of_sale), title: Text('Sales')),
-            ListTile(leading: Icon(Icons.inventory_2), title: Text('Products')),
-            ListTile(leading: Icon(Icons.people), title: Text('Customers')),
+            _NavTile(icon: Icons.point_of_sale, title: 'Sales', page: SalesPage()),
+            _NavTile(icon: Icons.inventory_2, title: 'Products', page: ProductsPage()),
+            _NavTile(icon: Icons.people, title: 'Customers', page: CustomersPage()),
             ListTile(leading: Icon(Icons.local_shipping), title: Text('Suppliers')),
-            ListTile(leading: Icon(Icons.payments), title: Text('Expenses')),
+            _NavTile(icon: Icons.payments, title: 'Expenses', page: ExpensesPage()),
             ListTile(leading: Icon(Icons.local_gas_station), title: Text('Oil / Fuel Pump')),
             ListTile(leading: Icon(Icons.medication), title: Text('Pharmacy')),
             ListTile(leading: Icon(Icons.assessment), title: Text('Reports')),
@@ -76,4 +80,20 @@ class _Card extends StatelessWidget {
           ]),
         ),
       );
+}
+
+class _NavTile extends StatelessWidget {
+  const _NavTile({required this.icon, required this.title, required this.page});
+  final IconData icon;
+  final String title;
+  final Widget page;
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: Icon(icon),
+    title: Text(title),
+    onTap: () {
+      Navigator.pop(context);
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    },
+  );
 }

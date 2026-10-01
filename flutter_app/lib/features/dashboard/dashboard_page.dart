@@ -8,6 +8,10 @@ import '../parties/party_page.dart';
 import '../expenses/expenses_page.dart';
 import '../fuel/fuel_page.dart';
 import '../cloud/cloud_page.dart';
+import '../purchases/purchases_page.dart';
+import '../reports/reports_page.dart';
+import '../loans/loans_page.dart';
+import '../pharmacy/pharmacy_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -116,8 +120,10 @@ class QamvioDrawer extends StatelessWidget {
     ListTile(leading:const Icon(Icons.local_shipping),title:Text(strings.t('suppliers')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const PartyPage(type:PartyType.supplier)));onReturn();}),
     ListTile(leading:const Icon(Icons.receipt_long),title:Text(strings.t('expenses')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const ExpensesPage()));onReturn();}),
     ListTile(leading:const Icon(Icons.local_gas_station),title:Text(strings.t('oil')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const FuelPage()));onReturn();}),
-    ListTile(leading:const Icon(Icons.local_pharmacy),title:Text(strings.t('pharmacy'))),
-    ListTile(leading:const Icon(Icons.bar_chart),title:Text(strings.t('reports'))),
+    ListTile(leading:const Icon(Icons.shopping_cart),title:const Text('Purchases'),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const PurchasesPage()));onReturn();}),
+    ListTile(leading:const Icon(Icons.account_balance_wallet),title:const Text('Loans / Credit'),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const LoansPage()));onReturn();}),
+    ListTile(leading:const Icon(Icons.local_pharmacy),title:Text(strings.t('pharmacy')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const PharmacyPage()));onReturn();}),
+    ListTile(leading:const Icon(Icons.bar_chart),title:Text(strings.t('reports')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const ReportsPage()));onReturn();}),
     ListTile(leading:const Icon(Icons.cloud),title:Text(strings.t('cloud')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const CloudPage()));onReturn();}),
   ]));
 }

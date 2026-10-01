@@ -54,6 +54,13 @@ class AppDatabase {
     for (final sql in statements) { await db.execute(sql); }
   }
 
+  Future<void> _createV3Tables(Database db) async {
+    final cols=await db.rawQuery("PRAGMA table_info(products)");
+    final names=cols.map((x)=>x['name']?.toString()).toSet();
+    if(!names.contains('batch_no')) await db.execute('ALTER TABLE products ADD COLUMN batch_no TEXT');
+    if(!names.contains('expiry_date')) await db.execute('ALTER TABLE products ADD COLUMN expiry_date TEXT');
+  }
+
   Future<List<Map<String, Object?>>> products() async {
     final db = await database;
     return db.query('products', orderBy: 'name COLLATE NOCASE');

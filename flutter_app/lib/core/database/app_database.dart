@@ -11,12 +11,13 @@ class AppDatabase {
     final root = await getDatabasesPath();
     return openDatabase(
       join(root, 'qamvio_pos.db'),
-      version: 3,
+      version: 4,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async => _createSchema(db),
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) await _createV2Tables(db);
         if (oldVersion < 3) await _createV3Tables(db);
+        if (oldVersion < 4) await _createV4Tables(db);
       },
     );
   }
@@ -27,7 +28,7 @@ class AppDatabase {
     await db.execute('CREATE TABLE suppliers(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,address TEXT,balance REAL NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE salesmen(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,commission REAL NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE sales(id TEXT PRIMARY KEY,invoice_no TEXT NOT NULL,customer_id TEXT,salesman_id TEXT,subtotal REAL NOT NULL DEFAULT 0,discount REAL NOT NULL DEFAULT 0,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(customer_id) REFERENCES customers(id),FOREIGN KEY(salesman_id) REFERENCES salesmen(id))');
-    await db.execute('CREATE TABLE sale_items(id TEXT PRIMARY KEY,sale_id TEXT NOT NULL,product_id TEXT,product_name TEXT NOT NULL,qty REAL NOT NULL,price REAL NOT NULL,total REAL NOT NULL,FOREIGN KEY(sale_id) REFERENCES sales(id) ON DELETE CASCADE,FOREIGN KEY(product_id) REFERENCES products(id))');
+    await db.execute('CREATE TABLE sale_items(id TEXT PRIMARY KEY,sale_id TEXT NOT NULL,product_id TEXT,product_name TEXT NOT NULL,qty REAL NOT NULL,price REAL NOT NULL,cost REAL,total REAL NOT NULL,FOREIGN KEY(sale_id) REFERENCES sales(id) ON DELETE CASCADE,FOREIGN KEY(product_id) REFERENCES products(id))');
     await db.execute('CREATE TABLE expenses(id TEXT PRIMARY KEY,name TEXT NOT NULL,category TEXT,amount REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE purchases(id TEXT PRIMARY KEY,supplier_id TEXT,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(supplier_id) REFERENCES suppliers(id))');
     await db.execute('CREATE TABLE purchase_items(id TEXT PRIMARY KEY,purchase_id TEXT NOT NULL,product_id TEXT,product_name TEXT NOT NULL,qty REAL NOT NULL,cost REAL NOT NULL,total REAL NOT NULL,FOREIGN KEY(purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,FOREIGN KEY(product_id) REFERENCES products(id))');
@@ -39,6 +40,8 @@ class AppDatabase {
     await db.execute('CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT,phone TEXT,display_name TEXT,role TEXT NOT NULL DEFAULT "Admin",cloud_user_id TEXT,updated_at TEXT NOT NULL)');
     await db.execute('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT NOT NULL)');
     await db.execute('CREATE TABLE sync_queue(id INTEGER PRIMARY KEY AUTOINCREMENT,entity_type TEXT NOT NULL,entity_id TEXT NOT NULL,operation TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE legacy_archives(id INTEGER PRIMARY KEY AUTOINCREMENT,source TEXT NOT NULL,source_updated_at TEXT,archived_at TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL)');
+    await db.execute('CREATE TABLE migration_state(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT NOT NULL)');
   }
 
   Future<void> _createV2Tables(Database db) async {
@@ -59,6 +62,17 @@ class AppDatabase {
     final names=cols.map((x)=>x['name']?.toString()).toSet();
     if(!names.contains('batch_no')) await db.execute('ALTER TABLE products ADD COLUMN batch_no TEXT');
     if(!names.contains('expiry_date')) await db.execute('ALTER TABLE products ADD COLUMN expiry_date TEXT');
+  }
+
+
+  Future<void> _createV4Tables(Database db) async {
+    final itemCols=await db.rawQuery("PRAGMA table_info(sale_items)");
+    final itemNames=itemCols.map((x)=>x['name']?.toString()).toSet();
+    if(!itemNames.contains('cost')) {
+      await db.execute('ALTER TABLE sale_items ADD COLUMN cost REAL');
+    }
+    await db.execute('CREATE TABLE IF NOT EXISTS legacy_archives(id INTEGER PRIMARY KEY AUTOINCREMENT,source TEXT NOT NULL,source_updated_at TEXT,archived_at TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL)');
+    await db.execute('CREATE TABLE IF NOT EXISTS migration_state(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT NOT NULL)');
   }
 
   Future<List<Map<String, Object?>>> products() async {
@@ -162,7 +176,7 @@ class AppDatabase {
         await txn.insert('sale_items', {
           'id': '${id}_$i', 'sale_id': id, 'product_id': productId,
           'product_name': item['product_name'], 'qty': qty, 'price': price,
-          'total': qty * price,
+          'cost': (item['cost'] as num?)?.toDouble(), 'total': qty * price,
         });
         if (productId != null) {
           await txn.rawUpdate(
@@ -200,7 +214,7 @@ class AppDatabase {
     final db=await database;
     Future<double> sum(String table,String expr) async {final r=await db.rawQuery('SELECT COALESCE(SUM('+expr+'),0) value FROM '+table);return (r.first['value'] as num?)?.toDouble()??0;}
     final sales=await sum('sales','total'),purchases=await sum('purchases','total'),expenses=await sum('expenses','amount');
-    final cr=await db.rawQuery('SELECT COALESCE(SUM(si.qty*COALESCE(p.cost,0)),0) value FROM sale_items si LEFT JOIN products p ON p.id=si.product_id');final cogs=(cr.first['value'] as num?)?.toDouble()??0;
+    final cr=await db.rawQuery('SELECT COALESCE(SUM(si.qty*COALESCE(si.cost,p.cost,0)),0) value FROM sale_items si LEFT JOIN products p ON p.id=si.product_id');final cogs=(cr.first['value'] as num?)?.toDouble()??0;
     return {'sales':sales,'purchases':purchases,'expenses':expenses,'profit':sales-cogs-expenses,'due':await sum('sales','due'),'supplierDue':await sum('purchases','due'),'stockCost':await sum('products','stock*cost'),'stockRetail':await sum('products','stock*price')};
   }
 

@@ -40,35 +40,48 @@ class CloudService {
   }
 
   Future<int> syncPending() async {
-    if (client.auth.currentUser == null || !await online) return 0;
     final db = await AppDatabase.instance.database;
-    final rows = await db.query('sync_queue', orderBy: 'id ASC', limit: 250);
-    var synced = 0;
-    for (final row in rows) {
-      try {
-        final table = row['table_name'] as String;
-        final payload = jsonDecode(row['payload'] as String) as Map<String, dynamic>;
-        payload['user_id'] = client.auth.currentUser!.id;
-        await client.from('qamvio_$table').upsert(payload);
-        await db.delete('sync_queue', where: 'id = ?', whereArgs: [row['id']]);
-        synced++;
-      } catch (_) {
-        await db.rawUpdate('UPDATE sync_queue SET attempts = attempts + 1 WHERE id = ?', [row['id']]);
-      }
-    }
-    return synced;
+    final rows = await db.query('sync_queue');
+    return rows.length;
+  }
+
+  Future<void> backupNow() async {
+    final user = client.auth.currentUser;
+    if (user == null) throw StateError('Login to cloud first.');
+    if (!await online) throw StateError('No internet connection.');
+    final payload = await AppDatabase.instance.exportAll();
+    await client.from('qamvio_flutter_backups').upsert({
+      'user_id': user.id,
+      'payload': payload,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'user_id');
+  }
+
+  Future<bool> restoreLatest() async {
+    final user = client.auth.currentUser;
+    if (user == null) throw StateError('Login to cloud first.');
+    if (!await online) throw StateError('No internet connection.');
+    final row = await client.from('qamvio_flutter_backups')
+      .select('payload,updated_at').eq('user_id', user.id).maybeSingle();
+    if (row == null) return false;
+    final payload = row['payload'];
+    if (payload is! Map) throw StateError('Cloud backup is invalid.');
+    await AppDatabase.instance.restoreAll(Map<String,dynamic>.from(payload));
+    return true;
   }
 
   Future<Map<String, int>> localCounts() async {
     final db = await AppDatabase.instance.database;
     Future<int> count(String table) async {
-      final rows = await db.rawQuery('SELECT COUNT(*) AS c FROM $table WHERE deleted = 0');
+      final hasDeleted = !{'settings','accounts'}.contains(table);
+      final rows = await db.rawQuery('SELECT COUNT(*) AS c FROM $table' + (hasDeleted ? ' WHERE deleted = 0' : ''));
       return (rows.first['c'] as int?) ?? 0;
     }
     return {
       'products': await count('products'), 'customers': await count('customers'),
       'suppliers': await count('suppliers'), 'sales': await count('sales'),
-      'expenses': await count('expenses'),
+      'purchases': await count('purchases'), 'expenses': await count('expenses'),
+      'loans': await count('loans'), 'fuel_sales': await count('fuel_sales'),
     };
   }
 }

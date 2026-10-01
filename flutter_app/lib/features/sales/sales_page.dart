@@ -42,7 +42,7 @@ class _SalesPageState extends State<SalesPage>{
                     .toStringAsFixed(2),
               ),
             ),
-          ]))
+          ])))
         ]),
         TextField(controller:discount,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:LanguageController.instance.strings.t('discount'))),
         TextField(controller:paid,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:LanguageController.instance.strings.t('paid'))),

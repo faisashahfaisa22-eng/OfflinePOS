@@ -8,9 +8,15 @@ on:
       - ".github/workflows/build-flutter-apk.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -18,19 +24,14 @@ jobs:
           channel: stable
           cache: true
       - name: Create Android platform
-        working-directory: flutter_app
         run: flutter create --platforms=android --org com.qamvio --project-name qamvio_pos .
-      - name: Get packages
-        working-directory: flutter_app
+      - name: Get dependencies
         run: flutter pub get
       - name: Analyze
-        working-directory: flutter_app
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze
       - name: Test
-        working-directory: flutter_app
         run: flutter test
-      - name: Build APK
-        working-directory: flutter_app
+      - name: Build release APK
         run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:

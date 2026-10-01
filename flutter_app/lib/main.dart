@@ -20,6 +20,9 @@ class QamvioApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF174EA6),
         scaffoldBackgroundColor: const Color(0xFFF6F8FC),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+        ),
       ),
       home: const DashboardPage(),
     );

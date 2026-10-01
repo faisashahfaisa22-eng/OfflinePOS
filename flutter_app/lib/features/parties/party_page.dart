@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/database/app_database.dart';
 import '../../core/localization/language_controller.dart';
+import '../../core/share/whatsapp_share.dart';
 
 enum PartyType { customer, supplier }
 
@@ -23,6 +24,17 @@ class _PartyPageState extends State<PartyPage> {
 
   @override
   void initState() { super.initState(); load(); }
+
+  Future<void> shareSupplier(Map<String,Object?> supplier) async {
+    try {
+      await WhatsAppShare.shareSupplierCredit(supplier);
+    } catch(e) {
+      if(!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('WhatsApp: $e')),
+      );
+    }
+  }
 
   Future<void> add() async {
     final name=TextEditingController(), phone=TextEditingController(), address=TextEditingController();
@@ -54,9 +66,25 @@ class _PartyPageState extends State<PartyPage> {
       rows.isEmpty?Center(child:Text(LanguageController.instance.strings.t(customer?'noCustomers':'noSuppliers'))):
       ListView.separated(itemCount:rows.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(_,i){
         final x=rows[i];
-        return ListTile(leading:CircleAvatar(child:Icon(customer?Icons.person:Icons.local_shipping)),
-          title:Text('${x['name']}'),subtitle:Text('${x['phone']??''}\n${x['address']??''}'),isThreeLine:true,
-          trailing:Text('Balance: ${x['balance']??0}'));
+        return ListTile(
+          leading:CircleAvatar(child:Icon(customer?Icons.person:Icons.local_shipping)),
+          title:Text('${x['name']}'),
+          subtitle:Text('${x['phone']??''}\n${x['address']??''}'),
+          isThreeLine:true,
+          trailing:customer
+            ?Text('Balance: ${x['balance']??0}')
+            :Row(
+              mainAxisSize:MainAxisSize.min,
+              children:[
+                Text('Balance: ${WhatsAppShare.money(x['balance'])}'),
+                IconButton(
+                  tooltip:'Share supplier credit on WhatsApp',
+                  icon:const Icon(Icons.chat),
+                  onPressed:()=>shareSupplier(x),
+                ),
+              ],
+            ),
+        );
       }),
   );
 }

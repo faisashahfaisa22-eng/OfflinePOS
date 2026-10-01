@@ -9,7 +9,7 @@ class CloudBackupService {
 
   Future<Map<String,dynamic>> snapshot() async {
     final Database db=await AppDatabase.instance.database;
-    const tables=['products','customers','suppliers','salesmen','sales','sale_items','expenses','purchases','purchase_items','customer_loans','supplier_transactions','fuel_tanks','fuel_nozzles','fuel_shifts','settings'];
+    const tables=['products','customers','suppliers','salesmen','sales','sale_items','expenses','purchases','purchase_items','customer_loans','supplier_transactions','fuel_tanks','fuel_nozzles','fuel_shifts','users','settings'];
     final data=<String,dynamic>{};
     for(final table in tables){ data[table]=await db.query(table); }
     return {'format':1,'app':'QAMVIO POS Flutter','created_at':DateTime.now().toUtc().toIso8601String(),'data':data};
@@ -37,11 +37,13 @@ class CloudBackupService {
     final data=Map<String,dynamic>.from(payload['data'] as Map);
     final db=await AppDatabase.instance.database;
     await db.transaction((txn) async {
-      for(final entry in data.entries){
-        final rows=(entry.value as List?)??const [];
-        await txn.delete(entry.key);
+      const deleteOrder=['sale_items','purchase_items','fuel_shifts','fuel_nozzles','customer_loans','supplier_transactions','sales','purchases','fuel_tanks','salesmen','customers','suppliers','products','users','settings'];
+      const insertOrder=['products','customers','suppliers','salesmen','fuel_tanks','fuel_nozzles','sales','sale_items','purchases','purchase_items','customer_loans','supplier_transactions','fuel_shifts','users','settings'];
+      for(final table in deleteOrder){ await txn.delete(table); }
+      for(final table in insertOrder){
+        final rows=(data[table] as List?)??const [];
         for(final raw in rows){
-          await txn.insert(entry.key,Map<String,Object?>.from(raw as Map),conflictAlgorithm:ConflictAlgorithm.replace);
+          await txn.insert(table,Map<String,Object?>.from(raw as Map),conflictAlgorithm:ConflictAlgorithm.replace);
         }
       }
     });

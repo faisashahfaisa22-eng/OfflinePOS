@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/database/app_database.dart';
+import '../../core/localization/language_controller.dart';
 
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
@@ -12,11 +13,11 @@ class _SalesPageState extends State<SalesPage>{
   Future<void> newSale()async{
     final products=await AppDatabase.instance.products();
     if(!mounted)return;
-    if(products.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Add a product first.')));return;}
+    if(products.isEmpty){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(LanguageController.instance.strings.t('noProducts'))));return;}
     final cart=<String,Map<String,Object?>>{};
     final paid=TextEditingController(),discount=TextEditingController();
     final ok=await showDialog<bool>(context:context,builder:(context)=>StatefulBuilder(builder:(context,setLocal)=>AlertDialog(
-      title:const Text('New Sales Invoice'),
+      title:Text(LanguageController.instance.strings.t('newSalesInvoice')),
       content:SizedBox(width:520,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
         const Align(alignment:Alignment.centerLeft,child:Text('Tap a product to add it to the invoice')),
         const SizedBox(height:8),
@@ -26,7 +27,7 @@ class _SalesPageState extends State<SalesPage>{
             cart[id]={'product_id':id,'product_name':p['name'],'qty':q,'price':(p['price'] as num?)?.toDouble()??0};setLocal((){});
           })),
         const Divider(),
-        if(cart.isEmpty) const Padding(padding:EdgeInsets.all(12),child:Text('Add items — invoice table will appear here.')),
+        if(cart.isEmpty) Padding(padding:const EdgeInsets.all(12),child:Text(LanguageController.instance.strings.t('addItemsHint'))),
         if(cart.isNotEmpty) Table(border:TableBorder.all(),children:[
           const TableRow(children:[Padding(padding:EdgeInsets.all(6),child:Text('Product')),Padding(padding:EdgeInsets.all(6),child:Text('Qty')),Padding(padding:EdgeInsets.all(6),child:Text('Price')),Padding(padding:EdgeInsets.all(6),child:Text('Total'))]),
           ...cart.values.map((x)=>TableRow(children:[
@@ -43,10 +44,10 @@ class _SalesPageState extends State<SalesPage>{
             ),
           ]))
         ]),
-        TextField(controller:discount,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Discount')),
-        TextField(controller:paid,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Paid')),
+        TextField(controller:discount,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:LanguageController.instance.strings.t('discount'))),
+        TextField(controller:paid,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:LanguageController.instance.strings.t('paid'))),
       ]))),
-      actions:[TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text('Cancel')),FilledButton(onPressed:cart.isEmpty?null:()=>Navigator.pop(context,true),child:const Text('Save Invoice'))],
+      actions:[TextButton(onPressed:()=>Navigator.pop(context,false),child:Text(LanguageController.instance.strings.t('cancel'))),FilledButton(onPressed:cart.isEmpty?null:()=>Navigator.pop(context,true),child:Text(LanguageController.instance.strings.t('save')))],
     )));
     if(ok!=true)return;
     final id=DateTime.now().microsecondsSinceEpoch.toString();
@@ -54,9 +55,9 @@ class _SalesPageState extends State<SalesPage>{
       discount:double.tryParse(discount.text)??0,paid:double.tryParse(paid.text)??0);
     await load();
   }
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Sales & Invoices')),
-    floatingActionButton:FloatingActionButton.extended(onPressed:newSale,icon:const Icon(Icons.add_shopping_cart),label:const Text('New Invoice')),
-    body:loading?const Center(child:CircularProgressIndicator()):rows.isEmpty?const Center(child:Text('No sales yet.')):
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(LanguageController.instance.strings.t('salesInvoice'))),
+    floatingActionButton:FloatingActionButton.extended(onPressed:newSale,icon:const Icon(Icons.add_shopping_cart),label:Text(LanguageController.instance.strings.t('newInvoice'))),
+    body:loading?const Center(child:CircularProgressIndicator()):rows.isEmpty?Center(child:Text(LanguageController.instance.strings.t('noSales'))):
     ListView.separated(itemCount:rows.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(_,i){final x=rows[i];return ListTile(
       leading:const CircleAvatar(child:Icon(Icons.receipt)),title:Text('${x['invoice_no']}'),subtitle:Text('${x['created_at']}'),
       trailing:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.end,children:[Text('Total: ${x['total']}'),Text('Due: ${x['due']}')])) ;}));

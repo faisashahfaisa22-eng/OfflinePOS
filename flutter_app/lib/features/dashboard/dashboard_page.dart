@@ -6,6 +6,8 @@ import '../products/products_page.dart';
 import '../sales/sales_page.dart';
 import '../parties/party_page.dart';
 import '../expenses/expenses_page.dart';
+import '../fuel/fuel_page.dart';
+import '../cloud/cloud_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -113,9 +115,9 @@ class QamvioDrawer extends StatelessWidget {
     ListTile(leading:const Icon(Icons.people),title:Text(strings.t('customers')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const PartyPage(type:PartyType.customer)));onReturn();}),
     ListTile(leading:const Icon(Icons.local_shipping),title:Text(strings.t('suppliers')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const PartyPage(type:PartyType.supplier)));onReturn();}),
     ListTile(leading:const Icon(Icons.receipt_long),title:Text(strings.t('expenses')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const ExpensesPage()));onReturn();}),
-    ListTile(leading:const Icon(Icons.local_gas_station),title:Text(strings.t('oil'))),
+    ListTile(leading:const Icon(Icons.local_gas_station),title:Text(strings.t('oil')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const FuelPage()));onReturn();}),
     ListTile(leading:const Icon(Icons.local_pharmacy),title:Text(strings.t('pharmacy'))),
     ListTile(leading:const Icon(Icons.bar_chart),title:Text(strings.t('reports'))),
-    ListTile(leading:const Icon(Icons.cloud),title:Text(strings.t('cloud'))),
+    ListTile(leading:const Icon(Icons.cloud),title:Text(strings.t('cloud')),onTap:()async{Navigator.pop(context);await Navigator.push(context,MaterialPageRoute(builder:(_)=>const CloudPage()));onReturn();}),
   ]));
 }

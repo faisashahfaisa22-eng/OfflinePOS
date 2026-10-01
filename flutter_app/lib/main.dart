@@ -1,4 +1,3 @@
-import 'package:cryptography_flutter/cryptography_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
@@ -11,7 +10,6 @@ import 'features/migration/legacy_migration_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  FlutterCryptography.enable();
   await Supabase.initialize(url:CloudConfig.supabaseUrl,publishableKey:CloudConfig.supabaseAnonKey);
   await Workmanager().initialize(cloudBackupDispatcher);
   await scheduleDailyCloudBackup();

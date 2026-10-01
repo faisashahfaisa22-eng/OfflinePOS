@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/database/app_database.dart';
 import '../../core/localization/language_controller.dart';
+import '../../core/share/whatsapp_share.dart';
 
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
@@ -27,6 +28,17 @@ class _SalesPageState extends State<SalesPage> {
   void initState() {
     super.initState();
     load();
+  }
+
+  Future<void> shareInvoice(Map<String,Object?> sale) async {
+    try {
+      await WhatsAppShare.shareInvoice(sale);
+    } catch(e) {
+      if(!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('WhatsApp: $e')),
+      );
+    }
   }
 
   Future<void> newSale() async {
@@ -223,12 +235,22 @@ class _SalesPageState extends State<SalesPage> {
                         ),
                         title: Text('${x['invoice_no']}'),
                         subtitle: Text('${x['created_at']}'),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('Total: ${x['total']}'),
-                            Text('Due: ${x['due']}'),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('Total: ${x['total']}'),
+                                Text('Due: ${x['due']}'),
+                              ],
+                            ),
+                            IconButton(
+                              tooltip: 'Share invoice on WhatsApp',
+                              icon: const Icon(Icons.chat),
+                              onPressed: () => shareInvoice(x),
+                            ),
                           ],
                         ),
                       );

@@ -63,4 +63,43 @@ class AppDatabase {
       meter_reading REAL NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
       FOREIGN KEY(tank_id) REFERENCES fuel_tanks(id))''');
   }
+
+  Future<List<Map<String, Object?>>> listProducts() async {
+    final db = await database;
+    return db.query('products', orderBy: 'name COLLATE NOCASE');
+  }
+
+  Future<void> saveProduct({
+    required String name,
+    String sku = '',
+    double cost = 0,
+    double price = 0,
+    double stock = 0,
+  }) async {
+    final db = await database;
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    final now = DateTime.now().toUtc().toIso8601String();
+    await db.transaction((txn) async {
+      final row = <String, Object?>{
+        'id': id,
+        'name': name,
+        'sku': sku,
+        'barcode': sku,
+        'cost': cost,
+        'price': price,
+        'stock': stock,
+        'category': '',
+        'updated_at': now,
+      };
+      await txn.insert('products', row);
+      await txn.insert('sync_queue', {
+        'entity': 'products',
+        'entity_id': id,
+        'operation': 'upsert',
+        'payload': row.toString(),
+        'created_at': now,
+        'synced': 0,
+      });
+    });
+  }
 }

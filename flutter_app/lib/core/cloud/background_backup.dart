@@ -20,7 +20,7 @@ Future<void> scheduleDailyCloudBackup() async {
     'qamvio-daily-cloud-backup',
     qamvioDailyBackupTask,
     frequency:const Duration(hours:24),
-    existingWorkPolicy:ExistingWorkPolicy.keep,
+    existingWorkPolicy:ExistingPeriodicWorkPolicy.keep,
     constraints:Constraints(networkType:NetworkType.connected),
   );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/database/app_database.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_controller.dart';
+import '../../core/share/whatsapp_share.dart';
 import '../products/products_page.dart';
 import '../sales/sales_page.dart';
 import '../parties/party_page.dart';
@@ -25,6 +26,17 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() { super.initState(); totals = AppDatabase.instance.dashboardTotals(); }
 
+  Future<void> shareBusinessReport() async {
+    try {
+      await WhatsAppShare.shareBusinessReport();
+    } catch(e) {
+      if(!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('WhatsApp: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lc=LanguageController.instance;
@@ -33,17 +45,24 @@ class _DashboardPageState extends State<DashboardPage> {
       return Scaffold(
         appBar: AppBar(
           title: const Text('QAMVIO POS'),
-          actions:[PopupMenuButton<AppLanguage>(
-            tooltip:s.t('language'),
-            icon:const Icon(Icons.language),
-            onSelected:lc.setLanguage,
-            itemBuilder:(_)=>const[
-              PopupMenuItem(value:AppLanguage.english,child:Text('English')),
-              PopupMenuItem(value:AppLanguage.pashto,child:Text('پښتو')),
-              PopupMenuItem(value:AppLanguage.dari,child:Text('دری')),
-              PopupMenuItem(value:AppLanguage.urdu,child:Text('اردو')),
-            ],
-          )],
+          actions:[
+            IconButton(
+              tooltip:'Share full business report on WhatsApp',
+              icon:const Icon(Icons.chat),
+              onPressed:shareBusinessReport,
+            ),
+            PopupMenuButton<AppLanguage>(
+              tooltip:s.t('language'),
+              icon:const Icon(Icons.language),
+              onSelected:lc.setLanguage,
+              itemBuilder:(_)=>const[
+                PopupMenuItem(value:AppLanguage.english,child:Text('English')),
+                PopupMenuItem(value:AppLanguage.pashto,child:Text('پښتو')),
+                PopupMenuItem(value:AppLanguage.dari,child:Text('دری')),
+                PopupMenuItem(value:AppLanguage.urdu,child:Text('اردو')),
+              ],
+            ),
+          ],
         ),
         drawer: QamvioDrawer(onReturn: reload, strings:s),
         body: FutureBuilder<Map<String, num>>(
@@ -68,6 +87,12 @@ class _DashboardPageState extends State<DashboardPage> {
                     MetricCard(s.t('due'),data['due']??0,Icons.account_balance_wallet),
                   ]),
                   const SizedBox(height:18),
+                  FilledButton.icon(
+                    onPressed:shareBusinessReport,
+                    icon:const Icon(Icons.chat),
+                    label:const Text('WhatsApp Full Business Report'),
+                  ),
+                  const SizedBox(height:10),
                   Card(child:ListTile(
                     leading:const Icon(Icons.storage),
                     title:const Text('SQLite Offline Database'),

@@ -27,7 +27,7 @@ class WhatsAppShare {
 
   static Future<void> shareSalesmanCredit(Map<String,Object?> salesman) async {
     final Database db=await AppDatabase.instance.database;
-    final id='\${salesman['id']}';
+    final id='${salesman['id']}';
     final sales=await db.rawQuery(
       'SELECT invoice_no,total,paid,due,created_at FROM sales WHERE salesman_id=? ORDER BY created_at DESC LIMIT 20',
       [id],
@@ -39,11 +39,11 @@ class WhatsAppShare {
     final t=totals.first;
     final b=StringBuffer()
       ..writeln('QAMVIO POS — Salesman Credit Statement')
-      ..writeln('Salesman: \${salesman['name']??''}')
-      ..writeln('Phone: \${salesman['phone']??''}')
-      ..writeln('Total sales: \${money(t['total'])}')
-      ..writeln('Received: \${money(t['paid'])}')
-      ..writeln('Outstanding credit: \${money(t['due'])}')
+      ..writeln('Salesman: ${salesman['name']??''}')
+      ..writeln('Phone: ${salesman['phone']??''}')
+      ..writeln('Total sales: ${money(t['total'])}')
+      ..writeln('Received: ${money(t['paid'])}')
+      ..writeln('Outstanding credit: ${money(t['due'])}')
       ..writeln();
 
     if(sales.isEmpty) {
@@ -52,8 +52,8 @@ class WhatsAppShare {
       b.writeln('Recent invoices:');
       for(final row in sales) {
         b.writeln(
-          '• \${row['invoice_no']} | \${row['created_at']} | '
-          'Total \${money(row['total'])} | Paid \${money(row['paid'])} | Due \${money(row['due'])}',
+          '• ${row['invoice_no']} | ${row['created_at']} | '
+          'Total ${money(row['total'])} | Paid ${money(row['paid'])} | Due ${money(row['due'])}',
         );
       }
     }
@@ -64,7 +64,7 @@ class WhatsAppShare {
 
   static Future<void> shareSupplierCredit(Map<String,Object?> supplier) async {
     final Database db=await AppDatabase.instance.database;
-    final id='\${supplier['id']}';
+    final id='${supplier['id']}';
     final purchases=await db.rawQuery(
       'SELECT total,paid,due,created_at FROM purchases WHERE supplier_id=? ORDER BY created_at DESC LIMIT 20',
       [id],
@@ -76,12 +76,12 @@ class WhatsAppShare {
     final t=totals.first;
     final b=StringBuffer()
       ..writeln('QAMVIO POS — Supplier Credit Statement')
-      ..writeln('Supplier: \${supplier['name']??''}')
-      ..writeln('Phone: \${supplier['phone']??''}')
-      ..writeln('Account balance: \${money(supplier['balance'])}')
-      ..writeln('Purchases: \${money(t['total'])}')
-      ..writeln('Paid: \${money(t['paid'])}')
-      ..writeln('Purchase due: \${money(t['due'])}')
+      ..writeln('Supplier: ${supplier['name']??''}')
+      ..writeln('Phone: ${supplier['phone']??''}')
+      ..writeln('Account balance: ${money(supplier['balance'])}')
+      ..writeln('Purchases: ${money(t['total'])}')
+      ..writeln('Paid: ${money(t['paid'])}')
+      ..writeln('Purchase due: ${money(t['due'])}')
       ..writeln();
 
     if(purchases.isEmpty) {
@@ -90,8 +90,8 @@ class WhatsAppShare {
       b.writeln('Recent purchases:');
       for(final row in purchases) {
         b.writeln(
-          '• \${row['created_at']} | Total \${money(row['total'])} | '
-          'Paid \${money(row['paid'])} | Due \${money(row['due'])}',
+          '• ${row['created_at']} | Total ${money(row['total'])} | '
+          'Paid ${money(row['paid'])} | Due ${money(row['due'])}',
         );
       }
     }
@@ -102,7 +102,7 @@ class WhatsAppShare {
 
   static Future<void> shareInvoice(Map<String,Object?> sale) async {
     final Database db=await AppDatabase.instance.database;
-    final id='\${sale['id']}';
+    final id='${sale['id']}';
     final items=await db.query(
       'sale_items',
       where:'sale_id=?',
@@ -124,13 +124,13 @@ class WhatsAppShare {
 
     final b=StringBuffer()
       ..writeln('QAMVIO POS — Sales Invoice')
-      ..writeln('Invoice: \${sale['invoice_no']??''}')
-      ..writeln('Date: \${sale['created_at']??''}');
+      ..writeln('Invoice: ${sale['invoice_no']??''}')
+      ..writeln('Date: ${sale['created_at']??''}');
 
     if(customer!=null) {
-      b.writeln('Customer: \${customer['name']??''}');
-      if('\${customer['phone']??''}'.trim().isNotEmpty) {
-        b.writeln('Phone: \${customer['phone']}');
+      b.writeln('Customer: ${customer['name']??''}');
+      if('${customer['phone']??''}'.trim().isNotEmpty) {
+        b.writeln('Phone: ${customer['phone']}');
       }
     }
 
@@ -138,18 +138,18 @@ class WhatsAppShare {
     b.writeln('Items:');
     for(final item in items) {
       b.writeln(
-        '• \${item['product_name']} × \${money(item['qty'])} @ '
-        '\${money(item['price'])} = \${money(item['total'])}',
+        '• ${item['product_name']} × ${money(item['qty'])} @ '
+        '${money(item['price'])} = ${money(item['total'])}',
       );
     }
 
     b
       ..writeln()
-      ..writeln('Subtotal: \${money(sale['subtotal'])}')
-      ..writeln('Discount: \${money(sale['discount'])}')
-      ..writeln('Total: \${money(sale['total'])}')
-      ..writeln('Paid: \${money(sale['paid'])}')
-      ..writeln('Due: \${money(sale['due'])}')
+      ..writeln('Subtotal: ${money(sale['subtotal'])}')
+      ..writeln('Discount: ${money(sale['discount'])}')
+      ..writeln('Total: ${money(sale['total'])}')
+      ..writeln('Paid: ${money(sale['paid'])}')
+      ..writeln('Due: ${money(sale['due'])}')
       ..writeln()
       ..writeln('Thank you — QAMVIO POS');
 
@@ -178,23 +178,23 @@ class WhatsAppShare {
 
     final b=StringBuffer()
       ..writeln('QAMVIO POS — Full Business Report')
-      ..writeln('Generated: \${DateTime.now().toLocal()}')
+      ..writeln('Generated: ${DateTime.now().toLocal()}')
       ..writeln()
-      ..writeln('Sales: \${money(x['sales'])}')
-      ..writeln('Purchases: \${money(x['purchases'])}')
-      ..writeln('Expenses: \${money(x['expenses'])}')
-      ..writeln('Profit estimate: \${money(x['profit'])}')
+      ..writeln('Sales: ${money(x['sales'])}')
+      ..writeln('Purchases: ${money(x['purchases'])}')
+      ..writeln('Expenses: ${money(x['expenses'])}')
+      ..writeln('Profit estimate: ${money(x['profit'])}')
       ..writeln()
-      ..writeln('Customer receivables: \${money(customerBalance)}')
-      ..writeln('Sales invoice due: \${money(x['due'])}')
-      ..writeln('Salesman credit due: \${money(salesmanDue)}')
-      ..writeln('Supplier payable balance: \${money(supplierBalance)}')
-      ..writeln('Supplier purchase due: \${money(x['supplierDue'])}')
+      ..writeln('Customer receivables: ${money(customerBalance)}')
+      ..writeln('Sales invoice due: ${money(x['due'])}')
+      ..writeln('Salesman credit due: ${money(salesmanDue)}')
+      ..writeln('Supplier payable balance: ${money(supplierBalance)}')
+      ..writeln('Supplier purchase due: ${money(x['supplierDue'])}')
       ..writeln()
-      ..writeln('Inventory cost value: \${money(x['stockCost'])}')
-      ..writeln('Inventory sale value: \${money(x['stockRetail'])}')
-      ..writeln('Products: \${dashboard['products']??0}')
-      ..writeln('Customers: \${dashboard['customers']??0}')
+      ..writeln('Inventory cost value: ${money(x['stockCost'])}')
+      ..writeln('Inventory sale value: ${money(x['stockRetail'])}')
+      ..writeln('Products: ${dashboard['products']??0}')
+      ..writeln('Customers: ${dashboard['customers']??0}')
       ..writeln()
       ..writeln('Generated by QAMVIO POS');
 

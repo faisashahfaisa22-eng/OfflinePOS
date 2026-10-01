@@ -9,7 +9,7 @@ class CloudBackupService {
 
   Future<Map<String,dynamic>> snapshot() async {
     final Database db=await AppDatabase.instance.database;
-    const tables=['products','customers','suppliers','salesmen','sales','sale_items','expenses','purchases','purchase_items','customer_loans','supplier_transactions','fuel_tanks','fuel_nozzles','fuel_shifts','users','settings'];
+    const tables=['products','customers','suppliers','salesmen','sales','sale_items','expenses','purchases','purchase_items','customer_loans','supplier_transactions','fuel_tanks','fuel_nozzles','fuel_shifts','users','settings','legacy_archives','migration_state'];
     final data=<String,dynamic>{};
     for(final table in tables){ data[table]=await db.query(table); }
     return {'format':1,'app':'QAMVIO POS Flutter','created_at':DateTime.now().toUtc().toIso8601String(),'data':data};
@@ -37,8 +37,8 @@ class CloudBackupService {
     final data=Map<String,dynamic>.from(payload['data'] as Map);
     final db=await AppDatabase.instance.database;
     await db.transaction((txn) async {
-      const deleteOrder=['sale_items','purchase_items','fuel_shifts','fuel_nozzles','customer_loans','supplier_transactions','sales','purchases','expenses','fuel_tanks','salesmen','customers','suppliers','products','users','settings'];
-      const insertOrder=['products','customers','suppliers','salesmen','fuel_tanks','fuel_nozzles','sales','sale_items','purchases','purchase_items','customer_loans','supplier_transactions','expenses','fuel_shifts','users','settings'];
+      const deleteOrder=['sale_items','purchase_items','fuel_shifts','fuel_nozzles','customer_loans','supplier_transactions','sales','purchases','expenses','fuel_tanks','salesmen','customers','suppliers','products','users','settings','legacy_archives','migration_state'];
+      const insertOrder=['products','customers','suppliers','salesmen','fuel_tanks','fuel_nozzles','sales','sale_items','purchases','purchase_items','customer_loans','supplier_transactions','expenses','fuel_shifts','users','settings','legacy_archives','migration_state'];
       for(final table in deleteOrder){ await txn.delete(table); }
       for(final table in insertOrder){
         final rows=(data[table] as List?)??const [];

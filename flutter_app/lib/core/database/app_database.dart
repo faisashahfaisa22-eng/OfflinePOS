@@ -71,6 +71,101 @@ class AppDatabase {
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+
+  Future<List<Map<String, Object?>>> customers() async {
+    final db = await database;
+    return db.query('customers', orderBy: 'name COLLATE NOCASE');
+  }
+
+  Future<void> saveCustomer({
+    required String id, required String name, String? phone, String? address,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().toUtc().toIso8601String();
+    await db.insert('customers', {
+      'id': id, 'name': name.trim(), 'phone': phone, 'address': address,
+      'balance': 0, 'updated_at': now, 'sync_state': 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, Object?>>> suppliers() async {
+    final db = await database;
+    return db.query('suppliers', orderBy: 'name COLLATE NOCASE');
+  }
+
+  Future<void> saveSupplier({
+    required String id, required String name, String? phone, String? address,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().toUtc().toIso8601String();
+    await db.insert('suppliers', {
+      'id': id, 'name': name.trim(), 'phone': phone, 'address': address,
+      'balance': 0, 'updated_at': now, 'sync_state': 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, Object?>>> expenses() async {
+    final db = await database;
+    return db.query('expenses', orderBy: 'created_at DESC');
+  }
+
+  Future<void> saveExpense({
+    required String id, required String name, String? category,
+    required double amount, String? note,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().toUtc().toIso8601String();
+    await db.insert('expenses', {
+      'id': id, 'name': name.trim(), 'category': category, 'amount': amount,
+      'note': note, 'created_at': now, 'updated_at': now, 'sync_state': 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, Object?>>> sales() async {
+    final db = await database;
+    return db.query('sales', orderBy: 'created_at DESC');
+  }
+
+  Future<void> createSale({
+    required String id, required String invoiceNo, String? customerId,
+    required List<Map<String, Object?>> items, double discount = 0, double paid = 0,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final now = DateTime.now().toUtc().toIso8601String();
+      double subtotal = 0;
+      for (final item in items) {
+        final qty = (item['qty'] as num?)?.toDouble() ?? 0;
+        final price = (item['price'] as num?)?.toDouble() ?? 0;
+        subtotal += qty * price;
+      }
+      final total = (subtotal - discount).clamp(0, double.infinity).toDouble();
+      final due = (total - paid).clamp(0, double.infinity).toDouble();
+      await txn.insert('sales', {
+        'id': id, 'invoice_no': invoiceNo, 'customer_id': customerId,
+        'subtotal': subtotal, 'discount': discount, 'total': total,
+        'paid': paid, 'due': due, 'created_at': now, 'updated_at': now, 'sync_state': 0,
+      });
+      for (var i = 0; i < items.length; i++) {
+        final item = items[i];
+        final qty = (item['qty'] as num?)?.toDouble() ?? 0;
+        final price = (item['price'] as num?)?.toDouble() ?? 0;
+        final productId = item['product_id'] as String?;
+        await txn.insert('sale_items', {
+          'id': '${id}_$i', 'sale_id': id, 'product_id': productId,
+          'product_name': item['product_name'], 'qty': qty, 'price': price,
+          'total': qty * price,
+        });
+        if (productId != null) {
+          await txn.rawUpdate(
+            'UPDATE products SET stock = stock - ?, updated_at = ?, sync_state = 0 WHERE id = ?',
+            [qty, now, productId],
+          );
+        }
+      }
+    });
+  }
+
   Future<Map<String, num>> dashboardTotals() async {
     final db = await database;
     Future<double> sum(String table, String field) async {

@@ -14,3 +14,23 @@ The first commit contains the Flutter application shell and SQLite schema for pr
 
 ## Planned next slice
 Authentication, existing-data importer, Products CRUD, Sales/Invoice transaction handling, then Supabase sync/restore.
+
+
+## Migration progress — 2026-10-01
+Implemented on the `flutter-migration` branch:
+- Native Flutter shell
+- SQLite offline database
+- Products and inventory
+- Sales and invoice line-item table
+- Customers
+- Suppliers
+- Expenses
+- Purchases
+- Oil / fuel tank foundation
+- Pharmacy product entry path
+- Reports summary
+- Business type/settings
+- Sync queue foundation
+- GitHub Actions Flutter APK build workflow
+
+The legacy HTML/WebView app remains untouched on `main` until the Flutter replacement reaches data-import, authentication, cloud sync/restore, and full workflow parity.

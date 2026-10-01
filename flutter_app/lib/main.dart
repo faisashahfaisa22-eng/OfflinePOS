@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'data/app_database.dart';
+import 'features/products_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,8 +52,17 @@ class DashboardPage extends StatelessWidget {
           final item = modules[i];
           return Card(
             child: InkWell(
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${item.$2} migration in progress'))),
+              onTap: () {
+                if (i == 1) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProductsPage()),
+                  );
+                  return;
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${item.$2} migration in progress')),
+                );
+              },
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [

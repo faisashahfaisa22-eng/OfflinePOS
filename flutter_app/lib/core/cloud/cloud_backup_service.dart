@@ -37,8 +37,8 @@ class CloudBackupService {
     final data=Map<String,dynamic>.from(payload['data'] as Map);
     final db=await AppDatabase.instance.database;
     await db.transaction((txn) async {
-      const deleteOrder=['sale_items','purchase_items','fuel_shifts','fuel_nozzles','customer_loans','supplier_transactions','sales','purchases','fuel_tanks','salesmen','customers','suppliers','products','users','settings'];
-      const insertOrder=['products','customers','suppliers','salesmen','fuel_tanks','fuel_nozzles','sales','sale_items','purchases','purchase_items','customer_loans','supplier_transactions','fuel_shifts','users','settings'];
+      const deleteOrder=['sale_items','purchase_items','fuel_shifts','fuel_nozzles','customer_loans','supplier_transactions','sales','purchases','expenses','fuel_tanks','salesmen','customers','suppliers','products','users','settings'];
+      const insertOrder=['products','customers','suppliers','salesmen','fuel_tanks','fuel_nozzles','sales','sale_items','purchases','purchase_items','customer_loans','supplier_transactions','expenses','fuel_shifts','users','settings'];
       for(final table in deleteOrder){ await txn.delete(table); }
       for(final table in insertOrder){
         final rows=(data[table] as List?)??const [];

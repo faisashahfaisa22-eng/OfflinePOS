@@ -15,6 +15,7 @@ import '../products/products_page.dart';
 import '../purchases/purchases_page.dart';
 import '../reports/reports_page.dart';
 import '../sales/sales_page.dart';
+import '../salesmen/salesmen_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -214,6 +215,13 @@ class _DashboardPageState extends State<DashboardPage> {
                             title:s.t('suppliers'),
                             subtitle:'Supplier balances, payments and WhatsApp',
                             onTap:()=>_open(const PartyPage(type:PartyType.supplier)),
+                          ),
+                          _action(
+                            width:width,
+                            icon:Icons.badge_rounded,
+                            title:'Salesmen',
+                            subtitle:'Salesman accounts, assignment and commission',
+                            onTap:()=>_open(const SalesmenPage()),
                           ),
                           _action(
                             width:width,
@@ -451,6 +459,12 @@ class QamvioDrawer extends StatelessWidget {
             icon:Icons.local_shipping_rounded,
             title:strings.t('suppliers'),
             onTap:()=>_go(context,const PartyPage(type:PartyType.supplier)),
+          ),
+          _item(
+            context,
+            icon:Icons.badge_rounded,
+            title:'Salesmen',
+            onTap:()=>_go(context,const SalesmenPage()),
           ),
           _item(
             context,

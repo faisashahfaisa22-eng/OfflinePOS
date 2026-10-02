@@ -111,6 +111,28 @@ class _ProductsPageState extends State<ProductsPage> {
     await load();
   }
 
+  Future<void> remove(Map<String,Object?> x) async {
+    if(!canEdit) return;
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        title:const Text('Delete Product?'),
+        content:Text('Move "${x['name']}" to Recycle Bin? Products with stock history cannot be deleted until linked entries are removed.'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete')),
+        ],
+      ),
+    )??false;
+    if(!ok) return;
+    try {
+      await AppDatabase.instance.softDeleteById('products',x['id'].toString());
+      await load();
+    } catch(e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Products')),
@@ -212,10 +234,20 @@ class _ProductsPageState extends State<ProductsPage> {
                       DataCell(Text(QamvioUi.money(x['stock']))),
                       DataCell(
                         canEdit
-                          ?IconButton(
-                            tooltip:'Edit',
-                            onPressed:()=>edit(x),
-                            icon:const Icon(Icons.edit_outlined),
+                          ?Row(
+                            mainAxisSize:MainAxisSize.min,
+                            children:[
+                              IconButton(
+                                tooltip:'Edit',
+                                onPressed:()=>edit(x),
+                                icon:const Icon(Icons.edit_outlined),
+                              ),
+                              IconButton(
+                                tooltip:'Delete',
+                                onPressed:()=>remove(x),
+                                icon:const Icon(Icons.delete_outline_rounded),
+                              ),
+                            ],
                           )
                           :const SizedBox.shrink(),
                       ),

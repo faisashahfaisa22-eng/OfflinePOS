@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
-import '../../core/localization/language_controller.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
 class ExpensesPage extends StatefulWidget {
@@ -14,347 +15,201 @@ class ExpensesPage extends StatefulWidget {
 class _ExpensesPageState extends State<ExpensesPage> {
   List<Map<String,Object?>> rows=const [];
   bool loading=true;
-  final search=TextEditingController();
+  String editingId='';
+  DateTime date=DateTime.now();
+  String category='Salary';
+
+  final name=TextEditingController();
+  final amount=TextEditingController();
+  final note=TextEditingController();
+
+  bool get canEdit=>LocalAuthService.instance.isAdmin;
 
   @override
   void initState() {
     super.initState();
-    search.addListener(_refresh);
     load();
   }
 
   @override
   void dispose() {
-    search.removeListener(_refresh);
-    search.dispose();
+    name.dispose();
+    amount.dispose();
+    note.dispose();
     super.dispose();
   }
 
-  void _refresh()=>setState(() {});
-
   Future<void> load() async {
-    final x=await AppDatabase.instance.expenses();
+    final db=await AppDatabase.instance.database;
+    final data=await db.query('expenses',orderBy:'business_date DESC, created_at DESC');
     if(!mounted) return;
     setState(() {
-      rows=x;
+      rows=data;
       loading=false;
     });
   }
 
-  List<Map<String,Object?>> get filtered {
-    final q=search.text.trim().toLowerCase();
-    if(q.isEmpty) return rows;
-    return rows.where((x)=>[
-      x['name'],
-      x['category'],
-      x['note'],
-      x['created_at'],
-    ].join(' ').toLowerCase().contains(q)).toList();
+  void resetForm() {
+    setState(() {
+      editingId='';
+      date=DateTime.now();
+      category='Salary';
+      name.clear();
+      amount.clear();
+      note.clear();
+    });
   }
 
-  double get total=>rows.fold<double>(
-    0,
-    (a,x)=>a+((x['amount'] as num?)?.toDouble()??0),
-  );
+  void edit(Map<String,Object?> x) {
+    if(!canEdit) return;
+    setState(() {
+      editingId=x['id'].toString();
+      date=DateTime.tryParse(x['business_date']?.toString()??'')??DateTime.now();
+      category=x['category']?.toString()??'Salary';
+      name.text=x['name'].toString();
+      amount.text=QamvioUi.money(x['amount']);
+      note.text=x['note']?.toString()??'';
+    });
+  }
 
-  Future<void> add() async {
-    final name=TextEditingController();
-    final category=TextEditingController();
-    final amount=TextEditingController();
-    final note=TextEditingController();
-
-    final ok=await showModalBottomSheet<bool>(
+  Future<void> chooseDate() async {
+    final d=await showDatePicker(
       context:context,
-      isScrollControlled:true,
-      builder:(sheetContext)=>Padding(
-        padding:EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          MediaQuery.viewInsetsOf(sheetContext).bottom+20,
-        ),
-        child:Column(
-          mainAxisSize:MainAxisSize.min,
-          crossAxisAlignment:CrossAxisAlignment.stretch,
-          children:[
-            Text(
-              LanguageController.instance.strings.t('addExpense'),
-              style:Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
-                fontWeight:FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height:4),
-            const Text('Record a business expense with category and note.'),
-            const SizedBox(height:18),
-            TextField(
-              controller:name,
-              autofocus:true,
-              decoration:InputDecoration(
-                labelText:LanguageController.instance.strings.t('expenseName'),
-                prefixIcon:const Icon(Icons.receipt_long_outlined),
-              ),
-            ),
-            const SizedBox(height:10),
-            TextField(
-              controller:category,
-              decoration:InputDecoration(
-                labelText:LanguageController.instance.strings.t('category'),
-                prefixIcon:const Icon(Icons.category_outlined),
-              ),
-            ),
-            const SizedBox(height:10),
-            TextField(
-              controller:amount,
-              keyboardType:const TextInputType.numberWithOptions(decimal:true),
-              decoration:InputDecoration(
-                labelText:LanguageController.instance.strings.t('amount'),
-                prefixIcon:const Icon(Icons.payments_outlined),
-              ),
-            ),
-            const SizedBox(height:10),
-            TextField(
-              controller:note,
-              maxLines:2,
-              decoration:InputDecoration(
-                labelText:LanguageController.instance.strings.t('note'),
-                prefixIcon:const Icon(Icons.notes_rounded),
-              ),
-            ),
-            const SizedBox(height:18),
-            FilledButton.icon(
-              onPressed:()=>Navigator.pop(sheetContext,true),
-              icon:const Icon(Icons.save_outlined),
-              label:const Text('Save Expense'),
-            ),
-            const SizedBox(height:8),
-            TextButton(
-              onPressed:()=>Navigator.pop(sheetContext,false),
-              child:const Text('Cancel'),
-            ),
-          ],
-        ),
+      firstDate:DateTime(2000),
+      lastDate:DateTime(2100),
+      initialDate:date,
+    );
+    if(d!=null) setState(()=>date=d);
+  }
+
+  Future<void> save() async {
+    if(!canEdit) return;
+    final value=double.tryParse(amount.text.trim())??0;
+    if(name.text.trim().isEmpty||value<=0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Expense name and valid amount are required.')),
+      );
+      return;
+    }
+    await AppDatabase.instance.saveExpense(
+      id:editingId.isEmpty?DateTime.now().microsecondsSinceEpoch.toString():editingId,
+      name:name.text.trim(),
+      category:category,
+      amount:value,
+      note:note.text.trim(),
+      businessDate:date,
+    );
+    resetForm();
+    await load();
+  }
+
+  Future<void> remove(Map<String,Object?> x) async {
+    if(!canEdit) return;
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        title:const Text('Delete Expense?'),
+        content:Text('Move "${x['name']}" to Recycle Bin?'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete')),
+        ],
       ),
     );
-
-    if(ok==true && name.text.trim().isNotEmpty) {
-      final value=double.tryParse(amount.text)??0;
-      if(value>0) {
-        await AppDatabase.instance.saveExpense(
-          id:DateTime.now().microsecondsSinceEpoch.toString(),
-          name:name.text,
-          category:category.text,
-          amount:value,
-          note:note.text,
-        );
-        await load();
-      } else if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content:Text('Expense amount must be greater than zero.')),
-        );
-      }
+    if(ok==true) {
+      await AppDatabase.instance.softDeleteById('expenses',x['id'].toString());
+      await load();
     }
-
-    name.dispose();
-    category.dispose();
-    amount.dispose();
-    note.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final s=LanguageController.instance.strings;
-    return Scaffold(
-      appBar:AppBar(title:Text(s.t('expenses'))),
-      floatingActionButton:FloatingActionButton.extended(
-        onPressed:add,
-        icon:const Icon(Icons.add_rounded),
-        label:Text(s.t('addExpense')),
-      ),
-      body:loading
-        ?const Center(child:CircularProgressIndicator())
-        :RefreshIndicator(
-          onRefresh:load,
-          child:ListView(
-            physics:const AlwaysScrollableScrollPhysics(),
-            padding:QamvioUi.pagePadding,
-            children:[
-              QamvioPageIntro(
-                title:s.t('expenses'),
-                subtitle:'Track operating costs and keep profit reporting accurate.',
-                icon:Icons.receipt_long_rounded,
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('Expenses')),
+    body:loading
+      ?const Center(child:CircularProgressIndicator())
+      :ListView(
+        padding:QamvioUi.pagePadding,
+        children:[
+          const Text('Expenses',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900)),
+          const SizedBox(height:10),
+          if(canEdit)
+            Card(
+              child:Padding(
+                padding:const EdgeInsets.all(14),
+                child:Wrap(
+                  spacing:10,
+                  runSpacing:10,
+                  crossAxisAlignment:WrapCrossAlignment.end,
+                  children:[
+                    SizedBox(
+                      width:160,
+                      child:InkWell(
+                        onTap:chooseDate,
+                        child:InputDecorator(
+                          decoration:const InputDecoration(labelText:'Date'),
+                          child:Text(DateFormat('yyyy-MM-dd').format(date)),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width:220,child:TextField(controller:name,decoration:const InputDecoration(labelText:'Expense Name',hintText:'Enter expense name'))),
+                    SizedBox(
+                      width:180,
+                      child:DropdownButtonFormField<String>(
+                        initialValue:category,
+                        decoration:const InputDecoration(labelText:'Expense Category'),
+                        items:const [
+                          DropdownMenuItem(value:'Salary',child:Text('Salary')),
+                          DropdownMenuItem(value:'Oil',child:Text('Oil')),
+                          DropdownMenuItem(value:'Mechanic',child:Text('Mechanic')),
+                          DropdownMenuItem(value:'Extra',child:Text('Extra Expense')),
+                          DropdownMenuItem(value:'Other',child:Text('Other Expense')),
+                        ],
+                        onChanged:(v)=>setState(()=>category=v??category),
+                      ),
+                    ),
+                    SizedBox(width:150,child:TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount'))),
+                    SizedBox(width:250,child:TextField(controller:note,decoration:const InputDecoration(labelText:'Note'))),
+                    FilledButton(onPressed:save,child:Text(editingId.isEmpty?'Save Expense':'Update Expense')),
+                    if(editingId.isNotEmpty)
+                      OutlinedButton(onPressed:resetForm,child:const Text('Cancel Edit')),
+                  ],
+                ),
               ),
-              const SizedBox(height:18),
-              Row(
-                children:[
-                  Expanded(
-                    child:_summary(
-                      context,
-                      'Entries',
-                      rows.length.toString(),
-                      Icons.format_list_bulleted_rounded,
-                    ),
-                  ),
-                  const SizedBox(width:10),
-                  Expanded(
-                    child:_summary(
-                      context,
-                      'Total expenses',
-                      QamvioUi.money(total),
-                      Icons.payments_outlined,
-                    ),
-                  ),
+            ),
+          const SizedBox(height:10),
+          Card(
+            child:SingleChildScrollView(
+              scrollDirection:Axis.horizontal,
+              child:DataTable(
+                columns:const [
+                  DataColumn(label:Text('Date')),
+                  DataColumn(label:Text('Expense Name')),
+                  DataColumn(label:Text('Expense Category')),
+                  DataColumn(label:Text('Amount'),numeric:true),
+                  DataColumn(label:Text('Note')),
+                  DataColumn(label:Text('')),
+                ],
+                rows:[
+                  for(final x in rows)
+                    DataRow(cells:[
+                      DataCell(Text((x['business_date']??x['created_at']).toString().split('T').first)),
+                      DataCell(Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800))),
+                      DataCell(Text(x['category']?.toString()??'')),
+                      DataCell(Text(QamvioUi.money(x['amount']))),
+                      DataCell(Text(x['note']?.toString()??'')),
+                      DataCell(Row(
+                        mainAxisSize:MainAxisSize.min,
+                        children:[
+                          if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
+                          if(canEdit) IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
+                        ],
+                      )),
+                    ]),
                 ],
               ),
-              const SizedBox(height:18),
-              TextField(
-                controller:search,
-                decoration:InputDecoration(
-                  hintText:'Search expense, category or note',
-                  prefixIcon:const Icon(Icons.search_rounded),
-                  suffixIcon:search.text.isEmpty
-                    ?null
-                    :IconButton(
-                      onPressed:()=>search.clear(),
-                      icon:const Icon(Icons.close_rounded),
-                    ),
-                ),
-              ),
-              const SizedBox(height:18),
-              QamvioSectionTitle(
-                'Expense history',
-                subtitle:'${filtered.length} matching records',
-              ),
-              if(filtered.isEmpty)
-                QamvioEmptyState(
-                  icon:Icons.receipt_long_outlined,
-                  title:rows.isEmpty?'No expenses yet':'No matching expense',
-                  subtitle:rows.isEmpty
-                    ?'Record your first business expense for accurate reporting.'
-                    :'Try a different search term.',
-                  actionLabel:rows.isEmpty?'Add Expense':null,
-                  onAction:rows.isEmpty?add:null,
-                )
-              else
-                ...filtered.map((x)=>Padding(
-                  padding:const EdgeInsets.only(bottom:10),
-                  child:_expenseCard(context,x),
-                )),
-            ],
-          ),
-        ),
-    );
-  }
-
-  Widget _summary(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  )=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(14),
-      child:Row(
-        children:[
-          Container(
-            width:42,
-            height:42,
-            decoration:BoxDecoration(
-              color:Theme.of(context).colorScheme.primaryContainer,
-              borderRadius:BorderRadius.circular(13),
-            ),
-            child:Icon(
-              icon,
-              color:Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(width:10),
-          Expanded(
-            child:Column(
-              crossAxisAlignment:CrossAxisAlignment.start,
-              children:[
-                Text(
-                  value,
-                  maxLines:1,
-                  overflow:TextOverflow.ellipsis,
-                  style:const TextStyle(fontWeight:FontWeight.w900,fontSize:17),
-                ),
-                Text(
-                  label,
-                  style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:const Color(0xFF667085),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
       ),
-    ),
   );
-
-  Widget _expenseCard(BuildContext context,Map<String,Object?> x) {
-    final category=(x['category']??'Uncategorized').toString();
-    final note=(x['note']??'').toString();
-    return Card(
-      child:Padding(
-        padding:const EdgeInsets.all(14),
-        child:Row(
-          crossAxisAlignment:CrossAxisAlignment.start,
-          children:[
-            Container(
-              width:46,
-              height:46,
-              decoration:BoxDecoration(
-                color:const Color(0xFFFFF3E0),
-                borderRadius:BorderRadius.circular(15),
-              ),
-              child:const Icon(
-                Icons.receipt_long_rounded,
-                color:QamvioUi.warning,
-              ),
-            ),
-            const SizedBox(width:12),
-            Expanded(
-              child:Column(
-                crossAxisAlignment:CrossAxisAlignment.start,
-                children:[
-                  Text(
-                    x['name'].toString(),
-                    style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-                  ),
-                  const SizedBox(height:3),
-                  Text(
-                    category,
-                    style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color:const Color(0xFF667085),
-                    ),
-                  ),
-                  if(note.isNotEmpty) ...[
-                    const SizedBox(height:6),
-                    Text(
-                      note,
-                      maxLines:2,
-                      overflow:TextOverflow.ellipsis,
-                    ),
-                  ],
-                  const SizedBox(height:7),
-                  Text(
-                    x['created_at'].toString(),
-                    style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color:const Color(0xFF98A2B3),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width:10),
-            Text(
-              QamvioUi.money(x['amount']),
-              style:const TextStyle(fontWeight:FontWeight.w900,fontSize:17),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

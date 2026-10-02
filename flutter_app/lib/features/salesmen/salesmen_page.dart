@@ -415,5 +415,4 @@ class _SalesmenPageState extends State<SalesmenPage> {
       ),
     );
   }
-  }
 }

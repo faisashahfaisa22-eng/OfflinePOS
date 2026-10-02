@@ -334,7 +334,7 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
     if(customerId.isNotEmpty) {
       final found=customers.where((x)=>x['id'].toString()==customerId);
       if(found.isNotEmpty) balance=_n(found.first['balance']);
-      if(editing&&widget.existingSale?['customer_id']?.toString()==customerId) {
+      if(editing&&((widget.existingSale?['customer_id']?.toString()??'')==customerId)) {
         balance-=_n(widget.existingSale?['total'])-_n(widget.existingSale?['paid']);
       }
     } else if(salesmanId.isNotEmpty) {

@@ -643,6 +643,31 @@ class AppDatabase {
     final db=await database;
     await db.transaction((txn) async {
       final now=DateTime.now().toUtc().toIso8601String();
+
+      final existing=await txn.query('purchases',where:'id=?',whereArgs:[id],limit:1);
+      if(existing.isNotEmpty) {
+        final old=existing.first;
+        final oldItems=await txn.query('purchase_items',where:'purchase_id=?',whereArgs:[id]);
+        for(final item in oldItems) {
+          final pid=item['product_id']?.toString();
+          if(pid!=null&&pid.isNotEmpty) {
+            await txn.rawUpdate(
+              'UPDATE products SET stock=stock-?,updated_at=?,sync_state=0 WHERE id=?',
+              [_nDb(item['qty']),now,pid],
+            );
+          }
+        }
+        final oldSupplier=old['supplier_id']?.toString();
+        if(oldSupplier!=null&&oldSupplier.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE suppliers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(old['due']),now,oldSupplier],
+          );
+        }
+        await txn.delete('purchase_items',where:'purchase_id=?',whereArgs:[id]);
+        await txn.delete('purchases',where:'id=?',whereArgs:[id]);
+      }
+
       final day=(businessDate??DateTime.now()).toIso8601String().split('T').first;
       double total=0;
       for(final item in items) {

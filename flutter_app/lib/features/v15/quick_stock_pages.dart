@@ -195,6 +195,10 @@ class StockPage extends StatefulWidget {
 
 class _StockPageState extends State<StockPage> {
   late Future<List<Map<String,Object?>>> future;
+  List<Map<String,Object?>> products=const [];
+  String productId='';
+  final qty=TextEditingController();
+  final note=TextEditingController();
 
   @override
   void initState() {
@@ -202,8 +206,17 @@ class _StockPageState extends State<StockPage> {
     future=_load();
   }
 
+  @override
+  void dispose() {
+    qty.dispose();
+    note.dispose();
+    super.dispose();
+  }
+
   Future<List<Map<String,Object?>>> _load() async {
     final db=await AppDatabase.instance.database;
+    products=await db.query('products',orderBy:'name COLLATE NOCASE');
+    if(productId.isEmpty&&products.isNotEmpty) productId=products.first['id'].toString();
     return db.rawQuery(
       'SELECT p.*,'
       'COALESCE((SELECT SUM(pi.qty) FROM purchase_items pi WHERE pi.product_id=p.id),0) purchased,'
@@ -218,6 +231,32 @@ class _StockPageState extends State<StockPage> {
     await future;
   }
 
+  Future<void> addAdjustment() async {
+    if(productId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Select product.')),
+      );
+      return;
+    }
+    final value=double.tryParse(qty.text.trim())??0;
+    if(value==0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Adjustment Qty cannot be zero.')),
+      );
+      return;
+    }
+    await AppDatabase.instance.saveStockAdjustment(
+      id:DateTime.now().microsecondsSinceEpoch.toString(),
+      productId:productId,
+      qty:value,
+      note:note.text.trim(),
+      source:'manual',
+    );
+    qty.clear();
+    note.clear();
+    await refresh();
+  }
+
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Stock')),
@@ -226,36 +265,69 @@ class _StockPageState extends State<StockPage> {
       builder:(context,snapshot) {
         if(!snapshot.hasData) return const Center(child:CircularProgressIndicator());
         final rows=snapshot.data!;
-        final totalCost=rows.fold<double>(
-          0,
-          (a,x)=>a+_n(x['stock'])*_n(x['cost']),
-        );
-        final totalRetail=rows.fold<double>(
-          0,
-          (a,x)=>a+_n(x['stock'])*_n(x['price']),
-        );
         return RefreshIndicator(
           onRefresh:refresh,
           child:ListView(
             physics:const AlwaysScrollableScrollPhysics(),
             padding:QamvioUi.pagePadding,
             children:[
-              const QamvioPageIntro(
-                title:'Stock',
-                subtitle:'Opening + Purchases + Adjustments − Sold quantity.',
-                icon:Icons.inventory_2_rounded,
+              const Text('Stock',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900)),
+              const SizedBox(height:8),
+              Container(
+                padding:const EdgeInsets.all(12),
+                decoration:BoxDecoration(
+                  color:const Color(0xFFEFF6FF),
+                  borderRadius:BorderRadius.circular(10),
+                  border:Border.all(color:const Color(0xFFBFDBFE)),
+                ),
+                child:const Text('Current Stock = Opening + Purchases + Adjustments − Sold Qty.'),
               ),
-              const SizedBox(height:16),
-              Row(
-                children:[
-                  Expanded(child:_mini(context,'Items','${rows.length}',Icons.widgets_outlined)),
-                  const SizedBox(width:8),
-                  Expanded(child:_mini(context,'Cost Value',_money(totalCost),Icons.account_balance_wallet_outlined)),
-                  const SizedBox(width:8),
-                  Expanded(child:_mini(context,'Sale Value',_money(totalRetail),Icons.sell_outlined)),
-                ],
-              ),
-              const SizedBox(height:16),
+              const SizedBox(height:10),
+              if(products.isNotEmpty)
+                Card(
+                  child:Padding(
+                    padding:const EdgeInsets.all(12),
+                    child:Wrap(
+                      spacing:10,
+                      runSpacing:10,
+                      crossAxisAlignment:WrapCrossAlignment.end,
+                      children:[
+                        SizedBox(
+                          width:240,
+                          child:DropdownButtonFormField<String>(
+                            initialValue:productId,
+                            decoration:const InputDecoration(labelText:'Product'),
+                            items:[
+                              for(final p in products)
+                                DropdownMenuItem(value:p['id'].toString(),child:Text(p['name'].toString())),
+                            ],
+                            onChanged:(v)=>setState(()=>productId=v??productId),
+                          ),
+                        ),
+                        SizedBox(
+                          width:160,
+                          child:TextField(
+                            controller:qty,
+                            keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),
+                            decoration:const InputDecoration(labelText:'Adjustment Qty (+/-)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width:260,
+                          child:TextField(
+                            controller:note,
+                            decoration:const InputDecoration(labelText:'Note'),
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed:addAdjustment,
+                          child:const Text('Save Adjustment'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height:10),
               Card(
                 child:SingleChildScrollView(
                   scrollDirection:Axis.horizontal,
@@ -264,27 +336,29 @@ class _StockPageState extends State<StockPage> {
                       DataColumn(label:Text('Product')),
                       DataColumn(label:Text('Opening'),numeric:true),
                       DataColumn(label:Text('Purchased'),numeric:true),
-                      DataColumn(label:Text('Adjusted'),numeric:true),
                       DataColumn(label:Text('Sold'),numeric:true),
+                      DataColumn(label:Text('Adjust'),numeric:true),
                       DataColumn(label:Text('Current'),numeric:true),
+                      DataColumn(label:Text('Reorder'),numeric:true),
+                      DataColumn(label:Text('Status')),
                       DataColumn(label:Text('Cost'),numeric:true),
-                      DataColumn(label:Text('Value'),numeric:true),
+                      DataColumn(label:Text('Stock Value'),numeric:true),
                     ],
                     rows:[
                       for(final x in rows)
                         DataRow(cells:[
-                          DataCell(Text(x['name'].toString())),
+                          DataCell(Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800))),
                           DataCell(Text(_money(x['opening_qty']))),
                           DataCell(Text(_money(x['purchased']))),
-                          DataCell(Text(_money(x['adjusted']))),
                           DataCell(Text(_money(x['sold']))),
+                          DataCell(Text(_money(x['adjusted']))),
+                          DataCell(Text(_money(x['stock']),style:const TextStyle(fontWeight:FontWeight.w900))),
+                          DataCell(Text(_money(x['reorder_level']))),
                           DataCell(Text(
-                            _money(x['stock']),
+                            _n(x['stock'])<=_n(x['reorder_level'])?'LOW':'OK',
                             style:TextStyle(
                               fontWeight:FontWeight.w900,
-                              color:_n(x['stock'])<=_n(x['reorder_level'])
-                                ?QamvioUi.danger
-                                :null,
+                              color:_n(x['stock'])<=_n(x['reorder_level'])?QamvioUi.danger:QamvioUi.success,
                             ),
                           )),
                           DataCell(Text(_money(x['cost']))),
@@ -298,21 +372,6 @@ class _StockPageState extends State<StockPage> {
           ),
         );
       },
-    ),
-  );
-
-  Widget _mini(BuildContext context,String label,String value,IconData icon)=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(12),
-      child:Column(
-        crossAxisAlignment:CrossAxisAlignment.start,
-        children:[
-          Icon(icon,size:18,color:Theme.of(context).colorScheme.primary),
-          const SizedBox(height:7),
-          Text(value,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w900)),
-          Text(label,maxLines:1,overflow:TextOverflow.ellipsis,style:Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
     ),
   );
 }
@@ -511,12 +570,9 @@ class _DiscountReportPageState extends State<DiscountReportPage> {
   Future<List<Map<String,Object?>>> _load() async {
     final db=await AppDatabase.instance.database;
     return db.rawQuery(
-      'SELECT s.invoice_no,s.business_date,s.discount,s.subtotal,s.total,'
-      'c.name customer_name,sm.name salesman_name '
-      'FROM sales s '
-      'LEFT JOIN customers c ON c.id=s.customer_id '
-      'LEFT JOIN salesmen sm ON sm.id=s.salesman_id '
-      'WHERE s.discount>0 ORDER BY s.created_at DESC',
+      'SELECT s.business_date,s.invoice_no,si.product_name,si.qty,si.discount '
+      'FROM sale_items si JOIN sales s ON s.id=si.sale_id '
+      'WHERE si.discount>0 ORDER BY s.created_at DESC',
     );
   }
 
@@ -532,16 +588,28 @@ class _DiscountReportPageState extends State<DiscountReportPage> {
         return ListView(
           padding:QamvioUi.pagePadding,
           children:[
-            QamvioPageIntro(
-              title:'Discount Report',
-              subtitle:'Invoice discount history exactly from saved sales.',
-              icon:Icons.discount_rounded,
-              trailing:Text(
-                _money(total),
-                style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w900,fontSize:18),
-              ),
+            const Text('Discount Report',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900)),
+            const SizedBox(height:10),
+            Row(
+              children:[
+                Expanded(
+                  child:QamvioStatCard(
+                    label:'Total Discount',
+                    value:_money(total),
+                    icon:Icons.discount_rounded,
+                  ),
+                ),
+                const SizedBox(width:8),
+                Expanded(
+                  child:QamvioStatCard(
+                    label:'Discounted Line Items',
+                    value:rows.length.toString(),
+                    icon:Icons.format_list_numbered_rounded,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height:16),
+            const SizedBox(height:12),
             Card(
               child:SingleChildScrollView(
                 scrollDirection:Axis.horizontal,
@@ -549,22 +617,18 @@ class _DiscountReportPageState extends State<DiscountReportPage> {
                   columns:const [
                     DataColumn(label:Text('Date')),
                     DataColumn(label:Text('Invoice')),
-                    DataColumn(label:Text('Customer')),
-                    DataColumn(label:Text('Salesman')),
-                    DataColumn(label:Text('Gross'),numeric:true),
+                    DataColumn(label:Text('Product')),
+                    DataColumn(label:Text('Qty'),numeric:true),
                     DataColumn(label:Text('Discount'),numeric:true),
-                    DataColumn(label:Text('Net'),numeric:true),
                   ],
                   rows:[
                     for(final x in rows)
                       DataRow(cells:[
                         DataCell(Text(x['business_date']?.toString()??'')),
                         DataCell(Text(x['invoice_no'].toString())),
-                        DataCell(Text(x['customer_name']?.toString()??'')),
-                        DataCell(Text(x['salesman_name']?.toString()??'')),
-                        DataCell(Text(_money(x['subtotal']))),
+                        DataCell(Text(x['product_name'].toString())),
+                        DataCell(Text(_money(x['qty']))),
                         DataCell(Text(_money(x['discount']))),
-                        DataCell(Text(_money(x['total']))),
                       ]),
                   ],
                 ),

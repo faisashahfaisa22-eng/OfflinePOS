@@ -847,6 +847,214 @@ class AppDatabase {
     },conflictAlgorithm:ConflictAlgorithm.replace);
   }
 
+  Future<void> saveFuelTank({
+    required String id,
+    required String name,
+    required String productId,
+    required double capacity,
+    required double openingLiters,
+    String? note,
+  }) async {
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    await db.transaction((txn) async {
+      final old=await txn.query('fuel_tanks',where:'id=?',whereArgs:[id],limit:1);
+      final oldOpening=old.isEmpty?0:_nDb(old.first['opening_liters']);
+      final oldProduct=old.isEmpty?null:old.first['product_id']?.toString();
+      final oldCurrent=old.isEmpty?0:_nDb(old.first['current_stock']);
+      final current=old.isEmpty?openingLiters:oldCurrent+(openingLiters-oldOpening);
+      await txn.insert('fuel_tanks',{
+        'id':id,
+        'name':name.trim(),
+        'product_id':productId,
+        'fuel_type':'Fuel',
+        'capacity':capacity,
+        'opening_liters':openingLiters,
+        'current_stock':current,
+        'note':note,
+        'updated_at':now,
+        'sync_state':0,
+      },conflictAlgorithm:ConflictAlgorithm.replace);
+
+      if(oldProduct!=null&&oldProduct.isNotEmpty&&oldProduct!=productId) {
+        final sum=await txn.rawQuery(
+          'SELECT COALESCE(SUM(opening_liters),0) v FROM fuel_tanks WHERE product_id=?',
+          [oldProduct],
+        );
+        await txn.update(
+          'products',
+          {'opening_qty':_nDb(sum.first['v']),'updated_at':now,'sync_state':0},
+          where:'id=?',
+          whereArgs:[oldProduct],
+        );
+      }
+      final sum=await txn.rawQuery(
+        'SELECT COALESCE(SUM(opening_liters),0) v FROM fuel_tanks WHERE product_id=?',
+        [productId],
+      );
+      final product=await txn.query('products',columns:['opening_qty','stock'],where:'id=?',whereArgs:[productId],limit:1);
+      if(product.isNotEmpty) {
+        final oldProductOpening=_nDb(product.first['opening_qty']);
+        final newOpening=_nDb(sum.first['v']);
+        await txn.update(
+          'products',
+          {
+            'opening_qty':newOpening,
+            'stock':_nDb(product.first['stock'])+(newOpening-oldProductOpening),
+            'updated_at':now,
+            'sync_state':0,
+          },
+          where:'id=?',
+          whereArgs:[productId],
+        );
+      }
+    });
+  }
+
+  Future<void> saveFuelNozzle({
+    required String id,
+    required String tankId,
+    required String name,
+    required double openingMeter,
+    String? note,
+  }) async {
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    final old=await db.query('fuel_nozzles',where:'id=?',whereArgs:[id],limit:1);
+    final meter=old.isEmpty?openingMeter:_nDb(old.first['meter_reading']);
+    await db.insert('fuel_nozzles',{
+      'id':id,
+      'tank_id':tankId,
+      'name':name.trim(),
+      'opening_meter':openingMeter,
+      'meter_reading':meter,
+      'price_per_unit':old.isEmpty?0:_nDb(old.first['price_per_unit']),
+      'note':note,
+      'updated_at':now,
+      'sync_state':0,
+    },conflictAlgorithm:ConflictAlgorithm.replace);
+  }
+
+  Future<void> createFuelDelivery({
+    required String id,
+    required String supplierId,
+    required String tankId,
+    required double liters,
+    required double costPerLiter,
+    double paid=0,
+    String? invoiceNo,
+    String? note,
+    DateTime? businessDate,
+  }) async {
+    final db=await database;
+    final tank=await db.query('fuel_tanks',where:'id=?',whereArgs:[tankId],limit:1);
+    if(tank.isEmpty) throw StateError('Fuel tank not found.');
+    final productId=tank.first['product_id']?.toString();
+    if(productId==null||productId.isEmpty) throw StateError('Fuel tank is not linked to a product.');
+    await createPurchase(
+      id:id,
+      supplierId:supplierId,
+      items:[{'product_id':productId,'qty':liters,'cost':costPerLiter}],
+      paid:paid,
+      invoiceNo:invoiceNo,
+      note:note,
+      source:'fuel_delivery',
+      fuelTankId:tankId,
+      businessDate:businessDate,
+    );
+    final now=DateTime.now().toUtc().toIso8601String();
+    await db.rawUpdate(
+      'UPDATE fuel_tanks SET current_stock=current_stock+?,updated_at=?,sync_state=0 WHERE id=?',
+      [liters,now,tankId],
+    );
+  }
+
+  Future<void> createFuelShift({
+    required String id,
+    required String nozzleId,
+    String? salesmanId,
+    String? customerId,
+    String? shiftName,
+    String? invoiceNo,
+    required double openingMeter,
+    required double closingMeter,
+    required double pricePerLiter,
+    double cashReceived=0,
+    String? note,
+    DateTime? businessDate,
+  }) async {
+    if(closingMeter<openingMeter) {
+      throw ArgumentError('Closing meter cannot be below opening meter.');
+    }
+    final db=await database;
+    final nozzle=await db.rawQuery(
+      'SELECT n.*,t.id tank_id,t.product_id,p.name product_name,p.cost '
+      'FROM fuel_nozzles n JOIN fuel_tanks t ON t.id=n.tank_id '
+      'LEFT JOIN products p ON p.id=t.product_id WHERE n.id=? LIMIT 1',
+      [nozzleId],
+    );
+    if(nozzle.isEmpty) throw StateError('Fuel nozzle not found.');
+    final row=nozzle.first;
+    final productId=row['product_id']?.toString();
+    if(productId==null||productId.isEmpty) throw StateError('Nozzle tank is not linked to a product.');
+    final liters=closingMeter-openingMeter;
+    final saleId='fuel_sale_$id';
+    final inv=(invoiceNo??'').trim().isEmpty
+      ?'FUEL-${DateTime.now().millisecondsSinceEpoch}'
+      :invoiceNo!.trim();
+    await createSale(
+      id:saleId,
+      invoiceNo:inv,
+      customerId:customerId,
+      salesmanId:salesmanId,
+      items:[{
+        'product_id':productId,
+        'product_name':row['product_name']??'Fuel',
+        'qty':liters,
+        'price':pricePerLiter,
+        'discount':0.0,
+        'cost':_nDb(row['cost']),
+      }],
+      paid:cashReceived,
+      note:note,
+      businessDate:businessDate,
+    );
+    final now=DateTime.now().toUtc().toIso8601String();
+    final day=(businessDate??DateTime.now()).toIso8601String().split('T').first;
+    await db.transaction((txn) async {
+      await txn.rawUpdate(
+        'UPDATE fuel_tanks SET current_stock=current_stock-?,updated_at=?,sync_state=0 WHERE id=?',
+        [liters,now,row['tank_id']],
+      );
+      await txn.rawUpdate(
+        'UPDATE fuel_nozzles SET meter_reading=?,price_per_unit=?,updated_at=?,sync_state=0 WHERE id=?',
+        [closingMeter,pricePerLiter,now,nozzleId],
+      );
+      await txn.insert('fuel_shifts',{
+        'id':id,
+        'business_date':day,
+        'tank_id':row['tank_id'],
+        'nozzle_id':nozzleId,
+        'salesman_id':salesmanId,
+        'customer_id':customerId,
+        'sale_id':saleId,
+        'shift_name':shiftName,
+        'invoice_no':inv,
+        'opening_meter':openingMeter,
+        'closing_meter':closingMeter,
+        'litres':liters,
+        'price_per_unit':pricePerLiter,
+        'total':liters*pricePerLiter,
+        'cash_received':cashReceived,
+        'expense':0,
+        'started_at':now,
+        'closed_at':now,
+        'updated_at':now,
+        'sync_state':0,
+      });
+    });
+  }
+
   Future<void> saveMedicine({required String id,required String name,String? batchNo,String? expiryDate,double price=0,double stock=0}) async {
     final db=await database,now=DateTime.now().toUtc().toIso8601String();
     await db.insert('products',{'id':id,'name':name.trim(),'category':'Pharmacy','price':price,'stock':stock,'unit':'pcs','batch_no':batchNo,'expiry_date':expiryDate,'updated_at':now,'sync_state':0},conflictAlgorithm:ConflictAlgorithm.replace);

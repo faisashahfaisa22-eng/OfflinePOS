@@ -46,7 +46,7 @@ class AppDatabase {
     return openDatabase(
       path,
       password: _sqlcipherKey,
-      version: 5,
+      version: 6,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async => _createSchema(db),
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -54,6 +54,7 @@ class AppDatabase {
         if (oldVersion < 3) await _createV3Tables(db);
         if (oldVersion < 4) await _createV4Tables(db);
         if (oldVersion < 5) await _createV5Tables(db);
+        if (oldVersion < 6) await _createV6Tables(db);
       },
     );
   }
@@ -181,11 +182,11 @@ class AppDatabase {
   }
 
   Future<void> _createSchema(Database db) async {
-    await db.execute('CREATE TABLE products(id TEXT PRIMARY KEY,name TEXT NOT NULL,sku TEXT,barcode TEXT,category TEXT,cost REAL NOT NULL DEFAULT 0,price REAL NOT NULL DEFAULT 0,stock REAL NOT NULL DEFAULT 0,unit TEXT,batch_no TEXT,expiry_date TEXT,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
-    await db.execute('CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,address TEXT,balance REAL NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
-    await db.execute('CREATE TABLE suppliers(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,address TEXT,balance REAL NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
-    await db.execute('CREATE TABLE salesmen(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,commission REAL NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
-    await db.execute('CREATE TABLE sales(id TEXT PRIMARY KEY,invoice_no TEXT NOT NULL,customer_id TEXT,salesman_id TEXT,subtotal REAL NOT NULL DEFAULT 0,discount REAL NOT NULL DEFAULT 0,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(customer_id) REFERENCES customers(id),FOREIGN KEY(salesman_id) REFERENCES salesmen(id))');
+    await db.execute('CREATE TABLE products(id TEXT PRIMARY KEY,name TEXT NOT NULL,sku TEXT,barcode TEXT,category TEXT,cost REAL NOT NULL DEFAULT 0,price REAL NOT NULL DEFAULT 0,stock REAL NOT NULL DEFAULT 0,opening_qty REAL NOT NULL DEFAULT 0,reorder_level REAL NOT NULL DEFAULT 0,unit TEXT,batch_no TEXT,expiry_date TEXT,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE customers(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,address TEXT,salesman_id TEXT,opening REAL NOT NULL DEFAULT 0,credit_limit REAL NOT NULL DEFAULT 0,note TEXT,balance REAL NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(salesman_id) REFERENCES salesmen(id))');
+    await db.execute('CREATE TABLE suppliers(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,address TEXT,opening REAL NOT NULL DEFAULT 0,note TEXT,balance REAL NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE salesmen(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,commission REAL NOT NULL DEFAULT 0,credit_limit REAL NOT NULL DEFAULT 0,note TEXT,active INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE sales(id TEXT PRIMARY KEY,invoice_no TEXT NOT NULL,business_date TEXT,customer_id TEXT,salesman_id TEXT,subtotal REAL NOT NULL DEFAULT 0,discount REAL NOT NULL DEFAULT 0,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,oil REAL NOT NULL DEFAULT 0,other REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(customer_id) REFERENCES customers(id),FOREIGN KEY(salesman_id) REFERENCES salesmen(id))');
     await db.execute('CREATE TABLE sale_items(id TEXT PRIMARY KEY,sale_id TEXT NOT NULL,product_id TEXT,product_name TEXT NOT NULL,qty REAL NOT NULL,price REAL NOT NULL,cost REAL,total REAL NOT NULL,FOREIGN KEY(sale_id) REFERENCES sales(id) ON DELETE CASCADE,FOREIGN KEY(product_id) REFERENCES products(id))');
     await db.execute('CREATE TABLE expenses(id TEXT PRIMARY KEY,name TEXT NOT NULL,category TEXT,amount REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE purchases(id TEXT PRIMARY KEY,supplier_id TEXT,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(supplier_id) REFERENCES suppliers(id))');
@@ -201,6 +202,7 @@ class AppDatabase {
     await db.execute('CREATE TABLE sync_queue(id INTEGER PRIMARY KEY AUTOINCREMENT,entity_type TEXT NOT NULL,entity_id TEXT NOT NULL,operation TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE legacy_archives(id INTEGER PRIMARY KEY AUTOINCREMENT,source TEXT NOT NULL,source_updated_at TEXT,archived_at TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL)');
     await db.execute('CREATE TABLE migration_state(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT NOT NULL)');
+    await _createV6Tables(db);
   }
 
   Future<void> _createV2Tables(Database db) async {
@@ -236,6 +238,36 @@ class AppDatabase {
 
   Future<void> _createV5Tables(Database db) async {
     await db.execute('CREATE TABLE IF NOT EXISTS salesman_loans(id TEXT PRIMARY KEY,salesman_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,source TEXT,linked_sale_id TEXT,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(salesman_id) REFERENCES salesmen(id),FOREIGN KEY(linked_sale_id) REFERENCES sales(id) ON DELETE SET NULL)');
+  }
+
+  Future<void> _createV6Tables(Database db) async {
+    Future<void> addColumn(String table,String name,String definition) async {
+      final cols=await db.rawQuery('PRAGMA table_info('+table+')');
+      final names=cols.map((x)=>x['name']?.toString()).toSet();
+      if(!names.contains(name)) {
+        await db.execute('ALTER TABLE '+table+' ADD COLUMN '+name+' '+definition);
+      }
+    }
+
+    await addColumn('products','opening_qty','REAL NOT NULL DEFAULT 0');
+    await addColumn('products','reorder_level','REAL NOT NULL DEFAULT 0');
+    await addColumn('customers','salesman_id','TEXT');
+    await addColumn('customers','opening','REAL NOT NULL DEFAULT 0');
+    await addColumn('customers','credit_limit','REAL NOT NULL DEFAULT 0');
+    await addColumn('customers','note','TEXT');
+    await addColumn('suppliers','opening','REAL NOT NULL DEFAULT 0');
+    await addColumn('suppliers','note','TEXT');
+    await addColumn('salesmen','credit_limit','REAL NOT NULL DEFAULT 0');
+    await addColumn('salesmen','note','TEXT');
+    await addColumn('sales','business_date','TEXT');
+    await addColumn('sales','oil','REAL NOT NULL DEFAULT 0');
+    await addColumn('sales','other','REAL NOT NULL DEFAULT 0');
+    await addColumn('sales','note','TEXT');
+
+    await db.execute('CREATE TABLE IF NOT EXISTS capital(id TEXT PRIMARY KEY,business_date TEXT NOT NULL,name TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE IF NOT EXISTS stock_adjustments(id TEXT PRIMARY KEY,business_date TEXT NOT NULL,product_id TEXT NOT NULL,qty REAL NOT NULL DEFAULT 0,note TEXT,source TEXT,fuel_tank_id TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(product_id) REFERENCES products(id),FOREIGN KEY(fuel_tank_id) REFERENCES fuel_tanks(id))');
+    await db.execute('CREATE TABLE IF NOT EXISTS fuel_closings(id TEXT PRIMARY KEY,business_date TEXT NOT NULL,opening_cash REAL NOT NULL DEFAULT 0,cash_in REAL NOT NULL DEFAULT 0,cash_out REAL NOT NULL DEFAULT 0,expected_cash REAL NOT NULL DEFAULT 0,actual_cash REAL NOT NULL DEFAULT 0,variance REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE IF NOT EXISTS recycle_bin(id TEXT PRIMARY KEY,section TEXT NOT NULL,label TEXT,record_json TEXT NOT NULL,linked_records_json TEXT,deleted_at TEXT NOT NULL)');
   }
 
   Future<List<Map<String, Object?>>> products() async {

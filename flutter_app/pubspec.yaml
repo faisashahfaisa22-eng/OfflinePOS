@@ -21,6 +21,8 @@ dependencies:
   cryptography: ^2.9.0
   cryptography_flutter: ^2.3.4
   url_launcher: ^6.3.2
+  printing: ^5.14.3
+  pdf: ^3.11.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

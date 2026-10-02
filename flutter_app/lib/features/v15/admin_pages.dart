@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/security/crypto_utils.dart';

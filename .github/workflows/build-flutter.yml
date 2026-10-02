@@ -59,8 +59,6 @@ jobs:
 
       - name: Clean
         run: flutter clean
-      - name: Clean Flutter build
-        run: flutter clean
       - name: Get dependencies
         run: flutter pub get
       - name: Analyze

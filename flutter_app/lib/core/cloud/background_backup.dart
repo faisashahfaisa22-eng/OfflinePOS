@@ -8,21 +8,21 @@ import 'cloud_config.dart';
 const qamvioDailyBackupTask = 'qamvioDailyBackup';
 
 /// Runs in a background isolate. The encrypted database cannot be opened here
-/// (the key exists only after a user signs in), so the task uploads the
-/// encrypted backup file that the app prepared while it was unlocked.
+/// because the database key is only available after a local user signs in.
 ///
-/// The cloud session must have been established from the main app before a
-/// background upload can succeed.
+/// Instead, the task uploads the encrypted backup file that QAMVIO prepared
+/// while the app was unlocked. A cloud account must already have been signed in
+/// from Cloud & Backup so Supabase can restore its persisted session.
 @pragma('vm:entry-point')
 void cloudBackupDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
-      // Some Android builds/OEM ROMs need an explicit Flutter binding before
-      // plugins are used from a fresh background isolate.
+      // Background tasks run in a fresh isolate. Initialize Flutter bindings
+      // before using plugins on Android/OEM builds that require them.
       WidgetsFlutterBinding.ensureInitialized();
 
-      // A fresh isolate has no Supabase instance; initialize it before using
-      // CloudBackupService. Session restoration is handled by supabase_flutter.
+      // A fresh isolate has no Supabase singleton yet. Re-create it using the
+      // same project configuration; supabase_flutter restores persisted auth.
       await Supabase.initialize(
         url: CloudConfig.supabaseUrl,
         publishableKey: CloudConfig.supabaseAnonKey,
@@ -30,8 +30,9 @@ void cloudBackupDispatcher() {
 
       await CloudBackupService.instance.uploadPendingFile();
       return true;
-    } catch (e, st) {
-      debugPrint('Background cloud backup failed: $e\n$st');
+    } catch (_) {
+      // Returning false lets Workmanager treat the execution as unsuccessful
+      // without crashing or blocking the offline-first app.
       return false;
     }
   });

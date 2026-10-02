@@ -862,39 +862,78 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
     },
   );
 
-  DataRow _lineRow(String id,Map<String,Object?> x) {
-    final amount=_n(x['price'])*_n(x['qty']);
-    final t=(amount-_n(x['discount'])).clamp(0,double.infinity);
-    return DataRow(cells:[
-      DataCell(SizedBox(width:150,child:Text(x['product_name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)))),
-      DataCell(SizedBox(
-        width:90,
-        child:TextFormField(
-          initialValue:_money(x['price']),
-          keyboardType:const TextInputType.numberWithOptions(decimal:true),
-          onChanged:(v)=>setState(()=>x['price']=double.tryParse(v)??0),
+  DataRow _lineRow(String id, Map<String, Object?> x) {
+    final amount = _n(x['price']) * _n(x['qty']);
+    final t = (amount - _n(x['discount'])).clamp(0, double.infinity);
+
+    return DataRow(
+      // Stable row/field keys keep TextFormField state attached to the correct
+      // product when invoice rows are inserted or removed.
+      key: ValueKey('row_$id'),
+      cells: [
+        DataCell(
+          SizedBox(
+            width: 150,
+            child: Text(
+              x['product_name'].toString(),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
         ),
-      )),
-      DataCell(SizedBox(
-        width:90,
-        child:TextFormField(
-          initialValue:_money(x['qty']),
-          keyboardType:const TextInputType.numberWithOptions(decimal:true),
-          onChanged:(v)=>setState(()=>x['qty']=double.tryParse(v)??0),
+        DataCell(
+          SizedBox(
+            width: 90,
+            child: TextFormField(
+              key: ValueKey('price_$id'),
+              initialValue: _money(x['price']),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) =>
+                  setState(() => x['price'] = double.tryParse(v) ?? 0),
+            ),
+          ),
         ),
-      )),
-      DataCell(Text(_money(amount))),
-      DataCell(SizedBox(
-        width:90,
-        child:TextFormField(
-          initialValue:_money(x['discount']),
-          keyboardType:const TextInputType.numberWithOptions(decimal:true),
-          onChanged:(v)=>setState(()=>x['discount']=double.tryParse(v)??0),
+        DataCell(
+          SizedBox(
+            width: 90,
+            child: TextFormField(
+              key: ValueKey('qty_$id'),
+              initialValue: _money(x['qty']),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) =>
+                  setState(() => x['qty'] = double.tryParse(v) ?? 0),
+            ),
+          ),
         ),
-      )),
-      DataCell(Text(_money(t),style:const TextStyle(fontWeight:FontWeight.w900))),
-      DataCell(IconButton(onPressed:()=>setState(()=>cart.remove(id)),icon:const Icon(Icons.close_rounded))),
-    ]);
+        DataCell(Text(_money(amount))),
+        DataCell(
+          SizedBox(
+            width: 90,
+            child: TextFormField(
+              key: ValueKey('discount_$id'),
+              initialValue: _money(x['discount']),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) =>
+                  setState(() => x['discount'] = double.tryParse(v) ?? 0),
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            _money(t),
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ),
+        DataCell(
+          IconButton(
+            onPressed: () => setState(() => cart.remove(id)),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _summaryBox()=>Table(

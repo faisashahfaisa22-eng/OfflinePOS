@@ -822,8 +822,8 @@ class _Section extends StatelessWidget {
   );
 }
 
-class V15NavigationDrawer extends StatelessWidget {
-  final Future<void> Function(AppPage,Widget) onNavigate;
+class V15NavigationDrawer extends StatefulWidget {
+  final Future<void> Function(AppPage, Widget) onNavigate;
   final AppStrings strings;
 
   const V15NavigationDrawer({
@@ -833,113 +833,301 @@ class V15NavigationDrawer extends StatelessWidget {
   });
 
   @override
+  State<V15NavigationDrawer> createState() => _V15NavigationDrawerState();
+}
+
+class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
+  Timer? _clock;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // Tick every second so the offline 24-hour clock stays live while the
+    // drawer is open. The timer is disposed with the drawer.
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() => _now = DateTime.now());
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final auth=LocalAuthService.instance;
-    final user=auth.current;
-    final items=<({AppPage page,String label,IconData icon,Widget widget})>[
-      (page:AppPage.quickSearch,label:'Quick Search',icon:Icons.manage_search_rounded,widget:const QuickSearchPage()),
-      (page:AppPage.saleInvoice,label:'Sales / Cash Report',icon:Icons.point_of_sale_rounded,widget:const SalesPage()),
-      (page:AppPage.fuelPump,label:'⛽ Fuel / Oil Pump',icon:Icons.local_gas_station_rounded,widget:const FuelPage()),
-      (page:AppPage.stock,label:'Stock',icon:Icons.inventory_2_rounded,widget:const StockPage()),
-      (page:AppPage.stockLedger,label:'Stock Ledger',icon:Icons.format_list_numbered_rounded,widget:const StockLedgerPage()),
-      (page:AppPage.products,label:'Products',icon:Icons.widgets_rounded,widget:const ProductsPage()),
-      (page:AppPage.purchases,label:'Purchases',icon:Icons.shopping_cart_checkout_rounded,widget:const PurchasesPage()),
-      (page:AppPage.discounts,label:'Discount Report',icon:Icons.discount_rounded,widget:const DiscountReportPage()),
-      (page:AppPage.salesmen,label:'Salesmen',icon:Icons.badge_rounded,widget:const SalesmenPage()),
-      (page:AppPage.customers,label:'Customers',icon:Icons.groups_rounded,widget:const PartyPage(type:PartyType.customer)),
-      (page:AppPage.customerLoans,label:'Customer Loans',icon:Icons.person_add_alt_1_rounded,widget:const CustomerLoansV15Page()),
-      (page:AppPage.customerStatement,label:'Customer Statement',icon:Icons.receipt_long_rounded,widget:const CustomerStatementPage()),
-      (page:AppPage.suppliers,label:'Suppliers',icon:Icons.local_shipping_rounded,widget:const PartyPage(type:PartyType.supplier)),
-      (page:AppPage.supplierStatement,label:'Supplier Statement',icon:Icons.description_rounded,widget:const SupplierStatementPage()),
-      (page:AppPage.expenses,label:'Expenses',icon:Icons.receipt_long_rounded,widget:const ExpensesPage()),
-      (page:AppPage.salesmanLoans,label:'Salesman Loans',icon:Icons.credit_score_rounded,widget:const SalesmanLoansV15Page()),
-      (page:AppPage.salesmanStatement,label:'Salesman Statement',icon:Icons.assignment_ind_rounded,widget:const SalesmanStatementPage()),
-      (page:AppPage.capital,label:'Owner / Partner Money',icon:Icons.account_balance_rounded,widget:const CapitalPage()),
-      (page:AppPage.dailyClosing,label:'Daily Closing',icon:Icons.event_available_rounded,widget:const DailyClosingPage()),
-      (page:AppPage.cashBook,label:'Cash Book',icon:Icons.menu_book_rounded,widget:const CashBookPage()),
-      (page:AppPage.reports,label:'Reports',icon:Icons.analytics_rounded,widget:const ReportsPage()),
-      (page:AppPage.recycleBin,label:'Recycle Bin',icon:Icons.recycling_rounded,widget:const RecycleBinPage()),
-      (page:AppPage.deleteEntry,label:'Delete Entry',icon:Icons.delete_sweep_rounded,widget:const DeleteEntryPage()),
-      (page:AppPage.safetyCenter,label:'Safety Center',icon:Icons.shield_rounded,widget:const SafetyCenterPage()),
-      (page:AppPage.userManagement,label:'Users / Login',icon:Icons.manage_accounts_rounded,widget:const UsersPage()),
-      (page:AppPage.backup,label:'Backup / Restore',icon:Icons.cloud_sync_rounded,widget:const CloudPage()),
+    final auth = LocalAuthService.instance;
+    final user = auth.current;
+    final items =
+        <({AppPage page, String label, IconData icon, Widget widget})>[
+      (
+        page: AppPage.quickSearch,
+        label: 'Quick Search',
+        icon: Icons.manage_search_rounded,
+        widget: const QuickSearchPage(),
+      ),
+      (
+        page: AppPage.saleInvoice,
+        label: 'Sales / Cash Report',
+        icon: Icons.point_of_sale_rounded,
+        widget: const SalesPage(),
+      ),
+      (
+        page: AppPage.fuelPump,
+        label: '⛽ Fuel / Oil Pump',
+        icon: Icons.local_gas_station_rounded,
+        widget: const FuelPage(),
+      ),
+      (
+        page: AppPage.stock,
+        label: 'Stock',
+        icon: Icons.inventory_2_rounded,
+        widget: const StockPage(),
+      ),
+      (
+        page: AppPage.stockLedger,
+        label: 'Stock Ledger',
+        icon: Icons.format_list_numbered_rounded,
+        widget: const StockLedgerPage(),
+      ),
+      (
+        page: AppPage.products,
+        label: 'Products',
+        icon: Icons.widgets_rounded,
+        widget: const ProductsPage(),
+      ),
+      (
+        page: AppPage.purchases,
+        label: 'Purchases',
+        icon: Icons.shopping_cart_checkout_rounded,
+        widget: const PurchasesPage(),
+      ),
+      (
+        page: AppPage.discounts,
+        label: 'Discount Report',
+        icon: Icons.discount_rounded,
+        widget: const DiscountReportPage(),
+      ),
+      (
+        page: AppPage.salesmen,
+        label: 'Salesmen',
+        icon: Icons.badge_rounded,
+        widget: const SalesmenPage(),
+      ),
+      (
+        page: AppPage.customers,
+        label: 'Customers',
+        icon: Icons.groups_rounded,
+        widget: const PartyPage(type: PartyType.customer),
+      ),
+      (
+        page: AppPage.customerLoans,
+        label: 'Customer Loans',
+        icon: Icons.person_add_alt_1_rounded,
+        widget: const CustomerLoansV15Page(),
+      ),
+      (
+        page: AppPage.customerStatement,
+        label: 'Customer Statement',
+        icon: Icons.receipt_long_rounded,
+        widget: const CustomerStatementPage(),
+      ),
+      (
+        page: AppPage.suppliers,
+        label: 'Suppliers',
+        icon: Icons.local_shipping_rounded,
+        widget: const PartyPage(type: PartyType.supplier),
+      ),
+      (
+        page: AppPage.supplierStatement,
+        label: 'Supplier Statement',
+        icon: Icons.description_rounded,
+        widget: const SupplierStatementPage(),
+      ),
+      (
+        page: AppPage.expenses,
+        label: 'Expenses',
+        icon: Icons.receipt_long_rounded,
+        widget: const ExpensesPage(),
+      ),
+      (
+        page: AppPage.salesmanLoans,
+        label: 'Salesman Loans',
+        icon: Icons.credit_score_rounded,
+        widget: const SalesmanLoansV15Page(),
+      ),
+      (
+        page: AppPage.salesmanStatement,
+        label: 'Salesman Statement',
+        icon: Icons.assignment_ind_rounded,
+        widget: const SalesmanStatementPage(),
+      ),
+      (
+        page: AppPage.capital,
+        label: 'Owner / Partner Money',
+        icon: Icons.account_balance_rounded,
+        widget: const CapitalPage(),
+      ),
+      (
+        page: AppPage.dailyClosing,
+        label: 'Daily Closing',
+        icon: Icons.event_available_rounded,
+        widget: const DailyClosingPage(),
+      ),
+      (
+        page: AppPage.cashBook,
+        label: 'Cash Book',
+        icon: Icons.menu_book_rounded,
+        widget: const CashBookPage(),
+      ),
+      (
+        page: AppPage.reports,
+        label: 'Reports',
+        icon: Icons.analytics_rounded,
+        widget: const ReportsPage(),
+      ),
+      (
+        page: AppPage.recycleBin,
+        label: 'Recycle Bin',
+        icon: Icons.recycling_rounded,
+        widget: const RecycleBinPage(),
+      ),
+      (
+        page: AppPage.deleteEntry,
+        label: 'Delete Entry',
+        icon: Icons.delete_sweep_rounded,
+        widget: const DeleteEntryPage(),
+      ),
+      (
+        page: AppPage.safetyCenter,
+        label: 'Safety Center',
+        icon: Icons.shield_rounded,
+        widget: const SafetyCenterPage(),
+      ),
+      (
+        page: AppPage.userManagement,
+        label: 'Users / Login',
+        icon: Icons.manage_accounts_rounded,
+        widget: const UsersPage(),
+      ),
+      (
+        page: AppPage.backup,
+        label: 'Backup / Restore',
+        icon: Icons.cloud_sync_rounded,
+        widget: const CloudPage(),
+      ),
     ];
 
     return Drawer(
-      backgroundColor:const Color(0xFF111827),
-      child:SafeArea(
-        child:ListView(
-          padding:const EdgeInsets.fromLTRB(10,8,10,20),
-          children:[
+      backgroundColor: const Color(0xFF111827),
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 20),
+          children: [
             const Padding(
-              padding:EdgeInsets.fromLTRB(10,8,10,12),
-              child:Column(
-                crossAxisAlignment:CrossAxisAlignment.start,
-                children:[
-                  Text('QAMVIO POS',style:TextStyle(color:Colors.white,fontSize:20,fontWeight:FontWeight.w900)),
-                  SizedBox(height:3),
-                  Text('Offline Point of Sale & Business Management',style:TextStyle(color:Color(0xFF94A3B8),fontSize:10)),
+              padding: EdgeInsets.fromLTRB(10, 8, 10, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'QAMVIO POS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Offline Point of Sale & Business Management',
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 10,
+                    ),
+                  ),
                 ],
               ),
             ),
             _languageSwitch(context),
-            const SizedBox(height:8),
+            const SizedBox(height: 8),
             _clockBox(),
-            const SizedBox(height:8),
+            const SizedBox(height: 8),
             Container(
-              margin:const EdgeInsets.symmetric(horizontal:4),
-              padding:const EdgeInsets.all(9),
-              decoration:BoxDecoration(
-                color:const Color(0xFF1F2937),
-                borderRadius:BorderRadius.circular(9),
-                border:Border.all(color:const Color(0xFF334155)),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: const Color(0xFF334155)),
               ),
-              child:Column(
-                crossAxisAlignment:CrossAxisAlignment.start,
-                children:[
-                  const Text('SIGNED IN',style:TextStyle(color:Color(0xFF94A3B8),fontSize:10)),
-                  const SizedBox(height:2),
-                  Text(user?.loginId??'—',style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w800)),
-                  Text(user?.role.label??'—',style:const TextStyle(color:Color(0xFFCBD5E1),fontSize:10)),
-                  const SizedBox(height:7),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'SIGNED IN',
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    user?.loginId ?? '—',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    user?.role.label ?? '—',
+                    style: const TextStyle(
+                      color: Color(0xFFCBD5E1),
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
                   Row(
-                    children:[
+                    children: [
                       Expanded(
-                        child:_smallAction(
-                          'Lock',
-                          ()async {
-                            Navigator.pop(context);
-                            try { await CloudBackupService.instance.prepareBackupFile(); } catch(_) {}
-                            await LocalAuthService.instance.logout();
-                          },
-                        ),
+                        child: _smallAction('Lock', () async {
+                          Navigator.pop(context);
+                          try {
+                            await CloudBackupService.instance
+                                .prepareBackupFile();
+                          } catch (_) {}
+                          await LocalAuthService.instance.logout();
+                        }),
                       ),
-                      const SizedBox(width:5),
+                      const SizedBox(width: 5),
                       Expanded(
-                        child:_smallAction(
-                          'Logout',
-                          ()async {
-                            Navigator.pop(context);
-                            try { await CloudBackupService.instance.prepareBackupFile(); } catch(_) {}
-                            await LocalAuthService.instance.logout();
-                          },
-                        ),
+                        child: _smallAction('Logout', () async {
+                          Navigator.pop(context);
+                          try {
+                            await CloudBackupService.instance
+                                .prepareBackupFile();
+                          } catch (_) {}
+                          await LocalAuthService.instance.logout();
+                        }),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height:8),
+            const SizedBox(height: 8),
             _navButton(
               context,
               'Dashboard',
               Icons.dashboard_rounded,
               true,
-              ()=>Navigator.pop(context),
+              () => Navigator.pop(context),
             ),
-            for(final item in items)
-              if(Permissions.canOpen(item.page))
+            for (final item in items)
+              if (Permissions.canOpen(item.page))
                 _navButton(
                   context,
                   item.label,
@@ -947,7 +1135,7 @@ class V15NavigationDrawer extends StatelessWidget {
                   false,
                   () {
                     Navigator.pop(context);
-                    onNavigate(item.page,item.widget);
+                    widget.onNavigate(item.page, item.widget);
                   },
                 ),
           ],
@@ -957,71 +1145,102 @@ class V15NavigationDrawer extends StatelessWidget {
   }
 
   Widget _languageSwitch(BuildContext context) {
-    final lc=LanguageController.instance;
-    Widget button(String text,AppLanguage lang)=>Expanded(
-      child:TextButton(
-        style:TextButton.styleFrom(
-          foregroundColor:lc.language==lang?Colors.white:const Color(0xFF94A3B8),
-          backgroundColor:lc.language==lang?const Color(0xFF4F46E5):Colors.transparent,
-          padding:const EdgeInsets.symmetric(vertical:6),
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(6)),
-        ),
-        onPressed:()=>lc.setLanguage(lang),
-        child:Text(text,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800)),
-      ),
-    );
+    final lc = LanguageController.instance;
+
+    Widget button(String text, AppLanguage lang) => Expanded(
+          child: TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: lc.language == lang
+                  ? Colors.white
+                  : const Color(0xFF94A3B8),
+              backgroundColor: lc.language == lang
+                  ? const Color(0xFF4F46E5)
+                  : Colors.transparent,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            onPressed: () => lc.setLanguage(lang),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        );
+
     return Container(
-      margin:const EdgeInsets.symmetric(horizontal:4),
-      padding:const EdgeInsets.all(4),
-      decoration:BoxDecoration(
-        color:const Color(0xFF1F2937),
-        borderRadius:BorderRadius.circular(9),
-        border:Border.all(color:const Color(0xFF334155)),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2937),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0xFF334155)),
       ),
-      child:Row(
-        children:[
-          button('EN',AppLanguage.english),
-          button('PS',AppLanguage.pashto),
-          button('FA',AppLanguage.dari),
-          button('UR',AppLanguage.urdu),
+      child: Row(
+        children: [
+          button('EN', AppLanguage.english),
+          button('PS', AppLanguage.pashto),
+          button('FA', AppLanguage.dari),
+          button('UR', AppLanguage.urdu),
         ],
       ),
     );
   }
 
-  Widget _clockBox()=>Builder(
-    builder:(context) {
-      final t=DateTime.now();
-      return Container(
-        margin:const EdgeInsets.symmetric(horizontal:4),
-        padding:const EdgeInsets.all(9),
-        decoration:BoxDecoration(
-          color:const Color(0xFF1F2937),
-          borderRadius:BorderRadius.circular(9),
-          border:Border.all(color:const Color(0xFF334155)),
+  Widget _clockBox() => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1F2937),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: const Color(0xFF334155)),
         ),
-        child:Column(
-          children:[
-            const Text('OFFLINE 24-HOUR CLOCK',style:TextStyle(color:Color(0xFF94A3B8),fontSize:9)),
-            const SizedBox(height:2),
-            Text(DateFormat('HH:mm:ss').format(t),style:const TextStyle(color:Colors.white,fontSize:20,fontWeight:FontWeight.w900)),
-            Text(DateFormat('yyyy-MM-dd').format(t),style:const TextStyle(color:Color(0xFFCBD5E1),fontSize:9)),
+        child: Column(
+          children: [
+            const Text(
+              'OFFLINE 24-HOUR CLOCK',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 9,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              DateFormat('HH:mm:ss').format(_now),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              DateFormat('yyyy-MM-dd').format(_now),
+              style: const TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 9,
+              ),
+            ),
           ],
         ),
       );
-    },
-  );
 
-  Widget _smallAction(String label,VoidCallback action)=>TextButton(
-    style:TextButton.styleFrom(
-      backgroundColor:const Color(0xFF334155),
-      foregroundColor:Colors.white,
-      padding:const EdgeInsets.symmetric(vertical:5),
-      minimumSize:const Size(0,30),
-    ),
-    onPressed:action,
-    child:Text(label,style:const TextStyle(fontSize:10)),
-  );
+  Widget _smallAction(String label, VoidCallback action) => TextButton(
+        style: TextButton.styleFrom(
+          backgroundColor: const Color(0xFF334155),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          minimumSize: const Size(0, 30),
+        ),
+        onPressed: action,
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 10),
+        ),
+      );
 
   Widget _navButton(
     BuildContext context,
@@ -1029,24 +1248,33 @@ class V15NavigationDrawer extends StatelessWidget {
     IconData icon,
     bool active,
     VoidCallback onTap,
-  )=>Padding(
-    padding:const EdgeInsets.only(bottom:2),
-    child:ListTile(
-      dense:true,
-      minLeadingWidth:24,
-      selected:active,
-      selectedTileColor:const Color(0xFF1F2937),
-      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(7)),
-      leading:Icon(icon,size:18,color:active?const Color(0xFF818CF8):const Color(0xFFCBD5E1)),
-      title:Text(
-        label,
-        style:TextStyle(
-          color:Colors.white,
-          fontSize:12,
-          fontWeight:active?FontWeight.w800:FontWeight.w600,
+  ) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: ListTile(
+          dense: true,
+          minLeadingWidth: 24,
+          selected: active,
+          selectedTileColor: const Color(0xFF1F2937),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(7),
+          ),
+          leading: Icon(
+            icon,
+            size: 18,
+            color: active
+                ? const Color(0xFF818CF8)
+                : const Color(0xFFCBD5E1),
+          ),
+          title: Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
+          onTap: onTap,
         ),
-      ),
-      onTap:onTap,
-    ),
-  );
+      );
 }

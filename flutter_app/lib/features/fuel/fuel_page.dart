@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
+import '../expenses/expenses_page.dart';
+import '../parties/party_page.dart';
+import '../reports/reports_page.dart';
+import '../sales/sales_page.dart';
+import '../salesmen/salesmen_page.dart';
+import '../v15/finance_pages.dart';
+
+double _n(dynamic v)=>v is num?v.toDouble():double.tryParse(v?.toString()??'')??0;
+String _m(dynamic v)=>QamvioUi.money(v);
+String _day(DateTime d)=>DateFormat('yyyy-MM-dd').format(d);
 
 class FuelPage extends StatefulWidget {
   const FuelPage({super.key});
@@ -14,32 +25,15 @@ class FuelPage extends StatefulWidget {
 class _FuelPageState extends State<FuelPage> {
   List<Map<String,Object?>> tanks=const [];
   List<Map<String,Object?>> nozzles=const [];
+  List<Map<String,Object?>> products=const [];
+  List<Map<String,Object?>> suppliers=const [];
+  List<Map<String,Object?>> salesmen=const [];
+  List<Map<String,Object?>> customers=const [];
   List<Map<String,Object?>> shifts=const [];
+  List<Map<String,Object?>> deliveries=const [];
   bool loading=true;
 
-  Future<void> load() async {
-    final db=await AppDatabase.instance.database;
-    final a=await db.query('fuel_tanks',orderBy:'name COLLATE NOCASE');
-    final b=await db.rawQuery(
-      'SELECT n.*,t.name tank_name,t.fuel_type '
-      'FROM fuel_nozzles n JOIN fuel_tanks t ON t.id=n.tank_id '
-      'ORDER BY n.name COLLATE NOCASE',
-    );
-    final c=await db.rawQuery(
-      'SELECT f.*,n.name nozzle_name,sm.name salesman_name '
-      'FROM fuel_shifts f '
-      'JOIN fuel_nozzles n ON n.id=f.nozzle_id '
-      'LEFT JOIN salesmen sm ON sm.id=f.salesman_id '
-      'ORDER BY f.started_at DESC LIMIT 100',
-    );
-    if(!mounted) return;
-    setState(() {
-      tanks=a;
-      nozzles=b;
-      shifts=c;
-      loading=false;
-    });
-  }
+  bool get admin=>LocalAuthService.instance.isAdmin;
 
   @override
   void initState() {
@@ -47,580 +41,765 @@ class _FuelPageState extends State<FuelPage> {
     load();
   }
 
-  double _n(dynamic v)=>v is num?v.toDouble():double.tryParse('$v')??0;
-
-  double get totalFuel=>tanks.fold<double>(
-    0,
-    (a,x)=>a+_n(x['current_stock']),
-  );
-
-  Future<void> addTank() async {
-    if(!LocalAuthService.instance.isAdmin) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content:Text('Admin access is required to configure fuel tanks.')),
-        );
-      }
-      return;
-    }
-    final name=TextEditingController();
-    final type=TextEditingController(text:'Diesel');
-    final capacity=TextEditingController();
-    final stock=TextEditingController();
-
-    final ok=await showModalBottomSheet<bool>(
-      context:context,
-      isScrollControlled:true,
-      builder:(sheetContext)=>Padding(
-        padding:EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          MediaQuery.viewInsetsOf(sheetContext).bottom+20,
-        ),
-        child:SingleChildScrollView(
-          child:Column(
-            mainAxisSize:MainAxisSize.min,
-            crossAxisAlignment:CrossAxisAlignment.stretch,
-            children:[
-              Text(
-                'Add Fuel Tank',
-                style:Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
-                  fontWeight:FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height:4),
-              const Text('Set tank identity, fuel type, capacity and current stock.'),
-              const SizedBox(height:18),
-              TextField(
-                controller:name,
-                autofocus:true,
-                decoration:const InputDecoration(
-                  labelText:'Tank name',
-                  prefixIcon:Icon(Icons.oil_barrel_outlined),
-                ),
-              ),
-              const SizedBox(height:10),
-              TextField(
-                controller:type,
-                decoration:const InputDecoration(
-                  labelText:'Fuel type',
-                  prefixIcon:Icon(Icons.local_gas_station_outlined),
-                ),
-              ),
-              const SizedBox(height:10),
-              Row(
-                children:[
-                  Expanded(
-                    child:TextField(
-                      controller:capacity,
-                      keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Capacity'),
-                    ),
-                  ),
-                  const SizedBox(width:10),
-                  Expanded(
-                    child:TextField(
-                      controller:stock,
-                      keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Current stock'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height:18),
-              FilledButton.icon(
-                onPressed:()=>Navigator.pop(sheetContext,true),
-                icon:const Icon(Icons.save_outlined),
-                label:const Text('Save Tank'),
-              ),
-              const SizedBox(height:8),
-              TextButton(
-                onPressed:()=>Navigator.pop(sheetContext,false),
-                child:const Text('Cancel'),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Future<void> load() async {
+    final db=await AppDatabase.instance.database;
+    final t=await db.rawQuery(
+      'SELECT t.*,p.name product_name FROM fuel_tanks t '
+      'LEFT JOIN products p ON p.id=t.product_id ORDER BY t.name',
     );
-
-    if(ok==true && name.text.trim().isNotEmpty) {
-      final db=await AppDatabase.instance.database;
-      final now=DateTime.now().toUtc().toIso8601String();
-      await db.insert('fuel_tanks',{
-        'id':DateTime.now().microsecondsSinceEpoch.toString(),
-        'name':name.text.trim(),
-        'fuel_type':type.text.trim().isEmpty?'Fuel':type.text.trim(),
-        'capacity':double.tryParse(capacity.text)??0,
-        'current_stock':double.tryParse(stock.text)??0,
-        'updated_at':now,
-        'sync_state':0,
-      });
-      await load();
-    }
-
-    name.dispose();
-    type.dispose();
-    capacity.dispose();
-    stock.dispose();
+    final n=await db.rawQuery(
+      'SELECT n.*,t.name tank_name,p.name product_name FROM fuel_nozzles n '
+      'JOIN fuel_tanks t ON t.id=n.tank_id '
+      'LEFT JOIN products p ON p.id=t.product_id ORDER BY n.name',
+    );
+    final p=await db.query('products',orderBy:'name COLLATE NOCASE');
+    final sup=await db.query('suppliers',orderBy:'name COLLATE NOCASE');
+    final sm=await db.query('salesmen',orderBy:'name COLLATE NOCASE');
+    final cust=await db.query('customers',orderBy:'name COLLATE NOCASE');
+    final sh=await db.rawQuery(
+      'SELECT f.*,n.name nozzle_name,t.name tank_name,sm.name salesman_name,c.name customer_name '
+      'FROM fuel_shifts f JOIN fuel_nozzles n ON n.id=f.nozzle_id '
+      'LEFT JOIN fuel_tanks t ON t.id=f.tank_id '
+      'LEFT JOIN salesmen sm ON sm.id=f.salesman_id '
+      'LEFT JOIN customers c ON c.id=f.customer_id '
+      'ORDER BY f.started_at DESC LIMIT 100',
+    );
+    final d=await db.rawQuery(
+      "SELECT p.*,s.name supplier_name,t.name tank_name,"
+      "(SELECT COALESCE(SUM(pi.qty),0) FROM purchase_items pi WHERE pi.purchase_id=p.id) liters,"
+      "(SELECT COALESCE(MAX(pi.cost),0) FROM purchase_items pi WHERE pi.purchase_id=p.id) cost_per_liter "
+      "FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id "
+      "LEFT JOIN fuel_tanks t ON t.id=p.fuel_tank_id "
+      "WHERE p.source='fuel_delivery' ORDER BY p.created_at DESC LIMIT 100",
+    );
+    if(!mounted) return;
+    setState(() {
+      tanks=t;
+      nozzles=n;
+      products=p;
+      suppliers=sup;
+      salesmen=sm;
+      customers=cust;
+      shifts=sh;
+      deliveries=d;
+      loading=false;
+    });
   }
 
-  Future<void> addNozzle() async {
-    if(!LocalAuthService.instance.isAdmin) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content:Text('Admin access is required to configure fuel nozzles.')),
+  Future<void> seedFuelProducts() async {
+    final db=await AppDatabase.instance.database;
+    for(final name in ['Petrol','Diesel']) {
+      final found=await db.query('products',where:'lower(name)=lower(?)',whereArgs:[name],limit:1);
+      if(found.isEmpty) {
+        await AppDatabase.instance.saveProduct(
+          id:DateTime.now().microsecondsSinceEpoch.toString()+name,
+          name:name,
+          category:'Fuel',
+          unit:'L',
         );
       }
-      return;
     }
-    if(tanks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text('Add a fuel tank first.')),
-      );
-      return;
+    await load();
+  }
+
+  Future<void> tankDialog([Map<String,Object?>? existing]) async {
+    if(!admin) return;
+    if(products.isEmpty) {
+      await seedFuelProducts();
+      if(products.isEmpty) return;
     }
-
-    String tankId=tanks.first['id'].toString();
-    final name=TextEditingController();
-    final meter=TextEditingController(text:'0');
-    final price=TextEditingController(text:'0');
-
-    final ok=await showModalBottomSheet<bool>(
+    final name=TextEditingController(text:existing?['name']?.toString()??'');
+    final capacity=TextEditingController(text:_m(existing?['capacity']??0));
+    final opening=TextEditingController(text:_m(existing?['opening_liters']??0));
+    final note=TextEditingController(text:existing?['note']?.toString()??'');
+    String productId=existing?['product_id']?.toString()??products.first['id'].toString();
+    final ok=await showDialog<bool>(
       context:context,
-      isScrollControlled:true,
-      builder:(sheetContext)=>StatefulBuilder(
-        builder:(sheetContext,setLocal)=>Padding(
-          padding:EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            MediaQuery.viewInsetsOf(sheetContext).bottom+20,
-          ),
-          child:SingleChildScrollView(
+      builder:(ctx)=>StatefulBuilder(
+        builder:(ctx,setLocal)=>AlertDialog(
+          title:Text(existing==null?'Fuel Tanks':'Edit Fuel Tank'),
+          content:SingleChildScrollView(
             child:Column(
               mainAxisSize:MainAxisSize.min,
-              crossAxisAlignment:CrossAxisAlignment.stretch,
               children:[
-                Text(
-                  'Add Fuel Nozzle',
-                  style:Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
-                    fontWeight:FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height:4),
-                const Text('Link a nozzle to a tank and set meter and selling price.'),
-                const SizedBox(height:18),
+                TextField(controller:name,decoration:const InputDecoration(labelText:'Tank Name')),
+                const SizedBox(height:10),
                 DropdownButtonFormField<String>(
-                  initialValue:tankId,
-                  decoration:const InputDecoration(
-                    labelText:'Fuel tank',
-                    prefixIcon:Icon(Icons.oil_barrel_outlined),
-                  ),
-                  items:tanks.map(
-                    (x)=>DropdownMenuItem(
-                      value:x['id'].toString(),
-                      child:Text('${x['name']} • ${x['fuel_type']}'),
-                    ),
-                  ).toList(),
-                  onChanged:(v)=>setLocal(()=>tankId=v!),
-                ),
-                const SizedBox(height:10),
-                TextField(
-                  controller:name,
-                  autofocus:true,
-                  decoration:const InputDecoration(
-                    labelText:'Nozzle name',
-                    prefixIcon:Icon(Icons.local_gas_station_outlined),
-                  ),
-                ),
-                const SizedBox(height:10),
-                Row(
-                  children:[
-                    Expanded(
-                      child:TextField(
-                        controller:meter,
-                        keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                        decoration:const InputDecoration(labelText:'Meter reading'),
-                      ),
-                    ),
-                    const SizedBox(width:10),
-                    Expanded(
-                      child:TextField(
-                        controller:price,
-                        keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                        decoration:const InputDecoration(labelText:'Price / litre'),
-                      ),
-                    ),
+                  initialValue:productId,
+                  decoration:const InputDecoration(labelText:'Fuel Product'),
+                  items:[
+                    for(final p in products)
+                      DropdownMenuItem(value:p['id'].toString(),child:Text(p['name'].toString())),
                   ],
+                  onChanged:(v)=>setLocal(()=>productId=v??productId),
                 ),
-                const SizedBox(height:18),
-                FilledButton.icon(
-                  onPressed:()=>Navigator.pop(sheetContext,true),
-                  icon:const Icon(Icons.save_outlined),
-                  label:const Text('Save Nozzle'),
-                ),
-                const SizedBox(height:8),
-                TextButton(
-                  onPressed:()=>Navigator.pop(sheetContext,false),
-                  child:const Text('Cancel'),
-                ),
+                const SizedBox(height:10),
+                TextField(controller:capacity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Capacity (L)')),
+                const SizedBox(height:10),
+                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Liters')),
+                const SizedBox(height:10),
+                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
               ],
             ),
           ),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+            FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(existing==null?'Save Tank':'Update Tank')),
+          ],
         ),
       ),
     );
-
-    if(ok==true && name.text.trim().isNotEmpty) {
-      final db=await AppDatabase.instance.database;
-      final now=DateTime.now().toUtc().toIso8601String();
-      await db.insert('fuel_nozzles',{
-        'id':DateTime.now().microsecondsSinceEpoch.toString(),
-        'tank_id':tankId,
-        'name':name.text.trim(),
-        'meter_reading':double.tryParse(meter.text)??0,
-        'price_per_unit':double.tryParse(price.text)??0,
-        'updated_at':now,
-        'sync_state':0,
-      });
+    if(ok==true&&name.text.trim().isNotEmpty) {
+      await AppDatabase.instance.saveFuelTank(
+        id:existing?['id']?.toString()??DateTime.now().microsecondsSinceEpoch.toString(),
+        name:name.text.trim(),
+        productId:productId,
+        capacity:double.tryParse(capacity.text.trim())??0,
+        openingLiters:double.tryParse(opening.text.trim())??0,
+        note:note.text.trim(),
+      );
       await load();
     }
-
     name.dispose();
-    meter.dispose();
+    capacity.dispose();
+    opening.dispose();
+    note.dispose();
+  }
+
+  Future<void> nozzleDialog([Map<String,Object?>? existing]) async {
+    if(!admin||tanks.isEmpty) return;
+    final name=TextEditingController(text:existing?['name']?.toString()??'');
+    final opening=TextEditingController(text:_m(existing?['opening_meter']??0));
+    final note=TextEditingController(text:existing?['note']?.toString()??'');
+    String tankId=existing?['tank_id']?.toString()??tanks.first['id'].toString();
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>StatefulBuilder(
+        builder:(ctx,setLocal)=>AlertDialog(
+          title:Text(existing==null?'Pumps / Nozzles':'Edit Nozzle'),
+          content:SingleChildScrollView(
+            child:Column(
+              mainAxisSize:MainAxisSize.min,
+              children:[
+                TextField(controller:name,decoration:const InputDecoration(labelText:'Nozzle / Pump Name')),
+                const SizedBox(height:10),
+                DropdownButtonFormField<String>(
+                  initialValue:tankId,
+                  decoration:const InputDecoration(labelText:'Tank'),
+                  items:[
+                    for(final t in tanks)
+                      DropdownMenuItem(value:t['id'].toString(),child:Text(t['name'].toString())),
+                  ],
+                  onChanged:(v)=>setLocal(()=>tankId=v??tankId),
+                ),
+                const SizedBox(height:10),
+                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Meter')),
+                const SizedBox(height:10),
+                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+              ],
+            ),
+          ),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+            FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(existing==null?'Save Nozzle':'Update Nozzle')),
+          ],
+        ),
+      ),
+    );
+    if(ok==true&&name.text.trim().isNotEmpty) {
+      await AppDatabase.instance.saveFuelNozzle(
+        id:existing?['id']?.toString()??DateTime.now().microsecondsSinceEpoch.toString(),
+        tankId:tankId,
+        name:name.text.trim(),
+        openingMeter:double.tryParse(opening.text.trim())??0,
+        note:note.text.trim(),
+      );
+      await load();
+    }
+    name.dispose();
+    opening.dispose();
+    note.dispose();
+  }
+
+  Future<void> deliveryDialog() async {
+    if(!admin||tanks.isEmpty||suppliers.isEmpty) return;
+    DateTime date=DateTime.now();
+    String supplierId=suppliers.first['id'].toString();
+    String tankId=tanks.first['id'].toString();
+    final invoice=TextEditingController();
+    final liters=TextEditingController();
+    final cost=TextEditingController();
+    final paid=TextEditingController(text:'0');
+    final note=TextEditingController();
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>StatefulBuilder(
+        builder:(ctx,setLocal)=>AlertDialog(
+          title:const Text('Fuel Purchase / Tank Delivery'),
+          content:SingleChildScrollView(
+            child:Column(
+              mainAxisSize:MainAxisSize.min,
+              children:[
+                ListTile(
+                  contentPadding:EdgeInsets.zero,
+                  title:const Text('Date'),
+                  subtitle:Text(_day(date)),
+                  trailing:const Icon(Icons.calendar_month_outlined),
+                  onTap:() async {
+                    final d=await showDatePicker(context:ctx,firstDate:DateTime(2000),lastDate:DateTime(2100),initialDate:date);
+                    if(d!=null) setLocal(()=>date=d);
+                  },
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue:supplierId,
+                  decoration:const InputDecoration(labelText:'Supplier'),
+                  items:[for(final x in suppliers) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString()))],
+                  onChanged:(v)=>setLocal(()=>supplierId=v??supplierId),
+                ),
+                const SizedBox(height:10),
+                DropdownButtonFormField<String>(
+                  initialValue:tankId,
+                  decoration:const InputDecoration(labelText:'Tank'),
+                  items:[for(final x in tanks) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString()))],
+                  onChanged:(v)=>setLocal(()=>tankId=v??tankId),
+                ),
+                const SizedBox(height:10),
+                TextField(controller:invoice,decoration:const InputDecoration(labelText:'Invoice No')),
+                const SizedBox(height:10),
+                TextField(controller:liters,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Liters')),
+                const SizedBox(height:10),
+                TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost / Liter')),
+                const SizedBox(height:10),
+                TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Paid')),
+                const SizedBox(height:10),
+                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+              ],
+            ),
+          ),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+            FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Save Fuel Delivery')),
+          ],
+        ),
+      ),
+    );
+    if(ok==true) {
+      final l=double.tryParse(liters.text.trim())??0;
+      final co=double.tryParse(cost.text.trim())??0;
+      if(l>0) {
+        await AppDatabase.instance.createFuelDelivery(
+          id:DateTime.now().microsecondsSinceEpoch.toString(),
+          supplierId:supplierId,
+          tankId:tankId,
+          liters:l,
+          costPerLiter:co,
+          paid:double.tryParse(paid.text.trim())??0,
+          invoiceNo:invoice.text.trim(),
+          note:note.text.trim(),
+          businessDate:date,
+        );
+        await load();
+      }
+    }
+    invoice.dispose();
+    liters.dispose();
+    cost.dispose();
+    paid.dispose();
+    note.dispose();
+  }
+
+  Future<void> meterSaleDialog() async {
+    if(nozzles.isEmpty) return;
+    DateTime date=DateTime.now();
+    String nozzleId=nozzles.first['id'].toString();
+    String salesmanId='';
+    String customerId='';
+    final shift=TextEditingController();
+    final invoice=TextEditingController();
+    final opening=TextEditingController(text:_m(nozzles.first['meter_reading']));
+    final closing=TextEditingController();
+    final price=TextEditingController(text:_m(nozzles.first['price_per_unit']));
+    final cash=TextEditingController(text:'0');
+    final note=TextEditingController();
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>StatefulBuilder(
+        builder:(ctx,setLocal) {
+          final liters=(_n(closing.text)-_n(opening.text)).clamp(0,double.infinity).toDouble();
+          final gross=liters*_n(price.text);
+          final due=(gross-_n(cash.text)).clamp(0,double.infinity).toDouble();
+          final recovery=(_n(cash.text)-gross).clamp(0,double.infinity).toDouble();
+          return AlertDialog(
+            title:const Text('Nozzle Meter Sale / Shift'),
+            content:SingleChildScrollView(
+              child:Column(
+                mainAxisSize:MainAxisSize.min,
+                children:[
+                  ListTile(
+                    contentPadding:EdgeInsets.zero,
+                    title:const Text('Date'),
+                    subtitle:Text(_day(date)),
+                    trailing:const Icon(Icons.calendar_month_outlined),
+                    onTap:() async {
+                      final d=await showDatePicker(context:ctx,firstDate:DateTime(2000),lastDate:DateTime(2100),initialDate:date);
+                      if(d!=null) setLocal(()=>date=d);
+                    },
+                  ),
+                  TextField(controller:shift,decoration:const InputDecoration(labelText:'Shift',hintText:'Morning / Evening / Night')),
+                  const SizedBox(height:10),
+                  DropdownButtonFormField<String>(
+                    initialValue:nozzleId,
+                    decoration:const InputDecoration(labelText:'Nozzle'),
+                    items:[for(final x in nozzles) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString()))],
+                    onChanged:(v) {
+                      nozzleId=v??nozzleId;
+                      final n=nozzles.firstWhere((x)=>x['id'].toString()==nozzleId);
+                      opening.text=_m(n['meter_reading']);
+                      price.text=_m(n['price_per_unit']);
+                      setLocal(() {});
+                    },
+                  ),
+                  const SizedBox(height:10),
+                  TextField(controller:invoice,decoration:const InputDecoration(labelText:'Invoice No',hintText:'Auto if blank')),
+                  const SizedBox(height:10),
+                  DropdownButtonFormField<String>(
+                    initialValue:salesmanId,
+                    decoration:const InputDecoration(labelText:'Salesman'),
+                    items:[
+                      const DropdownMenuItem(value:'',child:Text('Select Salesman')),
+                      for(final x in salesmen) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
+                    ],
+                    onChanged:(v)=>setLocal(()=>salesmanId=v??''),
+                  ),
+                  const SizedBox(height:10),
+                  DropdownButtonFormField<String>(
+                    initialValue:customerId,
+                    decoration:const InputDecoration(labelText:'Customer'),
+                    items:[
+                      const DropdownMenuItem(value:'',child:Text('Select Customer')),
+                      for(final x in customers.where((c)=>salesmanId.isEmpty||c['salesman_id']?.toString()==salesmanId))
+                        DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
+                    ],
+                    onChanged:(v)=>setLocal(()=>customerId=v??''),
+                  ),
+                  const SizedBox(height:10),
+                  TextField(controller:opening,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Meter')),
+                  const SizedBox(height:10),
+                  TextField(controller:closing,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Closing Meter')),
+                  const SizedBox(height:10),
+                  TextField(controller:price,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Price / Liter')),
+                  const SizedBox(height:10),
+                  TextField(controller:cash,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cash Received')),
+                  const SizedBox(height:10),
+                  TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                  const SizedBox(height:12),
+                  Wrap(
+                    spacing:8,
+                    runSpacing:8,
+                    children:[
+                      _small('Liters Sold',liters),
+                      _small('Gross Amount',gross),
+                      _small('Due',due),
+                      _small('Recovery',recovery),
+                    ],
+                  ),
+                  const SizedBox(height:10),
+                  OutlinedButton(
+                    onPressed:() {
+                      cash.text=_m(gross);
+                      setLocal(() {});
+                    },
+                    child:const Text('Cash = Total'),
+                  ),
+                ],
+              ),
+            ),
+            actions:[
+              TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+              FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Save Meter Sale')),
+            ],
+          );
+        },
+      ),
+    );
+    if(ok==true) {
+      final o=double.tryParse(opening.text.trim())??0;
+      final cl=double.tryParse(closing.text.trim())??0;
+      final gross=(cl-o)*_n(price.text);
+      if((gross-_n(cash.text)).abs()>0.0001&&customerId.isEmpty&&salesmanId.isEmpty) {
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content:Text('Select Customer or Salesman for due/recovery.')),
+          );
+        }
+      } else {
+        await AppDatabase.instance.createFuelShift(
+          id:DateTime.now().microsecondsSinceEpoch.toString(),
+          nozzleId:nozzleId,
+          salesmanId:salesmanId.isEmpty?null:salesmanId,
+          customerId:customerId.isEmpty?null:customerId,
+          shiftName:shift.text.trim(),
+          invoiceNo:invoice.text.trim(),
+          openingMeter:o,
+          closingMeter:cl,
+          pricePerLiter:double.tryParse(price.text.trim())??0,
+          cashReceived:double.tryParse(cash.text.trim())??0,
+          note:note.text.trim(),
+          businessDate:date,
+        );
+        await load();
+      }
+    }
+    shift.dispose();
+    invoice.dispose();
+    opening.dispose();
+    closing.dispose();
     price.dispose();
+    cash.dispose();
+    note.dispose();
+  }
+
+  Future<void> fuelClosing() async {
+    if(!admin) return;
+    final opening=TextEditingController(text:'0');
+    final cashIn=TextEditingController(text:'0');
+    final cashOut=TextEditingController(text:'0');
+    final actual=TextEditingController(text:'0');
+    final note=TextEditingController();
+    DateTime date=DateTime.now();
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>StatefulBuilder(
+        builder:(ctx,setLocal)=>AlertDialog(
+          title:const Text('Fuel Daily Closing'),
+          content:SingleChildScrollView(
+            child:Column(
+              mainAxisSize:MainAxisSize.min,
+              children:[
+                ListTile(
+                  contentPadding:EdgeInsets.zero,
+                  title:const Text('Date'),
+                  subtitle:Text(_day(date)),
+                  onTap:() async {
+                    final d=await showDatePicker(context:ctx,firstDate:DateTime(2000),lastDate:DateTime(2100),initialDate:date);
+                    if(d!=null) setLocal(()=>date=d);
+                  },
+                ),
+                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Cash')),
+                const SizedBox(height:10),
+                TextField(controller:cashIn,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cash In')),
+                const SizedBox(height:10),
+                TextField(controller:cashOut,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cash Out')),
+                const SizedBox(height:10),
+                TextField(controller:actual,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Actual Cash')),
+                const SizedBox(height:10),
+                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+              ],
+            ),
+          ),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+            FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Save Closing')),
+          ],
+        ),
+      ),
+    );
+    if(ok==true) {
+      await AppDatabase.instance.saveFuelClosing(
+        id:DateTime.now().microsecondsSinceEpoch.toString(),
+        openingCash:_n(opening.text),
+        cashIn:_n(cashIn.text),
+        cashOut:_n(cashOut.text),
+        actualCash:_n(actual.text),
+        note:note.text.trim(),
+        businessDate:date,
+      );
+    }
+    opening.dispose();
+    cashIn.dispose();
+    cashOut.dispose();
+    actual.dispose();
+    note.dispose();
   }
 
   @override
-  Widget build(BuildContext context)=>Scaffold(
-    appBar:AppBar(title:const Text('Oil / Fuel Pump')),
-    body:loading
-      ?const Center(child:CircularProgressIndicator())
-      :RefreshIndicator(
-        onRefresh:load,
-        child:ListView(
-          physics:const AlwaysScrollableScrollPhysics(),
+  Widget build(BuildContext context) {
+    final today=_day(DateTime.now());
+    final todayShifts=shifts.where((x)=>x['business_date']?.toString()==today).toList();
+    final liters=todayShifts.fold<double>(0,(a,x)=>a+_n(x['litres']));
+    final sales=todayShifts.fold<double>(0,(a,x)=>a+_n(x['total']));
+    final cash=todayShifts.fold<double>(0,(a,x)=>a+_n(x['cash_received']));
+    final due=(sales-cash).clamp(0,double.infinity).toDouble();
+
+    return Scaffold(
+      appBar:AppBar(title:const Text('⛽ Fuel / Oil Pump Control')),
+      body:loading
+        ?const Center(child:CircularProgressIndicator())
+        :ListView(
           padding:QamvioUi.pagePadding,
           children:[
-            const QamvioPageIntro(
-              title:'Fuel / Oil Pump',
-              subtitle:'Tank stock, nozzle meters, selling prices and recorded fuel shifts.',
-              icon:Icons.local_gas_station_rounded,
+            const Text('⛽ Fuel / Oil Pump Control',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900)),
+            const SizedBox(height:8),
+            Container(
+              padding:const EdgeInsets.all(12),
+              decoration:BoxDecoration(
+                color:const Color(0xFFEFF6FF),
+                borderRadius:BorderRadius.circular(10),
+                border:Border.all(color:const Color(0xFFBFDBFE)),
+              ),
+              child:const Text(
+                'Fuel-pump mode connects meter sales, fuel deliveries, tank stock, customers, salesmen, '
+                'suppliers, expenses, invoices and cash book. Use this page for nozzle meter sales so tank '
+                'and product stock stay synchronized.',
+              ),
             ),
-            const SizedBox(height:18),
-            Row(
+            const SizedBox(height:8),
+            Wrap(
+              spacing:7,
+              runSpacing:7,
               children:[
-                Expanded(
-                  child:_summary(
-                    context,
-                    'Tanks',
-                    tanks.length.toString(),
-                    Icons.oil_barrel_outlined,
-                  ),
-                ),
-                const SizedBox(width:10),
-                Expanded(
-                  child:_summary(
-                    context,
-                    'Nozzles',
-                    nozzles.length.toString(),
-                    Icons.local_gas_station_outlined,
-                  ),
-                ),
-                const SizedBox(width:10),
-                Expanded(
-                  child:_summary(
-                    context,
-                    'Fuel stock',
-                    QamvioUi.money(totalFuel),
-                    Icons.water_drop_outlined,
-                  ),
-                ),
+                FilledButton(onPressed:()=>_open(const SalesPage()),child:const Text('Sales Invoice')),
+                OutlinedButton(onPressed:()=>_open(const PartyPage(type:PartyType.customer)),child:const Text('Customers')),
+                OutlinedButton(onPressed:()=>_open(const SalesmenPage()),child:const Text('Salesmen')),
+                if(admin) OutlinedButton(onPressed:()=>_open(const PartyPage(type:PartyType.supplier)),child:const Text('Suppliers')),
+                if(admin) OutlinedButton(onPressed:()=>_open(const ExpensesPage()),child:const Text('Expenses')),
+                if(admin) OutlinedButton(onPressed:()=>_open(const CashBookPage()),child:const Text('Cash Book')),
+                if(admin) OutlinedButton(onPressed:()=>_open(const ReportsPage()),child:const Text('Reports')),
               ],
             ),
-            const SizedBox(height:18),
-            if(LocalAuthService.instance.isAdmin) ...[
-              Row(
-                children:[
-                  Expanded(
-                    child:FilledButton.icon(
-                      onPressed:addTank,
-                      icon:const Icon(Icons.add_rounded),
-                      label:const Text('Add Tank'),
-                    ),
-                  ),
-                  const SizedBox(width:10),
-                  Expanded(
-                    child:OutlinedButton.icon(
-                      onPressed:addNozzle,
-                      icon:const Icon(Icons.local_gas_station_rounded),
-                      label:const Text('Add Nozzle'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height:22),
-            ],
-            QamvioSectionTitle(
-              'Fuel tanks',
-              subtitle:'${tanks.length} configured tanks',
-            ),
-            if(tanks.isEmpty)
-              const QamvioEmptyState(
-                icon:Icons.oil_barrel_outlined,
-                title:'No fuel tanks',
-                subtitle:'Add a tank to start fuel stock management.',
-              )
-            else
-              ...tanks.map((x)=>Padding(
-                padding:const EdgeInsets.only(bottom:10),
-                child:_tankCard(context,x),
-              )),
-            const SizedBox(height:18),
-            QamvioSectionTitle(
-              'Nozzles',
-              subtitle:'${nozzles.length} active nozzle records',
-            ),
-            if(nozzles.isEmpty)
-              const QamvioEmptyState(
-                icon:Icons.local_gas_station_outlined,
-                title:'No fuel nozzles',
-                subtitle:'Link a nozzle to a tank and set meter and price.',
-              )
-            else
-              ...nozzles.map((x)=>Padding(
-                padding:const EdgeInsets.only(bottom:10),
-                child:_nozzleCard(context,x),
-              )),
-            const SizedBox(height:18),
-            QamvioSectionTitle(
-              'Recent fuel shifts',
-              subtitle:'${shifts.length} recorded shifts',
-            ),
-            if(shifts.isEmpty)
-              const QamvioEmptyState(
-                icon:Icons.history_rounded,
-                title:'No fuel shifts yet',
-                subtitle:'Recorded fuel shifts will appear here after meter closing.',
-              )
-            else
-              ...shifts.take(20).map((x)=>Padding(
-                padding:const EdgeInsets.only(bottom:10),
-                child:_shiftCard(context,x),
-              )),
-          ],
-        ),
-      ),
-  );
-
-  Widget _summary(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  )=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(12),
-      child:Column(
-        crossAxisAlignment:CrossAxisAlignment.start,
-        children:[
-          Icon(icon,size:20,color:Theme.of(context).colorScheme.primary),
-          const SizedBox(height:8),
-          Text(
-            value,
-            maxLines:1,
-            overflow:TextOverflow.ellipsis,
-            style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-          ),
-          Text(
-            label,
-            maxLines:1,
-            overflow:TextOverflow.ellipsis,
-            style:Theme.of(context).textTheme.bodySmall?.copyWith(
-              color:const Color(0xFF667085),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Widget _tankCard(BuildContext context,Map<String,Object?> x) {
-    final capacity=_n(x['capacity']);
-    final stock=_n(x['current_stock']);
-    final ratio=capacity<=0?0.0:(stock/capacity).clamp(0.0,1.0);
-    return Card(
-      child:Padding(
-        padding:const EdgeInsets.all(14),
-        child:Column(
-          crossAxisAlignment:CrossAxisAlignment.start,
-          children:[
-            Row(
+            const SizedBox(height:12),
+            GridView.count(
+              crossAxisCount:2,
+              shrinkWrap:true,
+              physics:const NeverScrollableScrollPhysics(),
+              mainAxisSpacing:8,
+              crossAxisSpacing:8,
+              childAspectRatio:1.7,
               children:[
-                Container(
-                  width:46,
-                  height:46,
-                  decoration:BoxDecoration(
-                    color:Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius:BorderRadius.circular(15),
-                  ),
-                  child:Icon(
-                    Icons.oil_barrel_rounded,
-                    color:Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
+                QamvioStatCard(label:"Today's Liters Sold",value:_m(liters),icon:Icons.water_drop_outlined),
+                QamvioStatCard(label:"Today's Fuel Sales",value:_m(sales),icon:Icons.local_gas_station_outlined),
+                QamvioStatCard(label:"Today's Cash Received",value:_m(cash),icon:Icons.payments_outlined),
+                QamvioStatCard(label:"Today's Credit / Due",value:_m(due),icon:Icons.account_balance_wallet_outlined),
+              ],
+            ),
+            if(admin) ...[
+              const SizedBox(height:14),
+              _adminCard(
+                title:'Fuel Tanks',
+                notice:'Create fuel products first (Petrol, Diesel, etc.), then link each tank to one product. Product opening stock is synchronized from the opening liters of all linked tanks.',
+                buttons:[
+                  OutlinedButton(onPressed:seedFuelProducts,child:const Text('Create Default Fuel Products')),
+                  FilledButton(onPressed:()=>tankDialog(),child:const Text('Save Tank')),
+                ],
+                table:_tankTable(),
+              ),
+              const SizedBox(height:12),
+              _adminCard(
+                title:'Pumps / Nozzles',
+                buttons:[FilledButton(onPressed:()=>nozzleDialog(),child:const Text('Save Nozzle'))],
+                table:_nozzleTable(),
+              ),
+              const SizedBox(height:12),
+              _adminCard(
+                title:'Fuel Purchase / Tank Delivery',
+                buttons:[FilledButton(onPressed:deliveryDialog,child:const Text('Save Fuel Delivery'))],
+                table:_deliveryTable(),
+              ),
+            ],
+            const SizedBox(height:12),
+            Card(
+              child:Padding(
+                padding:const EdgeInsets.all(14),
+                child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.start,
+                  children:[
+                    const Text('Nozzle Meter Sale / Shift',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
+                    const SizedBox(height:5),
+                    const Text('Closing Meter − Opening Meter = Liters Sold. Saving creates a normal sales invoice automatically and updates stock, balances, reports and cash book.'),
+                    const SizedBox(height:10),
+                    FilledButton(onPressed:meterSaleDialog,child:const Text('Save Meter Sale')),
+                    const SizedBox(height:10),
+                    _shiftTable(),
+                  ],
                 ),
-                const SizedBox(width:12),
-                Expanded(
-                  child:Column(
-                    crossAxisAlignment:CrossAxisAlignment.start,
+              ),
+            ),
+            if(admin) ...[
+              const SizedBox(height:12),
+              Card(
+                child:Padding(
+                  padding:const EdgeInsets.all(14),
+                  child:Wrap(
+                    spacing:8,
+                    runSpacing:8,
                     children:[
-                      Text(
-                        x['name'].toString(),
-                        style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-                      ),
-                      Text(
-                        x['fuel_type'].toString(),
-                        style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color:const Color(0xFF667085),
-                        ),
-                      ),
+                      FilledButton.icon(onPressed:fuelClosing,icon:const Icon(Icons.event_available_outlined),label:const Text('Fuel Daily Closing')),
+                      OutlinedButton.icon(onPressed:()=>_open(const DailyClosingPage()),icon:const Icon(Icons.summarize_outlined),label:const Text('Business Daily Closing')),
                     ],
                   ),
                 ),
-                Text(
-                  '${QamvioUi.money(stock)} L',
-                  style:const TextStyle(fontWeight:FontWeight.w900,fontSize:17),
-                ),
-              ],
-            ),
-            const SizedBox(height:14),
-            LinearProgressIndicator(
-              value:ratio,
-              minHeight:8,
-              borderRadius:BorderRadius.circular(999),
-            ),
-            const SizedBox(height:7),
-            Row(
-              children:[
-                Text(
-                  '${(ratio*100).toStringAsFixed(0)}% full',
-                  style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:const Color(0xFF667085),
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  'Capacity ${QamvioUi.money(capacity)} L',
-                  style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:const Color(0xFF667085),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ],
         ),
-      ),
     );
   }
 
-  Widget _nozzleCard(BuildContext context,Map<String,Object?> x)=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(14),
-      child:Row(
-        children:[
-          Container(
-            width:46,
-            height:46,
-            decoration:BoxDecoration(
-              color:const Color(0xFFEAF7F1),
-              borderRadius:BorderRadius.circular(15),
-            ),
-            child:const Icon(Icons.local_gas_station_rounded,color:QamvioUi.success),
-          ),
-          const SizedBox(width:12),
-          Expanded(
-            child:Column(
-              crossAxisAlignment:CrossAxisAlignment.start,
-              children:[
-                Text(
-                  x['name'].toString(),
-                  style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-                ),
-                const SizedBox(height:3),
-                Text(
-                  '${x['tank_name']} • ${x['fuel_type']}',
-                  style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:const Color(0xFF667085),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment:CrossAxisAlignment.end,
-            children:[
-              Text(
-                'Meter ${QamvioUi.money(x['meter_reading'])}',
-                style:const TextStyle(fontWeight:FontWeight.w800),
-              ),
-              const SizedBox(height:3),
-              Text(
-                '${QamvioUi.money(x['price_per_unit'])} / L',
-                style:TextStyle(
-                  color:Theme.of(context).colorScheme.primary,
-                  fontWeight:FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+  void _open(Widget page)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>page));
+
+  Widget _small(String label,double value)=>Container(
+    width:125,
+    padding:const EdgeInsets.all(8),
+    decoration:BoxDecoration(
+      color:const Color(0xFFF8FAFC),
+      borderRadius:BorderRadius.circular(8),
+      border:Border.all(color:const Color(0xFFE2E8F0)),
     ),
+    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(_m(value),style:const TextStyle(fontWeight:FontWeight.w900)),
+      Text(label,style:const TextStyle(fontSize:10)),
+    ]),
   );
 
-  Widget _shiftCard(BuildContext context,Map<String,Object?> x)=>Card(
+  Widget _adminCard({
+    required String title,
+    String? notice,
+    required List<Widget> buttons,
+    required Widget table,
+  })=>Card(
     child:Padding(
       padding:const EdgeInsets.all(14),
       child:Column(
         crossAxisAlignment:CrossAxisAlignment.start,
         children:[
-          Row(
-            children:[
-              const Icon(Icons.history_rounded,color:Color(0xFF667085)),
-              const SizedBox(width:8),
-              Expanded(
-                child:Text(
-                  x['nozzle_name']?.toString()??'Nozzle',
-                  style:const TextStyle(fontWeight:FontWeight.w900),
-                ),
-              ),
-              Text(
-                QamvioUi.money(x['total']),
-                style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-              ),
-            ],
-          ),
+          Text(title,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
+          if(notice!=null) ...[const SizedBox(height:5),Text(notice)],
           const SizedBox(height:10),
-          Wrap(
-            spacing:8,
-            runSpacing:8,
-            children:[
-              QamvioAmountPill(label:'Litres',amount:x['litres']),
-              QamvioAmountPill(label:'Cash',amount:x['cash_received']),
-              QamvioAmountPill(label:'Expense',amount:x['expense']),
-            ],
-          ),
-          const SizedBox(height:8),
-          Text(
-            '${x['started_at']} • ${x['salesman_name']??'Unassigned'}',
-            style:Theme.of(context).textTheme.bodySmall?.copyWith(
-              color:const Color(0xFF667085),
-            ),
-          ),
+          Wrap(spacing:8,runSpacing:8,children:buttons),
+          const SizedBox(height:10),
+          table,
         ],
       ),
+    ),
+  );
+
+  Widget _tankTable()=>SingleChildScrollView(
+    scrollDirection:Axis.horizontal,
+    child:DataTable(
+      columns:const [
+        DataColumn(label:Text('Tank')),
+        DataColumn(label:Text('Product')),
+        DataColumn(label:Text('Capacity'),numeric:true),
+        DataColumn(label:Text('Opening'),numeric:true),
+        DataColumn(label:Text('Current Liters'),numeric:true),
+        DataColumn(label:Text('Free Capacity'),numeric:true),
+        DataColumn(label:Text('Status')),
+        DataColumn(label:Text('')),
+      ],
+      rows:[
+        for(final x in tanks)
+          DataRow(cells:[
+            DataCell(Text(x['name'].toString())),
+            DataCell(Text(x['product_name']?.toString()??'')),
+            DataCell(Text(_m(x['capacity']))),
+            DataCell(Text(_m(x['opening_liters']))),
+            DataCell(Text(_m(x['current_stock']))),
+            DataCell(Text(_m((_n(x['capacity'])-_n(x['current_stock'])).clamp(0,double.infinity)))),
+            DataCell(Text(_n(x['current_stock'])<=0?'EMPTY':'OK')),
+            DataCell(IconButton(onPressed:()=>tankDialog(x),icon:const Icon(Icons.edit_outlined))),
+          ]),
+      ],
+    ),
+  );
+
+  Widget _nozzleTable()=>SingleChildScrollView(
+    scrollDirection:Axis.horizontal,
+    child:DataTable(
+      columns:const [
+        DataColumn(label:Text('Nozzle')),
+        DataColumn(label:Text('Tank')),
+        DataColumn(label:Text('Product')),
+        DataColumn(label:Text('Last Meter'),numeric:true),
+        DataColumn(label:Text('Note')),
+        DataColumn(label:Text('')),
+      ],
+      rows:[
+        for(final x in nozzles)
+          DataRow(cells:[
+            DataCell(Text(x['name'].toString())),
+            DataCell(Text(x['tank_name']?.toString()??'')),
+            DataCell(Text(x['product_name']?.toString()??'')),
+            DataCell(Text(_m(x['meter_reading']))),
+            DataCell(Text(x['note']?.toString()??'')),
+            DataCell(IconButton(onPressed:()=>nozzleDialog(x),icon:const Icon(Icons.edit_outlined))),
+          ]),
+      ],
+    ),
+  );
+
+  Widget _deliveryTable()=>SingleChildScrollView(
+    scrollDirection:Axis.horizontal,
+    child:DataTable(
+      columns:const [
+        DataColumn(label:Text('Date')),
+        DataColumn(label:Text('Supplier')),
+        DataColumn(label:Text('Tank')),
+        DataColumn(label:Text('Invoice')),
+        DataColumn(label:Text('Liters'),numeric:true),
+        DataColumn(label:Text('Cost/L'),numeric:true),
+        DataColumn(label:Text('Total'),numeric:true),
+        DataColumn(label:Text('Paid'),numeric:true),
+      ],
+      rows:[
+        for(final x in deliveries)
+          DataRow(cells:[
+            DataCell(Text((x['business_date']??x['created_at']).toString().split('T').first)),
+            DataCell(Text(x['supplier_name']?.toString()??'')),
+            DataCell(Text(x['tank_name']?.toString()??'')),
+            DataCell(Text(x['invoice_no']?.toString()??'')),
+            DataCell(Text(_m(x['liters']))),
+            DataCell(Text(_m(x['cost_per_liter']))),
+            DataCell(Text(_m(x['total']))),
+            DataCell(Text(_m(x['paid']))),
+          ]),
+      ],
+    ),
+  );
+
+  Widget _shiftTable()=>SingleChildScrollView(
+    scrollDirection:Axis.horizontal,
+    child:DataTable(
+      columns:const [
+        DataColumn(label:Text('Date')),
+        DataColumn(label:Text('Shift')),
+        DataColumn(label:Text('Nozzle')),
+        DataColumn(label:Text('Invoice')),
+        DataColumn(label:Text('Salesman')),
+        DataColumn(label:Text('Customer')),
+        DataColumn(label:Text('Opening'),numeric:true),
+        DataColumn(label:Text('Closing'),numeric:true),
+        DataColumn(label:Text('Liters'),numeric:true),
+        DataColumn(label:Text('Price/L'),numeric:true),
+        DataColumn(label:Text('Total'),numeric:true),
+        DataColumn(label:Text('Cash'),numeric:true),
+      ],
+      rows:[
+        for(final x in shifts)
+          DataRow(cells:[
+            DataCell(Text((x['business_date']??x['started_at']).toString().split('T').first)),
+            DataCell(Text(x['shift_name']?.toString()??'')),
+            DataCell(Text(x['nozzle_name']?.toString()??'')),
+            DataCell(Text(x['invoice_no']?.toString()??'')),
+            DataCell(Text(x['salesman_name']?.toString()??'')),
+            DataCell(Text(x['customer_name']?.toString()??'')),
+            DataCell(Text(_m(x['opening_meter']))),
+            DataCell(Text(_m(x['closing_meter']))),
+            DataCell(Text(_m(x['litres']))),
+            DataCell(Text(_m(x['price_per_unit']))),
+            DataCell(Text(_m(x['total']))),
+            DataCell(Text(_m(x['cash_received']))),
+          ]),
+      ],
     ),
   );
 }

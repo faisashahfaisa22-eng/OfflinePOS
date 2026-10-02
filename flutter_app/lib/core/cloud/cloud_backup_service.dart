@@ -43,7 +43,7 @@ class CloudBackupService {
     }
     final data=Map<String,dynamic>.from(rawData);
     data.putIfAbsent('salesman_loans',()=> <dynamic>[]);
-    const requiredTables=['products','customers','suppliers','salesmen','sales','sale_items','expenses','purchases','purchase_items','customer_loans','supplier_transactions','fuel_tanks','fuel_nozzles','fuel_shifts','users','settings','legacy_archives','migration_state'];
+    const requiredTables=['products','customers','suppliers','salesmen','sales','sale_items','expenses','purchases','purchase_items','customer_loans','salesman_loans','supplier_transactions','fuel_tanks','fuel_nozzles','fuel_shifts','users','settings','legacy_archives','migration_state'];
     for(final table in requiredTables) {
       if(data[table] is! List) {
         throw FormatException('QAMVIO Flutter backup is incomplete: '+table+'.');

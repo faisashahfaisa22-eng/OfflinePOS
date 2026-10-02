@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/share/whatsapp_share.dart';
+import '../../core/ui/qamvio_ui.dart';
 
 class LoansPage extends StatefulWidget {
   const LoansPage({super.key});
@@ -74,18 +75,37 @@ class _LoansPageState extends State<LoansPage> {
     final amount=TextEditingController();
     final note=TextEditingController();
 
-    final ok=await showDialog<bool>(
+    final ok=await showModalBottomSheet<bool>(
       context:context,
-      builder:(dialogContext)=>StatefulBuilder(
-        builder:(dialogContext,setLocal)=>AlertDialog(
-          title:Text(title),
-          content:SingleChildScrollView(
+      isScrollControlled:true,
+      builder:(sheetContext)=>StatefulBuilder(
+        builder:(sheetContext,setLocal)=>Padding(
+          padding:EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            MediaQuery.viewInsetsOf(sheetContext).bottom+20,
+          ),
+          child:SingleChildScrollView(
             child:Column(
               mainAxisSize:MainAxisSize.min,
+              crossAxisAlignment:CrossAxisAlignment.stretch,
               children:[
+                Text(
+                  title,
+                  style:Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
+                    fontWeight:FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height:4),
+                Text('Record a ledger transaction for this $partyLabel account.'),
+                const SizedBox(height:18),
                 DropdownButtonFormField<String>(
                   initialValue:partyId,
-                  decoration:InputDecoration(labelText:partyLabel),
+                  decoration:InputDecoration(
+                    labelText:partyLabel,
+                    prefixIcon:const Icon(Icons.person_outline_rounded),
+                  ),
                   items:parties.map(
                     (x)=>DropdownMenuItem(
                       value:x['id'].toString(),
@@ -97,60 +117,63 @@ class _LoansPageState extends State<LoansPage> {
                 const SizedBox(height:10),
                 DropdownButtonFormField<String>(
                   initialValue:type,
-                  decoration:const InputDecoration(labelText:'Transaction'),
+                  decoration:const InputDecoration(
+                    labelText:'Transaction type',
+                    prefixIcon:Icon(Icons.swap_vert_rounded),
+                  ),
                   items:typeItems,
                   onChanged:(v)=>setLocal(()=>type=v!),
                 ),
                 const SizedBox(height:10),
                 TextField(
                   controller:amount,
+                  autofocus:true,
                   keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                  decoration:const InputDecoration(labelText:'Amount'),
+                  decoration:const InputDecoration(
+                    labelText:'Amount',
+                    prefixIcon:Icon(Icons.payments_outlined),
+                  ),
                 ),
                 const SizedBox(height:10),
                 TextField(
                   controller:note,
-                  decoration:const InputDecoration(labelText:'Note'),
+                  decoration:const InputDecoration(
+                    labelText:'Note',
+                    prefixIcon:Icon(Icons.notes_rounded),
+                  ),
+                ),
+                const SizedBox(height:18),
+                FilledButton.icon(
+                  onPressed:()=>Navigator.pop(sheetContext,true),
+                  icon:const Icon(Icons.save_outlined),
+                  label:const Text('Save Transaction'),
+                ),
+                const SizedBox(height:8),
+                TextButton(
+                  onPressed:()=>Navigator.pop(sheetContext,false),
+                  child:const Text('Cancel'),
                 ),
               ],
             ),
           ),
-          actions:[
-            TextButton(
-              onPressed:()=>Navigator.pop(dialogContext,false),
-              child:const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed:()=>Navigator.pop(dialogContext,true),
-              child:const Text('Save'),
-            ),
-          ],
         ),
       ),
     );
 
-    if(ok!=true) {
-      amount.dispose();
-      note.dispose();
-      return;
-    }
-
-    final value=double.tryParse(amount.text.trim())??0;
-    final memo=note.text.trim();
-    amount.dispose();
-    note.dispose();
-
-    if(value<=0) {
-      if(mounted) {
+    if(ok==true) {
+      final value=double.tryParse(amount.text.trim())??0;
+      if(value>0) {
+        await save(partyId,value,type,note.text.trim());
+        await load();
+      } else if(mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content:Text('Amount must be greater than zero.')),
         );
       }
-      return;
     }
 
-    await save(partyId,value,type,memo);
-    await load();
+    amount.dispose();
+    note.dispose();
   }
 
   Future<void> addCustomerLoan() async {
@@ -364,138 +387,303 @@ class _LoansPageState extends State<LoansPage> {
     required String label,
     required VoidCallback onPressed,
   })=>Padding(
-    padding:const EdgeInsets.fromLTRB(12,12,12,8),
+    padding:const EdgeInsets.fromLTRB(0,10,0,10),
     child:SizedBox(
       width:double.infinity,
       child:FilledButton.icon(
         onPressed:onPressed,
-        icon:const Icon(Icons.add),
+        icon:const Icon(Icons.add_rounded),
         label:Text(label),
       ),
     ),
   );
 
-  Widget customerTab()=>Column(
+  Widget customerTab()=>ListView(
+    padding:const EdgeInsets.fromLTRB(16,0,16,96),
     children:[
       _addButton(label:'Add Customer Loan / Payment',onPressed:addCustomerLoan),
-      Expanded(
-        child:customerRows.isEmpty
-          ?const Center(child:Text('No customer loan transactions.'))
-          :ListView.separated(
-              itemCount:customerRows.length,
-              separatorBuilder:(_,__)=>const Divider(height:1),
-              itemBuilder:(_,i) {
-                final x=customerRows[i];
-                return ListTile(
-                  leading:const CircleAvatar(child:Icon(Icons.person)),
-                  title:Text(x['customer_name'].toString()),
-                  subtitle:Text(
-                    '${x['type']??''} • ${x['note']??''}\n${x['created_at']??''}',
+      if(customerRows.isEmpty)
+        const QamvioEmptyState(
+          icon:Icons.person_outline_rounded,
+          title:'No customer loan transactions',
+          subtitle:'Loan and payment entries will appear here.',
+        )
+      else
+        ...customerRows.map((x)=>Padding(
+          padding:const EdgeInsets.only(bottom:10),
+          child:Card(
+            child:Padding(
+              padding:const EdgeInsets.all(14),
+              child:Row(
+                children:[
+                  Container(
+                    width:46,
+                    height:46,
+                    decoration:BoxDecoration(
+                      color:Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius:BorderRadius.circular(15),
+                    ),
+                    child:Icon(
+                      Icons.person_rounded,
+                      color:Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
                   ),
-                  isThreeLine:true,
-                  trailing:Text(WhatsAppShare.money(x['amount'])),
-                );
-              },
+                  const SizedBox(width:12),
+                  Expanded(
+                    child:Column(
+                      crossAxisAlignment:CrossAxisAlignment.start,
+                      children:[
+                        Text(
+                          x['customer_name'].toString(),
+                          style:const TextStyle(fontWeight:FontWeight.w900),
+                        ),
+                        const SizedBox(height:3),
+                        Text(
+                          '${x['type']??''} • ${x['note']??''}',
+                          maxLines:1,
+                          overflow:TextOverflow.ellipsis,
+                          style:Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:const Color(0xFF667085),
+                          ),
+                        ),
+                        const SizedBox(height:3),
+                        Text(
+                          '${x['created_at']??''}',
+                          style:Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:const Color(0xFF98A2B3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    QamvioUi.money(x['amount']),
+                    style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
+                  ),
+                ],
+              ),
             ),
-      ),
+          ),
+        )),
     ],
   );
 
-  Widget salesmanTab()=>Column(
+  Widget salesmanTab()=>ListView(
+    padding:const EdgeInsets.fromLTRB(16,0,16,96),
     children:[
       _addButton(
         label:'Add Salesman Loan / Payment',
         onPressed:()=>addSalesmanLoan(),
       ),
-      Expanded(
-        child:salesmen.isEmpty
-          ?const Center(child:Text('No salesmen found.'))
-          :ListView.separated(
-              itemCount:salesmen.length,
-              separatorBuilder:(_,__)=>const Divider(height:1),
-              itemBuilder:(_,i) {
-                final x=salesmen[i];
-                final invoiceDue=_n(x['invoice_due']);
-                final manual=_n(x['manual_loan_balance']);
-                final total=invoiceDue+manual;
-                return ListTile(
-                  onTap:()=>showSalesmanLedger(x),
-                  leading:const CircleAvatar(child:Icon(Icons.badge)),
-                  title:Text(x['name'].toString()),
-                  subtitle:Text(
-                    'Invoice due: ${WhatsAppShare.money(invoiceDue)}\n'
-                    'Manual loan: ${WhatsAppShare.money(manual)} • '
-                    'Total: ${WhatsAppShare.money(total)}',
-                  ),
-                  isThreeLine:true,
-                  trailing:Row(
-                    mainAxisSize:MainAxisSize.min,
+      if(salesmen.isEmpty)
+        const QamvioEmptyState(
+          icon:Icons.badge_outlined,
+          title:'No salesmen found',
+          subtitle:'Add salesmen before recording salesman loans or payments.',
+        )
+      else
+        ...salesmen.map((x) {
+          final invoiceDue=_n(x['invoice_due']);
+          final manual=_n(x['manual_loan_balance']);
+          final total=invoiceDue+manual;
+          return Padding(
+            padding:const EdgeInsets.only(bottom:10),
+            child:Card(
+              child:InkWell(
+                borderRadius:BorderRadius.circular(20),
+                onTap:()=>showSalesmanLedger(x),
+                child:Padding(
+                  padding:const EdgeInsets.all(14),
+                  child:Column(
                     children:[
-                      IconButton(
-                        tooltip:'Add loan/payment',
-                        icon:const Icon(Icons.add_card),
-                        onPressed:()=>addSalesmanLoan(x['id'].toString()),
+                      Row(
+                        children:[
+                          Container(
+                            width:46,
+                            height:46,
+                            decoration:BoxDecoration(
+                              color:Theme.of(context).colorScheme.primaryContainer,
+                              borderRadius:BorderRadius.circular(15),
+                            ),
+                            child:Icon(
+                              Icons.badge_rounded,
+                              color:Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(width:12),
+                          Expanded(
+                            child:Column(
+                              crossAxisAlignment:CrossAxisAlignment.start,
+                              children:[
+                                Text(
+                                  x['name'].toString(),
+                                  style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
+                                ),
+                                const SizedBox(height:3),
+                                Text(
+                                  x['phone']?.toString()??'',
+                                  style:Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color:const Color(0xFF667085),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            QamvioUi.money(total),
+                            style:TextStyle(
+                              fontWeight:FontWeight.w900,
+                              fontSize:17,
+                              color:total>0?Theme.of(context).colorScheme.primary:null,
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        tooltip:'Share salesman statement on WhatsApp',
-                        icon:const Icon(Icons.chat),
-                        onPressed:()=>runShare(
-                          ()=>WhatsAppShare.shareSalesmanCredit(x),
-                        ),
+                      const SizedBox(height:12),
+                      Wrap(
+                        spacing:8,
+                        runSpacing:8,
+                        children:[
+                          QamvioAmountPill(label:'Invoice due',amount:invoiceDue),
+                          QamvioAmountPill(label:'Manual loan',amount:manual),
+                        ],
+                      ),
+                      const Divider(height:22),
+                      Row(
+                        children:[
+                          Expanded(
+                            child:OutlinedButton.icon(
+                              onPressed:()=>addSalesmanLoan(x['id'].toString()),
+                              icon:const Icon(Icons.add_card_rounded),
+                              label:const Text('Transaction'),
+                            ),
+                          ),
+                          const SizedBox(width:10),
+                          Expanded(
+                            child:FilledButton.tonalIcon(
+                              onPressed:()=>runShare(
+                                ()=>WhatsAppShare.shareSalesmanCredit(x),
+                              ),
+                              icon:const Icon(Icons.chat_rounded),
+                              label:const Text('WhatsApp'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
-      ),
+          );
+        }),
     ],
   );
 
-  Widget supplierTab()=>Column(
+  Widget supplierTab()=>ListView(
+    padding:const EdgeInsets.fromLTRB(16,0,16,96),
     children:[
       _addButton(
         label:'Add Supplier Payment / Receipt',
         onPressed:()=>addSupplierTransaction(),
       ),
-      Expanded(
-        child:suppliers.isEmpty
-          ?const Center(child:Text('No suppliers found.'))
-          :ListView.separated(
-              itemCount:suppliers.length,
-              separatorBuilder:(_,__)=>const Divider(height:1),
-              itemBuilder:(_,i) {
-                final x=suppliers[i];
-                return ListTile(
-                  onTap:()=>showSupplierLedger(x),
-                  leading:const CircleAvatar(child:Icon(Icons.local_shipping)),
-                  title:Text(x['name'].toString()),
-                  subtitle:Text(
-                    'Phone: ${x['phone']??''}\n'
-                    'Payable balance: ${WhatsAppShare.money(x['balance'])}',
-                  ),
-                  isThreeLine:true,
-                  trailing:Row(
-                    mainAxisSize:MainAxisSize.min,
-                    children:[
-                      IconButton(
-                        tooltip:'Add payment/receipt',
-                        icon:const Icon(Icons.payments),
-                        onPressed:()=>addSupplierTransaction(x['id'].toString()),
-                      ),
-                      IconButton(
-                        tooltip:'Share supplier statement on WhatsApp',
-                        icon:const Icon(Icons.chat),
-                        onPressed:()=>runShare(
-                          ()=>WhatsAppShare.shareSupplierCredit(x),
+      if(suppliers.isEmpty)
+        const QamvioEmptyState(
+          icon:Icons.local_shipping_outlined,
+          title:'No suppliers found',
+          subtitle:'Add suppliers before recording payment transactions.',
+        )
+      else
+        ...suppliers.map((x)=>Padding(
+          padding:const EdgeInsets.only(bottom:10),
+          child:Card(
+            child:InkWell(
+              borderRadius:BorderRadius.circular(20),
+              onTap:()=>showSupplierLedger(x),
+              child:Padding(
+                padding:const EdgeInsets.all(14),
+                child:Column(
+                  children:[
+                    Row(
+                      children:[
+                        Container(
+                          width:46,
+                          height:46,
+                          decoration:BoxDecoration(
+                            color:Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius:BorderRadius.circular(15),
+                          ),
+                          child:Icon(
+                            Icons.local_shipping_rounded,
+                            color:Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                        const SizedBox(width:12),
+                        Expanded(
+                          child:Column(
+                            crossAxisAlignment:CrossAxisAlignment.start,
+                            children:[
+                              Text(
+                                x['name'].toString(),
+                                style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
+                              ),
+                              const SizedBox(height:3),
+                              Text(
+                                x['phone']?.toString()??'',
+                                style:Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color:const Color(0xFF667085),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment:CrossAxisAlignment.end,
+                          children:[
+                            Text(
+                              QamvioUi.money(x['balance']),
+                              style:TextStyle(
+                                fontWeight:FontWeight.w900,
+                                fontSize:17,
+                                color:Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const Text(
+                              'Payable',
+                              style:TextStyle(fontSize:11,color:Color(0xFF667085)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const Divider(height:22),
+                    Row(
+                      children:[
+                        Expanded(
+                          child:OutlinedButton.icon(
+                            onPressed:()=>addSupplierTransaction(x['id'].toString()),
+                            icon:const Icon(Icons.payments_outlined),
+                            label:const Text('Payment'),
+                          ),
+                        ),
+                        const SizedBox(width:10),
+                        Expanded(
+                          child:FilledButton.tonalIcon(
+                            onPressed:()=>runShare(
+                              ()=>WhatsAppShare.shareSupplierCredit(x),
+                            ),
+                            icon:const Icon(Icons.chat_rounded),
+                            label:const Text('WhatsApp'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-      ),
+          ),
+        )),
     ],
   );
 
@@ -503,25 +691,50 @@ class _LoansPageState extends State<LoansPage> {
   Widget build(BuildContext context)=>DefaultTabController(
     length:3,
     child:Scaffold(
-      appBar:AppBar(
-        title:const Text('Loans / Credit'),
-        bottom:const TabBar(
-          tabs:[
-            Tab(text:'Customer'),
-            Tab(text:'Salesman'),
-            Tab(text:'Supplier'),
-          ],
-        ),
-      ),
+      appBar:AppBar(title:const Text('Loans / Credit')),
       body:loading
         ?const Center(child:CircularProgressIndicator())
-        :TabBarView(
+        :Column(
           children:[
-            customerTab(),
-            salesmanTab(),
-            supplierTab(),
+            const Padding(
+              padding:EdgeInsets.fromLTRB(16,6,16,12),
+              child:QamvioPageIntro(
+                title:'Loans & Credit',
+                subtitle:'Customer loans, salesman outstanding balances and supplier payments.',
+                icon:Icons.account_balance_wallet_rounded,
+              ),
+            ),
+            Padding(
+              padding:const EdgeInsets.symmetric(horizontal:16),
+              child:Container(
+                decoration:BoxDecoration(
+                  color:Colors.white,
+                  borderRadius:BorderRadius.circular(16),
+                  border:Border.all(color:const Color(0xFFE7ECF3)),
+                ),
+                child:const TabBar(
+                  dividerColor:Colors.transparent,
+                  tabs:[
+                    Tab(text:'Customer'),
+                    Tab(text:'Salesman'),
+                    Tab(text:'Supplier'),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height:4),
+            Expanded(
+              child:TabBarView(
+                children:[
+                  customerTab(),
+                  salesmanTab(),
+                  supplierTab(),
+                ],
+              ),
+            ),
           ],
         ),
     ),
   );
+
 }

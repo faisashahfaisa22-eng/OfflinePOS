@@ -47,7 +47,7 @@ class AppDatabase {
     return openDatabase(
       path,
       password: _sqlcipherKey,
-      version: 6,
+      version: 7,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async => _createSchema(db),
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -56,6 +56,7 @@ class AppDatabase {
         if (oldVersion < 4) await _createV4Tables(db);
         if (oldVersion < 5) await _createV5Tables(db);
         if (oldVersion < 6) await _createV6Tables(db);
+        if (oldVersion < 7) await _createV7Tables(db);
       },
     );
   }
@@ -189,12 +190,12 @@ class AppDatabase {
     await db.execute('CREATE TABLE salesmen(id TEXT PRIMARY KEY,name TEXT NOT NULL,phone TEXT,commission REAL NOT NULL DEFAULT 0,credit_limit REAL NOT NULL DEFAULT 0,note TEXT,active INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE sales(id TEXT PRIMARY KEY,invoice_no TEXT NOT NULL,business_date TEXT,vehicle TEXT,customer_id TEXT,salesman_id TEXT,subtotal REAL NOT NULL DEFAULT 0,discount REAL NOT NULL DEFAULT 0,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,recovery REAL NOT NULL DEFAULT 0,oil REAL NOT NULL DEFAULT 0,other REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(customer_id) REFERENCES customers(id),FOREIGN KEY(salesman_id) REFERENCES salesmen(id))');
     await db.execute('CREATE TABLE sale_items(id TEXT PRIMARY KEY,sale_id TEXT NOT NULL,product_id TEXT,product_name TEXT NOT NULL,qty REAL NOT NULL,price REAL NOT NULL,discount REAL NOT NULL DEFAULT 0,cost REAL,total REAL NOT NULL,FOREIGN KEY(sale_id) REFERENCES sales(id) ON DELETE CASCADE,FOREIGN KEY(product_id) REFERENCES products(id))');
-    await db.execute('CREATE TABLE expenses(id TEXT PRIMARY KEY,name TEXT NOT NULL,category TEXT,amount REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE expenses(id TEXT PRIMARY KEY,business_date TEXT,name TEXT NOT NULL,category TEXT,amount REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE purchases(id TEXT PRIMARY KEY,business_date TEXT,invoice_no TEXT,note TEXT,source TEXT,fuel_tank_id TEXT,supplier_id TEXT,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(supplier_id) REFERENCES suppliers(id),FOREIGN KEY(fuel_tank_id) REFERENCES fuel_tanks(id))');
     await db.execute('CREATE TABLE purchase_items(id TEXT PRIMARY KEY,purchase_id TEXT NOT NULL,product_id TEXT,product_name TEXT NOT NULL,qty REAL NOT NULL,cost REAL NOT NULL,total REAL NOT NULL,FOREIGN KEY(purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,FOREIGN KEY(product_id) REFERENCES products(id))');
-    await db.execute('CREATE TABLE customer_loans(id TEXT PRIMARY KEY,customer_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(customer_id) REFERENCES customers(id))');
-    await db.execute('CREATE TABLE salesman_loans(id TEXT PRIMARY KEY,salesman_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,source TEXT,linked_sale_id TEXT,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(salesman_id) REFERENCES salesmen(id),FOREIGN KEY(linked_sale_id) REFERENCES sales(id) ON DELETE SET NULL)');
-    await db.execute('CREATE TABLE supplier_transactions(id TEXT PRIMARY KEY,supplier_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(supplier_id) REFERENCES suppliers(id))');
+    await db.execute('CREATE TABLE customer_loans(id TEXT PRIMARY KEY,business_date TEXT,customer_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(customer_id) REFERENCES customers(id))');
+    await db.execute('CREATE TABLE salesman_loans(id TEXT PRIMARY KEY,business_date TEXT,salesman_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,source TEXT,linked_sale_id TEXT,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(salesman_id) REFERENCES salesmen(id),FOREIGN KEY(linked_sale_id) REFERENCES sales(id) ON DELETE SET NULL)');
+    await db.execute('CREATE TABLE supplier_transactions(id TEXT PRIMARY KEY,business_date TEXT,supplier_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(supplier_id) REFERENCES suppliers(id))');
     await db.execute('CREATE TABLE fuel_tanks(id TEXT PRIMARY KEY,name TEXT NOT NULL,product_id TEXT,fuel_type TEXT NOT NULL,capacity REAL NOT NULL DEFAULT 0,opening_liters REAL NOT NULL DEFAULT 0,current_stock REAL NOT NULL DEFAULT 0,note TEXT,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(product_id) REFERENCES products(id))');
     await db.execute('CREATE TABLE fuel_nozzles(id TEXT PRIMARY KEY,tank_id TEXT NOT NULL,name TEXT NOT NULL,opening_meter REAL NOT NULL DEFAULT 0,meter_reading REAL NOT NULL DEFAULT 0,price_per_unit REAL NOT NULL DEFAULT 0,note TEXT,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(tank_id) REFERENCES fuel_tanks(id))');
     await db.execute('CREATE TABLE fuel_shifts(id TEXT PRIMARY KEY,business_date TEXT,tank_id TEXT,nozzle_id TEXT NOT NULL,salesman_id TEXT,customer_id TEXT,sale_id TEXT,shift_name TEXT,invoice_no TEXT,opening_meter REAL NOT NULL DEFAULT 0,closing_meter REAL,litres REAL NOT NULL DEFAULT 0,price_per_unit REAL NOT NULL DEFAULT 0,total REAL NOT NULL DEFAULT 0,cash_received REAL NOT NULL DEFAULT 0,expense REAL NOT NULL DEFAULT 0,started_at TEXT NOT NULL,closed_at TEXT,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(tank_id) REFERENCES fuel_tanks(id),FOREIGN KEY(nozzle_id) REFERENCES fuel_nozzles(id),FOREIGN KEY(salesman_id) REFERENCES salesmen(id),FOREIGN KEY(customer_id) REFERENCES customers(id),FOREIGN KEY(sale_id) REFERENCES sales(id))');
@@ -289,6 +290,20 @@ class AppDatabase {
     await db.execute('CREATE TABLE IF NOT EXISTS stock_adjustments(id TEXT PRIMARY KEY,business_date TEXT NOT NULL,product_id TEXT NOT NULL,qty REAL NOT NULL DEFAULT 0,note TEXT,source TEXT,fuel_tank_id TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(product_id) REFERENCES products(id),FOREIGN KEY(fuel_tank_id) REFERENCES fuel_tanks(id))');
     await db.execute('CREATE TABLE IF NOT EXISTS fuel_closings(id TEXT PRIMARY KEY,business_date TEXT NOT NULL,opening_cash REAL NOT NULL DEFAULT 0,cash_in REAL NOT NULL DEFAULT 0,cash_out REAL NOT NULL DEFAULT 0,expected_cash REAL NOT NULL DEFAULT 0,actual_cash REAL NOT NULL DEFAULT 0,variance REAL NOT NULL DEFAULT 0,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE IF NOT EXISTS recycle_bin(id TEXT PRIMARY KEY,section TEXT NOT NULL,label TEXT,record_json TEXT NOT NULL,linked_records_json TEXT,deleted_at TEXT NOT NULL)');
+  }
+
+  Future<void> _createV7Tables(Database db) async {
+    Future<void> addColumn(String table,String name,String definition) async {
+      final cols=await db.rawQuery('PRAGMA table_info('+table+')');
+      final names=cols.map((x)=>x['name']?.toString()).toSet();
+      if(!names.contains(name)) {
+        await db.execute('ALTER TABLE '+table+' ADD COLUMN '+name+' '+definition);
+      }
+    }
+    await addColumn('expenses','business_date','TEXT');
+    await addColumn('customer_loans','business_date','TEXT');
+    await addColumn('salesman_loans','business_date','TEXT');
+    await addColumn('supplier_transactions','business_date','TEXT');
   }
 
   Future<List<Map<String, Object?>>> products() async {
@@ -439,14 +454,25 @@ class AppDatabase {
   }
 
   Future<void> saveExpense({
-    required String id, required String name, String? category,
-    required double amount, String? note,
+    required String id,
+    required String name,
+    String? category,
+    required double amount,
+    String? note,
+    DateTime? businessDate,
   }) async {
     final db = await database;
     final now = DateTime.now().toUtc().toIso8601String();
     await db.insert('expenses', {
-      'id': id, 'name': name.trim(), 'category': category, 'amount': amount,
-      'note': note, 'created_at': now, 'updated_at': now, 'sync_state': 0,
+      'id':id,
+      'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+      'name':name.trim(),
+      'category':category,
+      'amount':amount,
+      'note':note,
+      'created_at':now,
+      'updated_at':now,
+      'sync_state':0,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -645,29 +671,31 @@ class AppDatabase {
     });
   }
 
-  Future<void> saveCustomerLoan({required String id,required String customerId,required double amount,required String type,String? note}) async {
+  Future<void> saveCustomerLoan({required String id,required String customerId,required double amount,required String type,String? note,DateTime? businessDate}) async {
     final db=await database,now=DateTime.now().toUtc().toIso8601String();
-    await db.transaction((txn) async {await txn.insert('customer_loans',{'id':id,'customer_id':customerId,'amount':amount,'type':type,'note':note,'created_at':now,'updated_at':now,'sync_state':0});final delta=type=='payment'?-amount:amount;await txn.rawUpdate('UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',[delta,now,customerId]);});
+    await db.transaction((txn) async {await txn.insert('customer_loans',{'id':id,'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,'customer_id':customerId,'amount':amount,'type':type,'note':note,'created_at':now,'updated_at':now,'sync_state':0});final delta=type=='payment'?-amount:amount;await txn.rawUpdate('UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',[delta,now,customerId]);});
   }
 
-  Future<void> saveSalesmanLoan({required String id,required String salesmanId,required double amount,required String type,String? note}) async {
+  Future<void> saveSalesmanLoan({required String id,required String salesmanId,required double amount,required String type,String? note,DateTime? businessDate}) async {
     if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
     if(type!='loan' && type!='payment') throw ArgumentError.value(type,'type','Use loan or payment.');
     final db=await database,now=DateTime.now().toUtc().toIso8601String();
     await db.insert('salesman_loans',{
-      'id':id,'salesman_id':salesmanId,'amount':amount,'type':type,
+      'id':id,'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+      'salesman_id':salesmanId,'amount':amount,'type':type,
       'source':'manual','linked_sale_id':null,'note':note,
       'created_at':now,'updated_at':now,'sync_state':0,
     });
   }
 
-  Future<void> saveSupplierTransaction({required String id,required String supplierId,required double amount,required String type,String? note}) async {
+  Future<void> saveSupplierTransaction({required String id,required String supplierId,required double amount,required String type,String? note,DateTime? businessDate}) async {
     if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
     if(type!='payment' && type!='received') throw ArgumentError.value(type,'type','Use payment or received.');
     final db=await database,now=DateTime.now().toUtc().toIso8601String();
     await db.transaction((txn) async {
       await txn.insert('supplier_transactions',{
-        'id':id,'supplier_id':supplierId,'amount':amount,'type':type,'note':note,
+        'id':id,'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+        'supplier_id':supplierId,'amount':amount,'type':type,'note':note,
         'created_at':now,'updated_at':now,'sync_state':0,
       });
       final delta=type=='payment'?-amount:amount;

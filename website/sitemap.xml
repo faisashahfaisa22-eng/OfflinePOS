@@ -2,11 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://qamvio.com/</loc>
+    <lastmod>2026-10-02</lastmod>
+  </url>
+  <url>
+    <loc>https://qamvio.com/offline-pos.html</loc>
+    <lastmod>2026-10-02</lastmod>
+  </url>
+  <url>
+    <loc>https://qamvio.com/inventory-management.html</loc>
+    <lastmod>2026-10-02</lastmod>
   </url>
   <url>
     <loc>https://qamvio.com/privacy.html</loc>
+    <lastmod>2026-10-02</lastmod>
   </url>
   <url>
     <loc>https://qamvio.com/terms.html</loc>
+    <lastmod>2026-10-02</lastmod>
   </url>
 </urlset>

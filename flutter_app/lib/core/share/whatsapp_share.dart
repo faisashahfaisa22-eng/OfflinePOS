@@ -221,9 +221,15 @@ class WhatsAppShare {
     final supplierBalance=await scalar(
       'SELECT COALESCE(SUM(balance),0) FROM suppliers',
     );
-    final salesmanDue=await scalar(
+    final salesmanInvoiceDue=await scalar(
       'SELECT COALESCE(SUM(due),0) FROM sales WHERE salesman_id IS NOT NULL',
     );
+    final salesmanManualLoan=await scalar(
+      "SELECT COALESCE(SUM(CASE WHEN type='payment' THEN -amount ELSE amount END),0) "
+      "FROM salesman_loans "
+      "WHERE COALESCE(source,'manual') NOT IN ('sale_due','sale_recovery')",
+    );
+    final salesmanOutstanding=salesmanInvoiceDue+salesmanManualLoan;
 
     final b=StringBuffer()
       ..writeln('QAMVIO POS — Full Business Report')
@@ -236,7 +242,9 @@ class WhatsAppShare {
       ..writeln()
       ..writeln('Customer receivables: ${money(customerBalance)}')
       ..writeln('Sales invoice due: ${money(x['due'])}')
-      ..writeln('Salesman credit due: ${money(salesmanDue)}')
+      ..writeln('Salesman invoice due: ${money(salesmanInvoiceDue)}')
+      ..writeln('Salesman manual loans: ${money(salesmanManualLoan)}')
+      ..writeln('Salesman total outstanding: ${money(salesmanOutstanding)}')
       ..writeln('Supplier payable balance: ${money(supplierBalance)}')
       ..writeln('Supplier purchase due: ${money(x['supplierDue'])}')
       ..writeln()

@@ -142,8 +142,8 @@ class LegacyMigrationService {
     final db=await _db;
     const tables=[
       'products','customers','suppliers','salesmen','sales','purchases',
-      'expenses','customer_loans','salesman_loans','supplier_transactions','fuel_tanks',
-      'fuel_nozzles','fuel_shifts'
+      'expenses','customer_loans','salesman_loans','supplier_transactions','capital',
+      'stock_adjustments','fuel_tanks','fuel_nozzles','fuel_shifts','fuel_closings'
     ];
     for(final table in tables) {
       final count=Sqflite.firstIntValue(
@@ -344,10 +344,13 @@ class LegacyMigrationService {
     final salesmanLoans=_rows(legacy,'salesmanLoans');
     final supplierTransactions=_rows(legacy,'supplierTransactions');
     final expenses=_rows(legacy,'expenses');
+    final capital=_rows(legacy,'capital');
     final adjustments=_rows(legacy,'stockAdjustments');
     final fuelTanks=_rows(legacy,'fuelTanks');
     final fuelNozzles=_rows(legacy,'fuelNozzles');
     final fuelShifts=_rows(legacy,'fuelShifts');
+    final fuelClosings=_rows(legacy,'fuelClosings');
+    final recycleBin=_rows(legacy,'recycleBin');
 
     final productIds=_ids(products,'product');
     final customerIds=_ids(customers,'customer');
@@ -478,9 +481,13 @@ class LegacyMigrationService {
       'salesman_loans':0,
       'supplier_transactions':0,
       'expenses':0,
+      'capital':0,
+      'stock_adjustments':0,
       'fuel_tanks':0,
       'fuel_nozzles':0,
       'fuel_shifts':0,
+      'fuel_closings':0,
+      'recycle_bin':0,
     };
 
     try {
@@ -511,6 +518,8 @@ class LegacyMigrationService {
             'cost':productCost(oldId,row),
             'price':_n(row['salePrice']),
             'stock':productStock(oldId,row),
+            'opening_qty':_n(row['openingQty']),
+            'reorder_level':_n(row['reorderLevel']),
             'unit':_text(row['unit']).trim().isEmpty?'pcs':_text(row['unit']).trim(),
             'batch_no':_text(row['batchNo']).trim().isEmpty?null:_text(row['batchNo']).trim(),
             'expiry_date':_text(row['expiryDate']).trim().isEmpty?null:_text(row['expiryDate']).trim(),
@@ -534,6 +543,10 @@ class LegacyMigrationService {
               :_text(row['name']).trim(),
             'phone':_text(row['phone']).trim().isEmpty?null:_text(row['phone']).trim(),
             'address':address.isEmpty?null:address,
+            'salesman_id':_mapped(salesmanIds,row['salesmanId']),
+            'opening':_n(row['opening']),
+            'credit_limit':_n(row['creditLimit']),
+            'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
             'balance':customerBalance(oldId,row),
             'updated_at':now,
             'sync_state':0,
@@ -555,6 +568,8 @@ class LegacyMigrationService {
               :_text(row['name']).trim(),
             'phone':_text(row['phone']).trim().isEmpty?null:_text(row['phone']).trim(),
             'address':address.isEmpty?null:address,
+            'opening':_n(row['opening']),
+            'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
             'balance':supplierBalance(oldId,row),
             'updated_at':now,
             'sync_state':0,
@@ -573,6 +588,8 @@ class LegacyMigrationService {
               :_text(row['name']).trim(),
             'phone':_text(row['phone']).trim().isEmpty?null:_text(row['phone']).trim(),
             'commission':_n(row['commission']),
+            'credit_limit':_n(row['creditLimit']),
+            'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
             'active':row['active']==false?0:1,
             'updated_at':now,
             'sync_state':0,
@@ -651,6 +668,9 @@ class LegacyMigrationService {
             'invoice_no':_text(row['invoice']).trim().isEmpty
               ?'LEGACY-'+(i+1).toString()
               :_text(row['invoice']).trim(),
+            'business_date':_text(row['date']).trim().isEmpty
+              ?now.split('T').first
+              :_text(row['date']).trim(),
             'customer_id':_mapped(customerIds,row['customerId']),
             'salesman_id':_mapped(salesmanIds,row['salesmanId']),
             'subtotal':subtotal,
@@ -658,6 +678,9 @@ class LegacyMigrationService {
             'total':total,
             'paid':paid,
             'due':(total-paid).clamp(0,double.infinity).toDouble(),
+            'oil':_n(row['oil']),
+            'other':_n(row['other']),
+            'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
             'created_at':_stamp(row['date'],now),
             'updated_at':now,
             'sync_state':0,
@@ -683,34 +706,6 @@ class LegacyMigrationService {
             inserted['sale_items']=inserted['sale_items']!+1;
           }
 
-          final oil=_n(row['oil']);
-          final other=_n(row['other']);
-          if(oil>0) {
-            await txn.insert('expenses',{
-              'id':saleId+'_legacy_oil',
-              'name':'Legacy sale oil expense',
-              'category':'Oil',
-              'amount':oil,
-              'note':'Migrated from sale '+_text(row['invoice']),
-              'created_at':_stamp(row['date'],now),
-              'updated_at':now,
-              'sync_state':0,
-            });
-            inserted['expenses']=inserted['expenses']!+1;
-          }
-          if(other>0) {
-            await txn.insert('expenses',{
-              'id':saleId+'_legacy_other',
-              'name':'Legacy sale extra expense',
-              'category':'Extra',
-              'amount':other,
-              'note':'Migrated from sale '+_text(row['invoice']),
-              'created_at':_stamp(row['date'],now),
-              'updated_at':now,
-              'sync_state':0,
-            });
-            inserted['expenses']=inserted['expenses']!+1;
-          }
         }
 
         for(var i=0;i<purchases.length;i++) {
@@ -910,6 +905,86 @@ class LegacyMigrationService {
             'sync_state':0,
           });
           inserted['expenses']=inserted['expenses']!+1;
+        }
+
+        for(var i=0;i<capital.length;i++) {
+          final row=capital[i];
+          await txn.insert('capital',{
+            'id':_text(row['id']).trim().isEmpty
+              ?'legacy_capital_'+i.toString()
+              :_text(row['id']).trim(),
+            'business_date':_text(row['date']).trim().isEmpty
+              ?now.split('T').first
+              :_text(row['date']).trim(),
+            'name':_text(row['name']).trim().isEmpty?'Owner / Partner':_text(row['name']).trim(),
+            'amount':_n(row['amount']),
+            'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
+            'created_at':_stamp(row['date'],now),
+            'updated_at':now,
+            'sync_state':0,
+          });
+          inserted['capital']=inserted['capital']!+1;
+        }
+
+        for(var i=0;i<adjustments.length;i++) {
+          final row=adjustments[i];
+          final productId=_mapped(productIds,row['productId']);
+          if(productId==null) continue;
+          await txn.insert('stock_adjustments',{
+            'id':_text(row['id']).trim().isEmpty
+              ?'legacy_adjustment_'+i.toString()
+              :_text(row['id']).trim(),
+            'business_date':_text(row['date']).trim().isEmpty
+              ?now.split('T').first
+              :_text(row['date']).trim(),
+            'product_id':productId,
+            'qty':_n(row['qty']),
+            'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
+            'source':_text(row['source']).trim().isEmpty?null:_text(row['source']).trim(),
+            'fuel_tank_id':_mapped(tankIds,row['fuelTankId']),
+            'created_at':_stamp(row['date'],now),
+            'updated_at':now,
+            'sync_state':0,
+          });
+          inserted['stock_adjustments']=inserted['stock_adjustments']!+1;
+        }
+
+        for(var i=0;i<fuelClosings.length;i++) {
+          final row=fuelClosings[i];
+          await txn.insert('fuel_closings',{
+            'id':_text(row['id']).trim().isEmpty
+              ?'legacy_fuel_closing_'+i.toString()
+              :_text(row['id']).trim(),
+            'business_date':_text(row['date']).trim().isEmpty
+              ?now.split('T').first
+              :_text(row['date']).trim(),
+            'opening_cash':_n(row['openingCash']),
+            'cash_in':_n(row['cashIn']),
+            'cash_out':_n(row['cashOut']),
+            'expected_cash':_n(row['expectedCash']),
+            'actual_cash':_n(row['actualCash']),
+            'variance':_n(row['variance']),
+            'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
+            'created_at':_stamp(row['closedAt'],now),
+            'updated_at':now,
+            'sync_state':0,
+          });
+          inserted['fuel_closings']=inserted['fuel_closings']!+1;
+        }
+
+        for(var i=0;i<recycleBin.length;i++) {
+          final row=recycleBin[i];
+          await txn.insert('recycle_bin',{
+            'id':_text(row['id']).trim().isEmpty
+              ?'legacy_recycle_'+i.toString()
+              :_text(row['id']).trim(),
+            'section':_text(row['section']).trim().isEmpty?'legacy':_text(row['section']).trim(),
+            'label':_text(row['label']).trim().isEmpty?null:_text(row['label']).trim(),
+            'record_json':jsonEncode(row['record']??const <String,dynamic>{}),
+            'linked_records_json':jsonEncode(row['linkedRecords']??const <dynamic>[]),
+            'deleted_at':_text(row['deletedAt']).trim().isEmpty?now:_text(row['deletedAt']).trim(),
+          });
+          inserted['recycle_bin']=inserted['recycle_bin']!+1;
         }
 
         for(var i=0;i<fuelShifts.length;i++) {

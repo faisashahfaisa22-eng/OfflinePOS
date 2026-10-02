@@ -851,16 +851,17 @@ class AppDatabase {
     if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
     final db=await database;
     final now=DateTime.now().toUtc().toIso8601String();
+    final old=await db.query('capital',where:'id=?',whereArgs:[id],limit:1);
     await db.insert('capital',{
       'id':id,
       'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
       'name':name.trim(),
       'amount':amount,
       'note':note,
-      'created_at':now,
+      'created_at':old.isEmpty?now:old.first['created_at'],
       'updated_at':now,
       'sync_state':0,
-    });
+    },conflictAlgorithm:ConflictAlgorithm.replace);
   }
 
   Future<void> saveStockAdjustment({

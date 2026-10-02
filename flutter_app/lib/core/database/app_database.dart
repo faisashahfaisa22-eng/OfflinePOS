@@ -1,16 +1,50 @@
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'dart:io';
 
+import 'package:path/path.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
+
+import '../security/crypto_utils.dart';
+
+/// SQLCipher-encrypted database. It can only be opened after the user signs in
+/// (see LocalAuthService), because the key is the user's unwrapped data key.
 class AppDatabase {
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
   Database? _db;
-  Future<Database> get database async => _db ??= await _open();
+  String? _keyHex;
+
+  bool get isUnlocked=>_keyHex!=null;
+
+  Future<void> unlock(List<int> dek) async {
+    final hex=CryptoUtils.toHex(dek);
+    if(_keyHex!=hex) {
+      await _db?.close();
+      _db=null;
+    }
+    _keyHex=hex;
+  }
+
+  Future<void> lock() async {
+    final db=_db;
+    _db=null;
+    _keyHex=null;
+    await db?.close();
+  }
+
+  Future<Database> get database async {
+    if(_keyHex==null) throw StateError('Database is locked. Sign in first.');
+    return _db ??= await _open();
+  }
+
+  String get _sqlcipherKey=>"x'${_keyHex!}'";
 
   Future<Database> _open() async {
     final root = await getDatabasesPath();
+    final path = join(root, 'qamvio_pos.db');
+    await _encryptLegacyPlainDatabaseIfNeeded(path);
     return openDatabase(
-      join(root, 'qamvio_pos.db'),
+      path,
+      password: _sqlcipherKey,
       version: 5,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async => _createSchema(db),
@@ -21,6 +55,55 @@ class AppDatabase {
         if (oldVersion < 5) await _createV5Tables(db);
       },
     );
+  }
+
+  Future<bool> _isPlainSqlite(String path) async {
+    final f=File(path);
+    if(!await f.exists()) return false;
+    final raf=await f.open();
+    try {
+      final head=await raf.read(16);
+      return String.fromCharCodes(head).startsWith('SQLite format 3');
+    } finally {
+      await raf.close();
+    }
+  }
+
+  /// Earlier Flutter builds stored the business data unencrypted. On first
+  /// unlock it is copied into an encrypted file (sqlcipher_export), verified,
+  /// and only then is the plaintext file deleted.
+  Future<void> _encryptLegacyPlainDatabaseIfNeeded(String path) async {
+    if(!await _isPlainSqlite(path)) return;
+    final tmp='$path.enc';
+    for(final suffix in ['','-wal','-shm','-journal']) {
+      final f=File('$tmp$suffix');
+      if(await f.exists()) await f.delete();
+    }
+    final plain=await openDatabase(path);
+    int version;
+    try {
+      version=Sqflite.firstIntValue(await plain.rawQuery('PRAGMA user_version'))??0;
+      final safeTmp=tmp.replaceAll("'","''");
+      await plain.execute("ATTACH DATABASE '$safeTmp' AS encrypted KEY \"$_sqlcipherKey\"");
+      await plain.rawQuery("SELECT sqlcipher_export('encrypted')");
+      await plain.execute('PRAGMA encrypted.user_version = $version');
+      await plain.execute('DETACH DATABASE encrypted');
+    } finally {
+      await plain.close();
+    }
+    // Verify the encrypted copy before touching the original.
+    final check=await openDatabase(tmp,password:_sqlcipherKey,readOnly:true);
+    try {
+      final tables=Sqflite.firstIntValue(await check.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table'"))??0;
+      if(tables==0) throw StateError('Encrypted copy verification failed; original database kept.');
+    } finally {
+      await check.close();
+    }
+    for(final suffix in ['','-wal','-shm','-journal']) {
+      final f=File('$path$suffix');
+      if(await f.exists()) await f.delete();
+    }
+    await File(tmp).rename(path);
   }
 
   Future<void> _createSchema(Database db) async {

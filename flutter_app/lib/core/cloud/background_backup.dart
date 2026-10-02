@@ -1,13 +1,20 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 import 'cloud_backup_service.dart';
+import 'cloud_config.dart';
 
 const qamvioDailyBackupTask='qamvioDailyBackup';
 
+/// Runs in a background isolate. The encrypted database cannot be opened here
+/// (the key exists only after a user signs in), so the task uploads the encrypted
+/// backup file that the app prepared while it was unlocked.
 @pragma('vm:entry-point')
 void cloudBackupDispatcher(){
   Workmanager().executeTask((task,inputData) async {
     try {
-      await CloudBackupService.instance.backupNow();
+      // A fresh isolate has no Supabase instance; restore the saved session.
+      await Supabase.initialize(url:CloudConfig.supabaseUrl,publishableKey:CloudConfig.supabaseAnonKey);
+      await CloudBackupService.instance.uploadPendingFile();
       return true;
     } catch (_) {
       return false;

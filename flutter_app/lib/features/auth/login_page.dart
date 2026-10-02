@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
 
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
+enum _Mode { login, create, recover }
+
+/// Offline sign-in with email or mobile + local password. No internet needed.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -11,251 +15,242 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final auth=LocalAuthService.instance;
   final id=TextEditingController();
   final password=TextEditingController();
-  bool signup=false;
+  final confirm=TextEditingController();
+  final recovery=TextEditingController();
+  late _Mode mode;
   bool busy=false;
   bool obscure=true;
   String message='';
 
-  bool get isPhone=>id.text.trim().startsWith('+');
+  @override
+  void initState() {
+    super.initState();
+    mode=auth.hasAccounts?_Mode.login:_Mode.create;
+  }
 
   @override
   void dispose() {
     id.dispose();
     password.dispose();
+    confirm.dispose();
+    recovery.dispose();
     super.dispose();
   }
 
+  void _switch(_Mode m) {
+    setState(() {
+      mode=m;
+      message='';
+      password.clear();
+      confirm.clear();
+      recovery.clear();
+    });
+  }
+
   Future<void> submit() async {
-    final value=id.text.trim();
-    if(value.isEmpty || password.text.length<8) {
-      setState(()=>message='Enter a valid email/mobile and a password of at least 8 characters.');
+    setState(()=>message='');
+    final idErr=LocalAuthService.validateLoginId(id.text);
+    if(idErr!=null) {
+      setState(()=>message=idErr);
       return;
     }
-    setState(() {
-      busy=true;
-      message='';
-    });
+    if(mode!=_Mode.login&&password.text!=confirm.text) {
+      setState(()=>message='Passwords do not match.');
+      return;
+    }
+    setState(()=>busy=true);
     try {
-      final auth=Supabase.instance.client.auth;
-      if(signup) {
-        if(isPhone) {
-          await auth.signUp(phone:value,password:password.text);
-          if(mounted) {
-            setState(()=>message='Account created. Verify the SMS code when phone authentication is enabled.');
-          }
-        } else {
-          await auth.signUp(email:value,password:password.text);
-          if(mounted) {
-            setState(()=>message='Account created. Confirm your email, then sign in.');
-          }
-        }
-      } else {
-        if(isPhone) {
-          await auth.signInWithPassword(phone:value,password:password.text);
-        } else {
-          await auth.signInWithPassword(email:value,password:password.text);
-        }
+      switch(mode) {
+        case _Mode.login:
+          await auth.login(id.text,password.text);
+        case _Mode.create:
+          final code=await auth.createFirstAccount(id.text,password.text);
+          if(mounted) await _showRecoveryCode(code);
+        case _Mode.recover:
+          final code=await auth.resetPasswordWithRecovery(id.text,recovery.text,password.text);
+          if(mounted) await _showRecoveryCode(code);
       }
     } on AuthException catch(e) {
       if(mounted) setState(()=>message=e.message);
+    } catch(e) {
+      if(mounted) setState(()=>message='Error: $e');
     } finally {
       if(mounted) setState(()=>busy=false);
     }
   }
 
+  Future<void> _showRecoveryCode(String code) async {
+    await showDialog<void>(
+      context:context,
+      barrierDismissible:false,
+      builder:(ctx)=>RecoveryCodeDialog(code:code),
+    );
+  }
+
   @override
-  Widget build(BuildContext context)=>Scaffold(
-    body:SafeArea(
-      child:Center(
-        child:SingleChildScrollView(
-          padding:const EdgeInsets.all(20),
-          child:ConstrainedBox(
-            constraints:const BoxConstraints(maxWidth:480),
-            child:Column(
-              crossAxisAlignment:CrossAxisAlignment.stretch,
-              children:[
-                Container(
-                  padding:const EdgeInsets.all(22),
-                  decoration:BoxDecoration(
-                    gradient:const LinearGradient(
-                      colors:[Color(0xFF174EA6),Color(0xFF356FD2)],
-                      begin:Alignment.topLeft,
-                      end:Alignment.bottomRight,
-                    ),
-                    borderRadius:BorderRadius.circular(28),
-                    boxShadow:const [
-                      BoxShadow(
-                        blurRadius:28,
-                        offset:Offset(0,14),
-                        color:Color(0x26174EA6),
-                      ),
-                    ],
+  Widget build(BuildContext context) {
+    final title=switch(mode){
+      _Mode.login=>'Sign in',
+      _Mode.create=>'Create admin account',
+      _Mode.recover=>'Reset password',
+    };
+    return Scaffold(
+      body:SafeArea(
+        child:Center(
+          child:SingleChildScrollView(
+            padding:const EdgeInsets.all(20),
+            child:ConstrainedBox(
+              constraints:const BoxConstraints(maxWidth:460),
+              child:Column(
+                crossAxisAlignment:CrossAxisAlignment.stretch,
+                children:[
+                  QamvioPageIntro(
+                    title:'QAMVIO POS',
+                    subtitle:mode==_Mode.create
+                      ?'Your business data is encrypted on this device with your password.'
+                      :'Works fully offline. Enter your email or mobile and password.',
+                    icon:Icons.lock_rounded,
                   ),
-                  child:Column(
-                    children:[
-                      Container(
-                        width:72,
-                        height:72,
-                        decoration:BoxDecoration(
-                          color:Colors.white.withValues(alpha:.14),
-                          borderRadius:BorderRadius.circular(22),
-                        ),
-                        child:const Icon(
-                          Icons.storefront_rounded,
-                          size:38,
-                          color:Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height:16),
-                      const Text(
-                        'QAMVIO POS',
-                        style:TextStyle(
-                          color:Colors.white,
-                          fontSize:30,
-                          fontWeight:FontWeight.w900,
-                          letterSpacing:.2,
-                        ),
-                      ),
-                      const SizedBox(height:6),
-                      Text(
-                        'Offline-first sales, inventory and accounts',
-                        textAlign:TextAlign.center,
-                        style:TextStyle(
-                          color:Colors.white.withValues(alpha:.84),
-                          fontSize:15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height:22),
-                Card(
-                  child:Padding(
-                    padding:const EdgeInsets.all(20),
-                    child:Column(
-                      crossAxisAlignment:CrossAxisAlignment.stretch,
-                      children:[
-                        Text(
-                          signup?'Create your account':'Welcome back',
-                          style:Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight:FontWeight.w900,
+                  const SizedBox(height:18),
+                  Card(
+                    child:Padding(
+                      padding:const EdgeInsets.all(18),
+                      child:Column(
+                        crossAxisAlignment:CrossAxisAlignment.stretch,
+                        children:[
+                          Text(title,style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w900)),
+                          const SizedBox(height:14),
+                          TextField(
+                            controller:id,
+                            enabled:!busy,
+                            keyboardType:TextInputType.emailAddress,
+                            autocorrect:false,
+                            decoration:const InputDecoration(labelText:'Email or mobile (+93...)',prefixIcon:Icon(Icons.person_outline_rounded)),
                           ),
-                        ),
-                        const SizedBox(height:5),
-                        Text(
-                          signup
-                            ?'Set up secure cloud access for your QAMVIO business.'
-                            :'Sign in to access your business and cloud protection.',
-                          style:Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:const Color(0xFF667085),
-                          ),
-                        ),
-                        const SizedBox(height:20),
-                        TextField(
-                          controller:id,
-                          enabled:!busy,
-                          keyboardType:TextInputType.emailAddress,
-                          decoration:const InputDecoration(
-                            labelText:'Email or mobile number',
-                            hintText:'you@example.com or +93...',
-                            prefixIcon:Icon(Icons.alternate_email_rounded),
-                          ),
-                        ),
-                        const SizedBox(height:12),
-                        TextField(
-                          controller:password,
-                          enabled:!busy,
-                          obscureText:obscure,
-                          onSubmitted:(_)=>busy?null:submit(),
-                          decoration:InputDecoration(
-                            labelText:'Password',
-                            prefixIcon:const Icon(Icons.lock_outline_rounded),
-                            suffixIcon:IconButton(
-                              tooltip:obscure?'Show password':'Hide password',
-                              onPressed:()=>setState(()=>obscure=!obscure),
-                              icon:Icon(
-                                obscure
-                                  ?Icons.visibility_outlined
-                                  :Icons.visibility_off_outlined,
+                          if(mode==_Mode.recover) ...[
+                            const SizedBox(height:12),
+                            TextField(
+                              controller:recovery,
+                              enabled:!busy,
+                              autocorrect:false,
+                              textCapitalization:TextCapitalization.characters,
+                              decoration:const InputDecoration(labelText:'Recovery code',prefixIcon:Icon(Icons.key_rounded)),
+                            ),
+                          ],
+                          const SizedBox(height:12),
+                          TextField(
+                            controller:password,
+                            enabled:!busy,
+                            obscureText:obscure,
+                            decoration:InputDecoration(
+                              labelText:mode==_Mode.recover?'New password':'Password',
+                              prefixIcon:const Icon(Icons.lock_outline_rounded),
+                              suffixIcon:IconButton(
+                                tooltip:obscure?'Show password':'Hide password',
+                                icon:Icon(obscure?Icons.visibility_rounded:Icons.visibility_off_rounded),
+                                onPressed:()=>setState(()=>obscure=!obscure),
                               ),
+                              helperText:mode==_Mode.login?null:'Min 8 characters, with a letter and a number',
                             ),
                           ),
-                        ),
-                        const SizedBox(height:16),
-                        FilledButton.icon(
-                          onPressed:busy?null:submit,
-                          icon:busy
-                            ?const SizedBox(
-                              width:18,
-                              height:18,
-                              child:CircularProgressIndicator(strokeWidth:2),
-                            )
-                            :Icon(signup?Icons.person_add_alt_1_rounded:Icons.login_rounded),
-                          label:Text(
-                            busy
-                              ?'Please wait…'
-                              :(signup?'Create Account':'Sign In'),
-                          ),
-                        ),
-                        const SizedBox(height:8),
-                        TextButton(
-                          onPressed:busy
-                            ?null
-                            :()=>setState(() {
-                              signup=!signup;
-                              message='';
-                            }),
-                          child:Text(
-                            signup
-                              ?'Already have an account? Sign in'
-                              :'New to QAMVIO? Create an account',
-                          ),
-                        ),
-                        if(message.isNotEmpty) ...[
-                          const SizedBox(height:10),
-                          Container(
-                            padding:const EdgeInsets.all(12),
-                            decoration:BoxDecoration(
-                              color:const Color(0xFFF1F4F8),
-                              borderRadius:BorderRadius.circular(14),
+                          if(mode!=_Mode.login) ...[
+                            const SizedBox(height:12),
+                            TextField(
+                              controller:confirm,
+                              enabled:!busy,
+                              obscureText:obscure,
+                              decoration:const InputDecoration(labelText:'Confirm password',prefixIcon:Icon(Icons.lock_outline_rounded)),
                             ),
-                            child:Row(
-                              crossAxisAlignment:CrossAxisAlignment.start,
-                              children:[
-                                const Icon(
-                                  Icons.info_outline_rounded,
-                                  size:20,
-                                  color:QamvioUi.brand,
-                                ),
-                                const SizedBox(width:8),
-                                Expanded(child:Text(message)),
-                              ],
-                            ),
+                          ],
+                          if(message.isNotEmpty) ...[
+                            const SizedBox(height:12),
+                            Text(message,style:const TextStyle(color:QamvioUi.danger,fontWeight:FontWeight.w600)),
+                          ],
+                          const SizedBox(height:16),
+                          FilledButton(
+                            onPressed:busy?null:submit,
+                            child:busy
+                              ?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))
+                              :Text(title),
                           ),
+                          if(busy) const Padding(
+                            padding:EdgeInsets.only(top:8),
+                            child:Text('Deriving your encryption key... this takes a few seconds.',textAlign:TextAlign.center),
+                          ),
+                          const SizedBox(height:6),
+                          if(mode==_Mode.login&&auth.hasAccounts)
+                            TextButton(onPressed:busy?null:()=>_switch(_Mode.recover),child:const Text('Forgot password? Use recovery code')),
+                          if(mode==_Mode.recover)
+                            TextButton(onPressed:busy?null:()=>_switch(_Mode.login),child:const Text('Back to sign in')),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height:18),
-                const Row(
-                  mainAxisAlignment:MainAxisAlignment.center,
-                  children:[
-                    Icon(Icons.offline_bolt_outlined,size:18,color:Color(0xFF667085)),
-                    SizedBox(width:6),
-                    Text(
-                      'Business operations remain offline-first',
-                      style:TextStyle(color:Color(0xFF667085)),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Shows a recovery code ONCE. The user must confirm they saved it.
+class RecoveryCodeDialog extends StatefulWidget {
+  final String code;
+  const RecoveryCodeDialog({required this.code,super.key});
+
+  @override
+  State<RecoveryCodeDialog> createState()=>_RecoveryCodeDialogState();
+}
+
+class _RecoveryCodeDialogState extends State<RecoveryCodeDialog> {
+  bool saved=false;
+
+  @override
+  Widget build(BuildContext context)=>AlertDialog(
+    title:const Text('Save your recovery code'),
+    content:Column(
+      mainAxisSize:MainAxisSize.min,
+      crossAxisAlignment:CrossAxisAlignment.start,
+      children:[
+        const Text(
+          'This code is the ONLY way to reset your password without losing your data. '
+          'It is shown once. Write it down and keep it somewhere safe, away from this phone.',
+        ),
+        const SizedBox(height:14),
+        Center(
+          child:SelectableText(
+            widget.code,
+            style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,letterSpacing:1.5),
+          ),
+        ),
+        const SizedBox(height:6),
+        Center(
+          child:TextButton.icon(
+            onPressed:()=>Clipboard.setData(ClipboardData(text:widget.code)),
+            icon:const Icon(Icons.copy_rounded),
+            label:const Text('Copy'),
+          ),
+        ),
+        CheckboxListTile(
+          contentPadding:EdgeInsets.zero,
+          value:saved,
+          onChanged:(v)=>setState(()=>saved=v??false),
+          title:const Text('I have saved this code'),
+          controlAffinity:ListTileControlAffinity.leading,
+        ),
+      ],
     ),
+    actions:[
+      FilledButton(
+        onPressed:saved?()=>Navigator.pop(context):null,
+        child:const Text('Continue'),
+      ),
+    ],
   );
 }

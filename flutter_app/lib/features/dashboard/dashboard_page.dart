@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../core/security/local_auth_service.dart';
+import '../../core/security/permissions.dart';
+import '../users/users_page.dart';
 
+import '../../core/cloud/cloud_backup_service.dart';
 import '../../core/database/app_database.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/localization/language_controller.dart';
@@ -47,6 +51,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _open(Widget page) async {
+    if(!Permissions.canOpen(pageKeyFor(page))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Your login role does not have access to this page.')),
+      );
+      return;
+    }
     await Navigator.push(
       context,
       MaterialPageRoute(builder:(_)=>page),
@@ -368,6 +378,7 @@ class QamvioDrawer extends StatelessWidget {
 
   Future<void> _go(BuildContext context,Widget page) async {
     Navigator.pop(context);
+    if(!Permissions.canOpen(pageKeyFor(page))) return;
     await Navigator.push(context,MaterialPageRoute(builder:(_)=>page));
     onReturn();
   }
@@ -506,6 +517,22 @@ class QamvioDrawer extends StatelessWidget {
             title:strings.t('cloud'),
             onTap:()=>_go(context,const CloudPage()),
           ),
+          _item(
+            context,
+            icon:Icons.manage_accounts_rounded,
+            title:'Users / Login',
+            onTap:()=>_go(context,const UsersPage()),
+          ),
+          _item(
+            context,
+            icon:Icons.logout_rounded,
+            title:'Sign out',
+            onTap:()async {
+              Navigator.pop(context);
+              try { await CloudBackupService.instance.prepareBackupFile(); } catch(_) {}
+              await LocalAuthService.instance.logout();
+            },
+          ),
         ],
       ),
     ),
@@ -529,4 +556,21 @@ class QamvioDrawer extends StatelessWidget {
       onTap:onTap,
     ),
   );
+}
+
+
+/// Maps a destination page widget to its permission key.
+AppPage pageKeyFor(Widget page) {
+  if(page is SalesPage) return AppPage.sales;
+  if(page is ProductsPage) return AppPage.products;
+  if(page is PurchasesPage) return AppPage.purchases;
+  if(page is PartyPage) return page.type==PartyType.customer?AppPage.customers:AppPage.suppliers;
+  if(page is SalesmenPage) return AppPage.salesmen;
+  if(page is LoansPage) return AppPage.loans;
+  if(page is ExpensesPage) return AppPage.expenses;
+  if(page is FuelPage) return AppPage.fuel;
+  if(page is PharmacyPage) return AppPage.pharmacy;
+  if(page is ReportsPage) return AppPage.reports;
+  if(page is UsersPage) return AppPage.users;
+  return AppPage.cloud;
 }

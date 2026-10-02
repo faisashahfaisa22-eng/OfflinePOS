@@ -1,13 +1,10 @@
-# QAMVIO POS Flutter migration
+# QAMVIO POS (Flutter)
 
-This directory is the new native Flutter implementation.
+Offline-first Flutter port of QAMVIO v15.
 
-Architecture:
-- Flutter native UI
-- SQLite (sqflite) is the offline source of truth
-- Sync queue prepared for Supabase synchronization
-- Supabase Auth/Cloud dependencies prepared
-- WorkManager prepared for daily background backup
-- Native QR/barcode dependencies prepared
+* Login: local, offline (email or mobile + password). Supabase is **not** used for login.
+* Database: SQLCipher (AES-256). Key = random data key wrapped under each user's password and recovery code.
+* Roles: Admin / Cashier / Salesman (rules ported from v15).
+* Supabase: optional, **encrypted** cloud backup / restore only.
 
-The existing Android/HTML app stays intact while Flutter modules are rebuilt and tested. Do not remove the legacy app until data migration, cloud restore, invoices, reports, retail/pharmacy/fuel modules, and hardware flows pass tests.
+See `SECURITY_AND_ANDROID_NOTES.md` for the Android changes that must be applied to the `android/` folder.

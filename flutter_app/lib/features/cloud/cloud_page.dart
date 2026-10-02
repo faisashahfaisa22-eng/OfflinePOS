@@ -59,8 +59,48 @@ class _CloudPageState extends State<CloudPage> {
     }
   }
 
+  Future<void> restoreFlow() async {
+    final cred=await showDialog<_RestoreCredentials>(
+      context:context,
+      builder:(_)=>const _RestoreDialog(),
+    );
+    if(cred==null) return;
+    await run(
+      ()async {
+        final ok=await CloudBackupService.instance.restoreLatest(
+          loginId:cred.loginId,
+          secret:cred.secret,
+          secretIsRecoveryCode:cred.isRecoveryCode,
+        );
+        if(!ok) throw StateError('No cloud backup found for this cloud account.');
+      },
+      'Latest Flutter backup restored into SQLite.',
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context)=>StreamBuilder<AuthState>(
+    stream:Supabase.instance.client.auth.onAuthStateChange,
+    builder:(context,_)=>Supabase.instance.client.auth.currentSession==null
+      ?Scaffold(
+        appBar:AppBar(title:const Text('Cloud & Backup')),
+        body:ListView(
+          padding:QamvioUi.pagePadding,
+          children:const [
+            QamvioPageIntro(
+              title:'Cloud account',
+              subtitle:'Sign in only to back up or restore. QAMVIO itself works fully offline.',
+              icon:Icons.cloud_off_rounded,
+            ),
+            SizedBox(height:18),
+            CloudSignInPanel(),
+          ],
+        ),
+      )
+      :_buildSignedIn(context),
+  );
+
+  Widget _buildSignedIn(BuildContext context) {
     final user=Supabase.instance.client.auth.currentUser;
     final account=user?.email??user?.phone??'Not signed in';
     return Scaffold(
@@ -177,10 +217,7 @@ class _CloudPageState extends State<CloudPage> {
                   OutlinedButton.icon(
                     onPressed:busy
                       ?null
-                      :()=>run(
-                        ()=>CloudBackupService.instance.restoreLatest(),
-                        'Latest Flutter backup restored into SQLite.',
-                      ),
+                      :restoreFlow,
                     icon:const Icon(Icons.restore_rounded),
                     label:const Text('Restore Latest Flutter Backup'),
                   ),
@@ -294,7 +331,7 @@ class _CloudPageState extends State<CloudPage> {
                 await Supabase.instance.client.auth.signOut();
               },
             icon:const Icon(Icons.logout_rounded),
-            label:const Text('Sign Out'),
+            label:const Text('Disconnect cloud account'),
           ),
         ],
       ),
@@ -338,5 +375,134 @@ class _CloudPageState extends State<CloudPage> {
         ),
       ),
     ],
+  );
+}
+
+class _RestoreCredentials {
+  final String loginId;
+  final String secret;
+  final bool isRecoveryCode;
+  const _RestoreCredentials(this.loginId,this.secret,this.isRecoveryCode);
+}
+
+class _RestoreDialog extends StatefulWidget {
+  const _RestoreDialog();
+
+  @override
+  State<_RestoreDialog> createState()=>_RestoreDialogState();
+}
+
+class _RestoreDialogState extends State<_RestoreDialog> {
+  final id=TextEditingController();
+  final secret=TextEditingController();
+  bool recovery=false;
+
+  @override
+  void dispose() {
+    id.dispose();
+    secret.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context)=>AlertDialog(
+    title:const Text('Unlock the cloud backup'),
+    content:Column(
+      mainAxisSize:MainAxisSize.min,
+      children:[
+        const Text('Enter the email/mobile and password (or recovery code) of the account that created the backup. This is what decrypts it.'),
+        const SizedBox(height:12),
+        TextField(controller:id,decoration:const InputDecoration(labelText:'Email or mobile')),
+        const SizedBox(height:8),
+        TextField(
+          controller:secret,
+          obscureText:!recovery,
+          decoration:InputDecoration(labelText:recovery?'Recovery code':'Password'),
+        ),
+        SwitchListTile(
+          contentPadding:EdgeInsets.zero,
+          value:recovery,
+          onChanged:(v)=>setState(()=>recovery=v),
+          title:const Text('Use recovery code'),
+        ),
+      ],
+    ),
+    actions:[
+      TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),
+      FilledButton(
+        onPressed:()=>Navigator.pop(context,_RestoreCredentials(id.text,secret.text,recovery)),
+        child:const Text('Restore'),
+      ),
+    ],
+  );
+}
+
+/// Supabase account used ONLY for cloud backup (not for app login).
+class CloudSignInPanel extends StatefulWidget {
+  const CloudSignInPanel({super.key});
+
+  @override
+  State<CloudSignInPanel> createState()=>_CloudSignInPanelState();
+}
+
+class _CloudSignInPanelState extends State<CloudSignInPanel> {
+  final id=TextEditingController();
+  final password=TextEditingController();
+  bool signup=false;
+  bool busy=false;
+  String message='';
+
+  @override
+  void dispose() {
+    id.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  Future<void> submit() async {
+    final value=id.text.trim();
+    if(value.isEmpty||password.text.length<8) {
+      setState(()=>message='Enter your cloud email/mobile and a password of at least 8 characters.');
+      return;
+    }
+    setState(() {
+      busy=true;
+      message='';
+    });
+    try {
+      final auth=Supabase.instance.client.auth;
+      final phone=value.startsWith('+');
+      if(signup) {
+        phone?await auth.signUp(phone:value,password:password.text):await auth.signUp(email:value,password:password.text);
+        if(mounted) setState(()=>message='Cloud account created. Confirm your email/SMS if requested, then sign in.');
+      } else {
+        phone?await auth.signInWithPassword(phone:value,password:password.text):await auth.signInWithPassword(email:value,password:password.text);
+      }
+    } on AuthException catch(e) {
+      if(mounted) setState(()=>message=e.message);
+    } catch(e) {
+      if(mounted) setState(()=>message='Cloud error: $e');
+    } finally {
+      if(mounted) setState(()=>busy=false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context)=>Card(
+    child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(
+        crossAxisAlignment:CrossAxisAlignment.stretch,
+        children:[
+          TextField(controller:id,enabled:!busy,decoration:const InputDecoration(labelText:'Cloud email or mobile (+93...)')),
+          const SizedBox(height:10),
+          TextField(controller:password,enabled:!busy,obscureText:true,decoration:const InputDecoration(labelText:'Cloud password')),
+          if(message.isNotEmpty) Padding(padding:const EdgeInsets.only(top:10),child:Text(message)),
+          const SizedBox(height:12),
+          FilledButton(onPressed:busy?null:submit,child:Text(signup?'Create cloud account':'Connect cloud account')),
+          TextButton(onPressed:busy?null:()=>setState(()=>signup=!signup),child:Text(signup?'I already have a cloud account':'Create a cloud account')),
+        ],
+      ),
+    ),
   );
 }

@@ -106,6 +106,7 @@ class _FuelPageState extends State<FuelPage> {
     if(!admin) return;
     if(products.isEmpty) {
       await seedFuelProducts();
+      if(!mounted) return;
       if(products.isEmpty) return;
     }
     final name=TextEditingController(text:existing?['name']?.toString()??'');

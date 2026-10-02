@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://faisashahfaisa22-eng.github.io/OfflinePOS/sitemap.xml
+Sitemap: https://qamvio.com/sitemap.xml

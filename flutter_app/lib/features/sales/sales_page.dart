@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/database/app_database.dart';
 import '../../core/localization/language_controller.dart';
 import '../../core/share/whatsapp_share.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
 class SalesPage extends StatefulWidget {
@@ -35,13 +36,24 @@ class _SalesPageState extends State<SalesPage> {
 
   Future<void> load() async {
     final db=await AppDatabase.instance.database;
-    final x=await db.rawQuery(
+    final user=LocalAuthService.instance.current;
+    const select=
       'SELECT s.*,c.name customer_name,sm.name salesman_name '
       'FROM sales s '
       'LEFT JOIN customers c ON c.id=s.customer_id '
-      'LEFT JOIN salesmen sm ON sm.id=s.salesman_id '
-      'ORDER BY s.created_at DESC',
-    );
+      'LEFT JOIN salesmen sm ON sm.id=s.salesman_id ';
+    final List<Map<String,Object?>> x;
+    if(user?.role==UserRole.salesman) {
+      final linked=user?.salesmanId??'';
+      x=linked.isEmpty
+        ?<Map<String,Object?>>[]
+        :await db.rawQuery(
+          select+'WHERE s.salesman_id=? ORDER BY s.created_at DESC',
+          [linked],
+        );
+    } else {
+      x=await db.rawQuery(select+'ORDER BY s.created_at DESC');
+    }
     if(!mounted) return;
     setState(() {
       rows=x;
@@ -61,9 +73,23 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   Future<void> newSale() async {
+    final user=LocalAuthService.instance.current;
+    final forced=user?.role==UserRole.salesman ? user?.salesmanId??'' : '';
+    if(user?.role==UserRole.salesman&&forced.isEmpty) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content:Text('This login is not linked to a salesman account. Ask an Admin to fix the user.')),
+        );
+      }
+      return;
+    }
     final saved=await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder:(_)=>const NewSalePage()),
+      MaterialPageRoute(
+        builder:(_)=>NewSalePage(
+          forcedSalesmanId:forced.isEmpty?null:forced,
+        ),
+      ),
     );
     if(saved==true) await load();
   }
@@ -315,7 +341,12 @@ class _SalesPageState extends State<SalesPage> {
 }
 
 class NewSalePage extends StatefulWidget {
-  const NewSalePage({super.key});
+  final String? forcedSalesmanId;
+
+  const NewSalePage({
+    this.forcedSalesmanId,
+    super.key,
+  });
 
   @override
   State<NewSalePage> createState()=>_NewSalePageState();
@@ -368,16 +399,25 @@ class _NewSalePageState extends State<NewSalePage> {
     final db=await AppDatabase.instance.database;
     final p=await db.query('products',orderBy:'name COLLATE NOCASE');
     final c=await db.query('customers',orderBy:'name COLLATE NOCASE');
-    final sm=await db.query(
-      'salesmen',
-      where:'active=1',
-      orderBy:'name COLLATE NOCASE',
-    );
+    final forced=widget.forcedSalesmanId?.trim()??'';
+    final sm=forced.isNotEmpty
+      ?await db.query(
+        'salesmen',
+        where:'id=?',
+        whereArgs:[forced],
+        limit:1,
+      )
+      :await db.query(
+        'salesmen',
+        where:'active=1',
+        orderBy:'name COLLATE NOCASE',
+      );
     if(!mounted) return;
     setState(() {
       products=p;
       customers=c;
       salesmen=sm;
+      salesmanId=forced;
       loading=false;
     });
   }
@@ -484,11 +524,16 @@ class _NewSalePageState extends State<NewSalePage> {
     setState(()=>saving=true);
     try {
       final id=DateTime.now().microsecondsSinceEpoch.toString();
+      final forced=widget.forcedSalesmanId?.trim()??'';
+      if(forced.isNotEmpty&&salesmen.isEmpty) {
+        throw StateError('The linked salesman account no longer exists.');
+      }
+      final effectiveSalesmanId=forced.isNotEmpty?forced:salesmanId;
       await AppDatabase.instance.createSale(
         id:id,
         invoiceNo:invoiceNo,
         customerId:customerId.isEmpty?null:customerId,
-        salesmanId:salesmanId.isEmpty?null:salesmanId,
+        salesmanId:effectiveSalesmanId.isEmpty?null:effectiveSalesmanId,
         items:cart.values.toList(),
         discount:discountValue,
         paid:paidValue,
@@ -557,26 +602,43 @@ class _NewSalePageState extends State<NewSalePage> {
                     onChanged:(v)=>setState(()=>customerId=v??''),
                   ),
                   const SizedBox(height:10),
-                  DropdownButtonFormField<String>(
-                    initialValue:salesmanId,
-                    decoration:const InputDecoration(
-                      labelText:'Salesman',
-                      prefixIcon:Icon(Icons.badge_outlined),
-                    ),
-                    items:[
-                      const DropdownMenuItem(
-                        value:'',
-                        child:Text('No salesman'),
+                  if((widget.forcedSalesmanId?.trim()??'').isNotEmpty)
+                    InputDecorator(
+                      decoration:const InputDecoration(
+                        labelText:'Salesman',
+                        prefixIcon:Icon(Icons.badge_outlined),
                       ),
-                      ...salesmen.map(
-                        (x)=>DropdownMenuItem(
-                          value:x['id'].toString(),
-                          child:Text(x['name'].toString()),
+                      child:Text(
+                        salesmen.isEmpty
+                          ?'Linked salesman not found'
+                          :salesmen.first['name'].toString(),
+                        style:TextStyle(
+                          fontWeight:FontWeight.w700,
+                          color:salesmen.isEmpty?QamvioUi.danger:null,
                         ),
                       ),
-                    ],
-                    onChanged:(v)=>setState(()=>salesmanId=v??''),
-                  ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      initialValue:salesmanId,
+                      decoration:const InputDecoration(
+                        labelText:'Salesman',
+                        prefixIcon:Icon(Icons.badge_outlined),
+                      ),
+                      items:[
+                        const DropdownMenuItem(
+                          value:'',
+                          child:Text('No salesman'),
+                        ),
+                        ...salesmen.map(
+                          (x)=>DropdownMenuItem(
+                            value:x['id'].toString(),
+                            child:Text(x['name'].toString()),
+                          ),
+                        ),
+                      ],
+                      onChanged:(v)=>setState(()=>salesmanId=v??''),
+                    ),
                 ],
               ),
             ),

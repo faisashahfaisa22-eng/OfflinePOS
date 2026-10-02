@@ -276,15 +276,29 @@ class AppDatabase {
   }
 
   Future<void> saveProduct({
-    required String id, required String name, String? barcode, String? category,
-    double cost = 0, double price = 0, double stock = 0, String unit = 'pcs',
+    required String id,
+    required String name,
+    String? barcode,
+    String? category,
+    double cost=0,
+    double price=0,
+    double stock=0,
+    double? openingQty,
+    double reorderLevel=0,
+    String unit='pcs',
   }) async {
     final db = await database;
     final now = DateTime.now().toUtc().toIso8601String();
     await db.insert('products', {
       'id': id, 'name': name.trim(), 'barcode': barcode, 'category': category,
-      'cost': cost, 'price': price, 'stock': stock, 'unit': unit,
-      'updated_at': now, 'sync_state': 0,
+      'cost':cost,
+      'price':price,
+      'stock':stock,
+      'opening_qty':openingQty??stock,
+      'reorder_level':reorderLevel,
+      'unit':unit,
+      'updated_at':now,
+      'sync_state':0,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -295,13 +309,29 @@ class AppDatabase {
   }
 
   Future<void> saveCustomer({
-    required String id, required String name, String? phone, String? address,
+    required String id,
+    required String name,
+    String? phone,
+    String? address,
+    String? salesmanId,
+    double opening=0,
+    double creditLimit=0,
+    String? note,
   }) async {
     final db = await database;
     final now = DateTime.now().toUtc().toIso8601String();
     await db.insert('customers', {
-      'id': id, 'name': name.trim(), 'phone': phone, 'address': address,
-      'balance': 0, 'updated_at': now, 'sync_state': 0,
+      'id':id,
+      'name':name.trim(),
+      'phone':phone,
+      'address':address,
+      'salesman_id':salesmanId,
+      'opening':opening,
+      'credit_limit':creditLimit,
+      'note':note,
+      'balance':opening,
+      'updated_at':now,
+      'sync_state':0,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -311,13 +341,25 @@ class AppDatabase {
   }
 
   Future<void> saveSupplier({
-    required String id, required String name, String? phone, String? address,
+    required String id,
+    required String name,
+    String? phone,
+    String? address,
+    double opening=0,
+    String? note,
   }) async {
     final db = await database;
     final now = DateTime.now().toUtc().toIso8601String();
     await db.insert('suppliers', {
-      'id': id, 'name': name.trim(), 'phone': phone, 'address': address,
-      'balance': 0, 'updated_at': now, 'sync_state': 0,
+      'id':id,
+      'name':name.trim(),
+      'phone':phone,
+      'address':address,
+      'opening':opening,
+      'note':note,
+      'balance':opening,
+      'updated_at':now,
+      'sync_state':0,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -331,6 +373,8 @@ class AppDatabase {
     required String name,
     String? phone,
     double commission=0,
+    double creditLimit=0,
+    String? note,
     bool active=true,
   }) async {
     final db=await database;
@@ -340,6 +384,8 @@ class AppDatabase {
       'name':name.trim(),
       'phone':phone?.trim(),
       'commission':commission,
+      'credit_limit':creditLimit,
+      'note':note,
       'active':active?1:0,
       'updated_at':now,
       'sync_state':0,
@@ -376,6 +422,10 @@ class AppDatabase {
     required List<Map<String,Object?>> items,
     double discount=0,
     double paid=0,
+    double oil=0,
+    double other=0,
+    String? note,
+    DateTime? businessDate,
   }) async {
     final db = await database;
     await db.transaction((txn) async {
@@ -391,6 +441,7 @@ class AppDatabase {
       await txn.insert('sales', {
         'id':id,
         'invoice_no':invoiceNo,
+        'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
         'customer_id':customerId,
         'salesman_id':salesmanId,
         'subtotal':subtotal,
@@ -398,6 +449,9 @@ class AppDatabase {
         'total':total,
         'paid':paid,
         'due':due,
+        'oil':oil,
+        'other':other,
+        'note':note,
         'created_at':now,
         'updated_at':now,
         'sync_state':0,
@@ -471,6 +525,94 @@ class AppDatabase {
         [delta,now,supplierId],
       );
     });
+  }
+
+  Future<void> saveCapital({
+    required String id,
+    required String name,
+    required double amount,
+    String? note,
+    DateTime? businessDate,
+  }) async {
+    if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    await db.insert('capital',{
+      'id':id,
+      'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+      'name':name.trim(),
+      'amount':amount,
+      'note':note,
+      'created_at':now,
+      'updated_at':now,
+      'sync_state':0,
+    });
+  }
+
+  Future<void> saveStockAdjustment({
+    required String id,
+    required String productId,
+    required double qty,
+    String? note,
+    String? source,
+    String? fuelTankId,
+    DateTime? businessDate,
+  }) async {
+    if(qty==0) throw ArgumentError.value(qty,'qty','Adjustment cannot be zero.');
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    await db.transaction((txn) async {
+      await txn.insert('stock_adjustments',{
+        'id':id,
+        'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+        'product_id':productId,
+        'qty':qty,
+        'note':note,
+        'source':source,
+        'fuel_tank_id':fuelTankId,
+        'created_at':now,
+        'updated_at':now,
+        'sync_state':0,
+      });
+      await txn.rawUpdate(
+        'UPDATE products SET stock=stock+?,updated_at=?,sync_state=0 WHERE id=?',
+        [qty,now,productId],
+      );
+      if(fuelTankId!=null&&fuelTankId.isNotEmpty) {
+        await txn.rawUpdate(
+          'UPDATE fuel_tanks SET current_stock=current_stock+?,updated_at=?,sync_state=0 WHERE id=?',
+          [qty,now,fuelTankId],
+        );
+      }
+    });
+  }
+
+  Future<void> saveFuelClosing({
+    required String id,
+    required double openingCash,
+    required double actualCash,
+    required double cashIn,
+    required double cashOut,
+    String? note,
+    DateTime? businessDate,
+  }) async {
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    final expected=openingCash+cashIn-cashOut;
+    await db.insert('fuel_closings',{
+      'id':id,
+      'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+      'opening_cash':openingCash,
+      'cash_in':cashIn,
+      'cash_out':cashOut,
+      'expected_cash':expected,
+      'actual_cash':actualCash,
+      'variance':actualCash-expected,
+      'note':note,
+      'created_at':now,
+      'updated_at':now,
+      'sync_state':0,
+    },conflictAlgorithm:ConflictAlgorithm.replace);
   }
 
   Future<void> saveMedicine({required String id,required String name,String? batchNo,String? expiryDate,double price=0,double stock=0}) async {

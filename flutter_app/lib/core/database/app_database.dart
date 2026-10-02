@@ -11,13 +11,14 @@ class AppDatabase {
     final root = await getDatabasesPath();
     return openDatabase(
       join(root, 'qamvio_pos.db'),
-      version: 4,
+      version: 5,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async => _createSchema(db),
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) await _createV2Tables(db);
         if (oldVersion < 3) await _createV3Tables(db);
         if (oldVersion < 4) await _createV4Tables(db);
+        if (oldVersion < 5) await _createV5Tables(db);
       },
     );
   }
@@ -33,6 +34,7 @@ class AppDatabase {
     await db.execute('CREATE TABLE purchases(id TEXT PRIMARY KEY,supplier_id TEXT,total REAL NOT NULL DEFAULT 0,paid REAL NOT NULL DEFAULT 0,due REAL NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(supplier_id) REFERENCES suppliers(id))');
     await db.execute('CREATE TABLE purchase_items(id TEXT PRIMARY KEY,purchase_id TEXT NOT NULL,product_id TEXT,product_name TEXT NOT NULL,qty REAL NOT NULL,cost REAL NOT NULL,total REAL NOT NULL,FOREIGN KEY(purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,FOREIGN KEY(product_id) REFERENCES products(id))');
     await db.execute('CREATE TABLE customer_loans(id TEXT PRIMARY KEY,customer_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(customer_id) REFERENCES customers(id))');
+    await db.execute('CREATE TABLE salesman_loans(id TEXT PRIMARY KEY,salesman_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,source TEXT,linked_sale_id TEXT,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(salesman_id) REFERENCES salesmen(id),FOREIGN KEY(linked_sale_id) REFERENCES sales(id) ON DELETE SET NULL)');
     await db.execute('CREATE TABLE supplier_transactions(id TEXT PRIMARY KEY,supplier_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(supplier_id) REFERENCES suppliers(id))');
     await db.execute('CREATE TABLE fuel_tanks(id TEXT PRIMARY KEY,name TEXT NOT NULL,fuel_type TEXT NOT NULL,capacity REAL NOT NULL DEFAULT 0,current_stock REAL NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE fuel_nozzles(id TEXT PRIMARY KEY,tank_id TEXT NOT NULL,name TEXT NOT NULL,meter_reading REAL NOT NULL DEFAULT 0,price_per_unit REAL NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(tank_id) REFERENCES fuel_tanks(id))');
@@ -73,6 +75,10 @@ class AppDatabase {
     }
     await db.execute('CREATE TABLE IF NOT EXISTS legacy_archives(id INTEGER PRIMARY KEY AUTOINCREMENT,source TEXT NOT NULL,source_updated_at TEXT,archived_at TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL)');
     await db.execute('CREATE TABLE IF NOT EXISTS migration_state(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT NOT NULL)');
+  }
+
+  Future<void> _createV5Tables(Database db) async {
+    await db.execute('CREATE TABLE IF NOT EXISTS salesman_loans(id TEXT PRIMARY KEY,salesman_id TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,type TEXT NOT NULL,source TEXT,linked_sale_id TEXT,note TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,sync_state INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(salesman_id) REFERENCES salesmen(id),FOREIGN KEY(linked_sale_id) REFERENCES sales(id) ON DELETE SET NULL)');
   }
 
   Future<List<Map<String, Object?>>> products() async {
@@ -203,6 +209,34 @@ class AppDatabase {
   Future<void> saveCustomerLoan({required String id,required String customerId,required double amount,required String type,String? note}) async {
     final db=await database,now=DateTime.now().toUtc().toIso8601String();
     await db.transaction((txn) async {await txn.insert('customer_loans',{'id':id,'customer_id':customerId,'amount':amount,'type':type,'note':note,'created_at':now,'updated_at':now,'sync_state':0});final delta=type=='payment'?-amount:amount;await txn.rawUpdate('UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',[delta,now,customerId]);});
+  }
+
+  Future<void> saveSalesmanLoan({required String id,required String salesmanId,required double amount,required String type,String? note}) async {
+    if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
+    if(type!='loan' && type!='payment') throw ArgumentError.value(type,'type','Use loan or payment.');
+    final db=await database,now=DateTime.now().toUtc().toIso8601String();
+    await db.insert('salesman_loans',{
+      'id':id,'salesman_id':salesmanId,'amount':amount,'type':type,
+      'source':'manual','linked_sale_id':null,'note':note,
+      'created_at':now,'updated_at':now,'sync_state':0,
+    });
+  }
+
+  Future<void> saveSupplierTransaction({required String id,required String supplierId,required double amount,required String type,String? note}) async {
+    if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
+    if(type!='payment' && type!='received') throw ArgumentError.value(type,'type','Use payment or received.');
+    final db=await database,now=DateTime.now().toUtc().toIso8601String();
+    await db.transaction((txn) async {
+      await txn.insert('supplier_transactions',{
+        'id':id,'supplier_id':supplierId,'amount':amount,'type':type,'note':note,
+        'created_at':now,'updated_at':now,'sync_state':0,
+      });
+      final delta=type=='payment'?-amount:amount;
+      await txn.rawUpdate(
+        'UPDATE suppliers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+        [delta,now,supplierId],
+      );
+    });
   }
 
   Future<void> saveMedicine({required String id,required String name,String? batchNo,String? expiryDate,double price=0,double stock=0}) async {

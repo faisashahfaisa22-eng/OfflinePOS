@@ -57,10 +57,12 @@ jobs:
           grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
           grep -R -q 'com.qamvio.qamvio_pos' android/app
 
+      - name: Clean
+        run: flutter clean
       - name: Get dependencies
         run: flutter pub get
       - name: Analyze
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze
       - name: Test
         run: flutter test
       - name: Build APK

@@ -439,6 +439,7 @@ class AppDatabase {
     required String invoiceNo,
     String? customerId,
     String? salesmanId,
+    String? vehicle,
     required List<Map<String,Object?>> items,
     double discount=0,
     double paid=0,
@@ -447,28 +448,38 @@ class AppDatabase {
     String? note,
     DateTime? businessDate,
   }) async {
-    final db = await database;
+    final db=await database;
     await db.transaction((txn) async {
-      final now = DateTime.now().toUtc().toIso8601String();
-      double subtotal = 0;
-      for (final item in items) {
-        final qty = (item['qty'] as num?)?.toDouble() ?? 0;
-        final price = (item['price'] as num?)?.toDouble() ?? 0;
-        subtotal += qty * price;
+      final now=DateTime.now().toUtc().toIso8601String();
+      final day=(businessDate??DateTime.now()).toIso8601String().split('T').first;
+      double subtotal=0;
+      double lineDiscount=0;
+      for(final item in items) {
+        final qty=(item['qty'] as num?)?.toDouble()??0;
+        final price=(item['price'] as num?)?.toDouble()??0;
+        final disc=(item['discount'] as num?)?.toDouble()??0;
+        subtotal+=qty*price;
+        lineDiscount+=disc;
       }
-      final total = (subtotal - discount).clamp(0, double.infinity).toDouble();
-      final due = (total - paid).clamp(0, double.infinity).toDouble();
-      await txn.insert('sales', {
+      final totalDiscount=(lineDiscount+discount).clamp(0,double.infinity).toDouble();
+      final total=(subtotal-totalDiscount).clamp(0,double.infinity).toDouble();
+      final delta=total-paid;
+      final due=delta>0?delta:0.0;
+      final recovery=delta<0?-delta:0.0;
+
+      await txn.insert('sales',{
         'id':id,
         'invoice_no':invoiceNo,
-        'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+        'business_date':day,
+        'vehicle':vehicle?.trim(),
         'customer_id':customerId,
         'salesman_id':salesmanId,
         'subtotal':subtotal,
-        'discount':discount,
+        'discount':totalDiscount,
         'total':total,
         'paid':paid,
         'due':due,
+        'recovery':recovery,
         'oil':oil,
         'other':other,
         'note':note,
@@ -476,41 +487,140 @@ class AppDatabase {
         'updated_at':now,
         'sync_state':0,
       });
-      if(customerId!=null && customerId.isNotEmpty && due>0) {
+
+      if(customerId!=null&&customerId.isNotEmpty&&delta!=0) {
         await txn.rawUpdate(
           'UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
-          [due,now,customerId],
+          [delta,now,customerId],
         );
       }
-      for (var i = 0; i < items.length; i++) {
-        final item = items[i];
-        final qty = (item['qty'] as num?)?.toDouble() ?? 0;
-        final price = (item['price'] as num?)?.toDouble() ?? 0;
-        final productId = item['product_id'] as String?;
-        await txn.insert('sale_items', {
-          'id': '${id}_$i', 'sale_id': id, 'product_id': productId,
-          'product_name': item['product_name'], 'qty': qty, 'price': price,
-          'cost': (item['cost'] as num?)?.toDouble(), 'total': qty * price,
+
+      for(var i=0;i<items.length;i++) {
+        final item=items[i];
+        final qty=(item['qty'] as num?)?.toDouble()??0;
+        final price=(item['price'] as num?)?.toDouble()??0;
+        final disc=(item['discount'] as num?)?.toDouble()??0;
+        final productId=item['product_id'] as String?;
+        await txn.insert('sale_items',{
+          'id':'${id}_$i',
+          'sale_id':id,
+          'product_id':productId,
+          'product_name':item['product_name'],
+          'qty':qty,
+          'price':price,
+          'discount':disc,
+          'cost':(item['cost'] as num?)?.toDouble(),
+          'total':(qty*price-disc).clamp(0,double.infinity).toDouble(),
         });
-        if (productId != null) {
+        if(productId!=null) {
           await txn.rawUpdate(
-            'UPDATE products SET stock = stock - ?, updated_at = ?, sync_state = 0 WHERE id = ?',
-            [qty, now, productId],
+            'UPDATE products SET stock=stock-?,updated_at=?,sync_state=0 WHERE id=?',
+            [qty,now,productId],
           );
+        }
+      }
+
+      if((customerId==null||customerId.isEmpty)&&
+         salesmanId!=null&&salesmanId.isNotEmpty) {
+        if(due>0) {
+          await txn.insert('salesman_loans',{
+            'id':'${id}_sale_due',
+            'salesman_id':salesmanId,
+            'amount':due,
+            'type':'loan',
+            'source':'sale_due',
+            'linked_sale_id':id,
+            'note':'Automatic invoice due / Invoice $invoiceNo',
+            'created_at':day+'T00:00:00.000Z',
+            'updated_at':now,
+            'sync_state':0,
+          });
+        }
+        if(recovery>0) {
+          await txn.insert('salesman_loans',{
+            'id':'${id}_sale_recovery',
+            'salesman_id':salesmanId,
+            'amount':recovery,
+            'type':'payment',
+            'source':'sale_recovery',
+            'linked_sale_id':id,
+            'note':'Automatic invoice recovery / Invoice $invoiceNo',
+            'created_at':day+'T00:00:00.000Z',
+            'updated_at':now,
+            'sync_state':0,
+          });
         }
       }
     });
   }
 
-  Future<void> createPurchase({required String id,required String supplierId,required List<Map<String,Object?>> items,double paid=0}) async {
+  Future<void> createPurchase({
+    required String id,
+    required String supplierId,
+    required List<Map<String,Object?>> items,
+    double paid=0,
+    String? invoiceNo,
+    String? note,
+    String? source,
+    String? fuelTankId,
+    DateTime? businessDate,
+  }) async {
     final db=await database;
     await db.transaction((txn) async {
-      final now=DateTime.now().toUtc().toIso8601String(); double total=0;
-      for(final item in items){final qty=(item['qty'] as num?)?.toDouble()??0,cost=(item['cost'] as num?)?.toDouble()??0;total+=qty*cost;}
+      final now=DateTime.now().toUtc().toIso8601String();
+      final day=(businessDate??DateTime.now()).toIso8601String().split('T').first;
+      double total=0;
+      for(final item in items) {
+        final qty=(item['qty'] as num?)?.toDouble()??0;
+        final cost=(item['cost'] as num?)?.toDouble()??0;
+        total+=qty*cost;
+      }
       final due=(total-paid).clamp(0,double.infinity).toDouble();
-      await txn.insert('purchases',{'id':id,'supplier_id':supplierId,'total':total,'paid':paid,'due':due,'created_at':now,'updated_at':now,'sync_state':0});
-      for(var i=0;i<items.length;i++){final item=items[i],productId=item['product_id']?.toString();final qty=(item['qty'] as num?)?.toDouble()??0,cost=(item['cost'] as num?)?.toDouble()??0;final p=await txn.query('products',columns:['name'],where:'id=?',whereArgs:[productId],limit:1);await txn.insert('purchase_items',{'id':id+'_'+i.toString(),'purchase_id':id,'product_id':productId,'product_name':p.isEmpty?'Product':p.first['name'],'qty':qty,'cost':cost,'total':qty*cost});await txn.rawUpdate('UPDATE products SET stock=stock+?,cost=?,updated_at=?,sync_state=0 WHERE id=?',[qty,cost,now,productId]);}
-      await txn.rawUpdate('UPDATE suppliers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',[due,now,supplierId]);
+      await txn.insert('purchases',{
+        'id':id,
+        'business_date':day,
+        'invoice_no':invoiceNo,
+        'note':note,
+        'source':source,
+        'fuel_tank_id':fuelTankId,
+        'supplier_id':supplierId,
+        'total':total,
+        'paid':paid,
+        'due':due,
+        'created_at':now,
+        'updated_at':now,
+        'sync_state':0,
+      });
+      for(var i=0;i<items.length;i++) {
+        final item=items[i];
+        final productId=item['product_id']?.toString();
+        final qty=(item['qty'] as num?)?.toDouble()??0;
+        final cost=(item['cost'] as num?)?.toDouble()??0;
+        final p=await txn.query(
+          'products',
+          columns:['name'],
+          where:'id=?',
+          whereArgs:[productId],
+          limit:1,
+        );
+        await txn.insert('purchase_items',{
+          'id':'${id}_$i',
+          'purchase_id':id,
+          'product_id':productId,
+          'product_name':p.isEmpty?'Product':p.first['name'],
+          'qty':qty,
+          'cost':cost,
+          'total':qty*cost,
+        });
+        await txn.rawUpdate(
+          'UPDATE products SET stock=stock+?,cost=?,updated_at=?,sync_state=0 WHERE id=?',
+          [qty,cost,now,productId],
+        );
+      }
+      await txn.rawUpdate(
+        'UPDATE suppliers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+        [due,now,supplierId],
+      );
     });
   }
 

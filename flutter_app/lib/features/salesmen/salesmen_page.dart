@@ -256,8 +256,8 @@ class _SalesmenPageState extends State<SalesmenPage> {
                 subtitle:rows.isEmpty
                   ?'Add salesmen so invoices and credit can be assigned correctly.'
                   :'Try another search term.',
-                actionLabel:rows.isEmpty?'Add Salesman':null,
-                onAction:rows.isEmpty?()=>edit():null,
+                actionLabel:rows.isEmpty&&canEdit?'Add Salesman':null,
+                onAction:rows.isEmpty&&canEdit?()=>edit():null,
               )
             else
               ...filtered.map((x)=>Padding(
@@ -267,7 +267,8 @@ class _SalesmenPageState extends State<SalesmenPage> {
           ],
         ),
       ),
-  );
+    );
+  }
 
   Widget _summary(
     BuildContext context,

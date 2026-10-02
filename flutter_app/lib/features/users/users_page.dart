@@ -259,7 +259,8 @@ class _UsersPageState extends State<UsersPage> {
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<UserRole>(
-                        value: role,
+                        key: ValueKey(role),
+                        initialValue: role,
                         decoration: const InputDecoration(
                           labelText: 'Role',
                           prefixIcon:
@@ -286,7 +287,8 @@ class _UsersPageState extends State<UsersPage> {
                       if (role == UserRole.salesman) ...[
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
-                          value: salesmanId.isEmpty ? null : salesmanId,
+                          key: ValueKey('salesman_$salesmanId'),
+                          initialValue: salesmanId.isEmpty ? null : salesmanId,
                           decoration: const InputDecoration(
                             labelText: 'Linked salesman',
                             prefixIcon: Icon(Icons.badge_outlined),

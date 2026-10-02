@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
+
+double _n(dynamic v)=>v is num?v.toDouble():double.tryParse(v?.toString()??'')??0;
+String _money(dynamic v)=>QamvioUi.money(v);
+String _day(DateTime d)=>DateFormat('yyyy-MM-dd').format(d);
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -13,694 +19,404 @@ class PurchasesPage extends StatefulWidget {
 class _PurchasesPageState extends State<PurchasesPage> {
   List<Map<String,Object?>> rows=const [];
   bool loading=true;
-  final search=TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    search.addListener(_refresh);
     load();
   }
 
-  @override
-  void dispose() {
-    search.removeListener(_refresh);
-    search.dispose();
-    super.dispose();
-  }
-
-  void _refresh()=>setState(() {});
-
   Future<void> load() async {
     final db=await AppDatabase.instance.database;
-    final x=await db.rawQuery(
-      'SELECT p.*,s.name supplier_name,s.phone supplier_phone '
-      'FROM purchases p '
+    final data=await db.rawQuery(
+      'SELECT p.*,s.name supplier_name FROM purchases p '
       'LEFT JOIN suppliers s ON s.id=p.supplier_id '
       'ORDER BY p.created_at DESC',
     );
     if(!mounted) return;
     setState(() {
-      rows=x;
+      rows=data;
       loading=false;
     });
   }
 
-  List<Map<String,Object?>> get filtered {
-    final q=search.text.trim().toLowerCase();
-    if(q.isEmpty) return rows;
-    return rows.where((x)=>[
-      x['supplier_name'],
-      x['created_at'],
-      x['id'],
-    ].join(' ').toLowerCase().contains(q)).toList();
-  }
-
-  double get totalPurchases=>rows.fold<double>(
-    0,
-    (a,x)=>a+((x['total'] as num?)?.toDouble()??0),
-  );
-
-  double get totalDue=>rows.fold<double>(
-    0,
-    (a,x)=>a+((x['due'] as num?)?.toDouble()??0),
-  );
-
-  Future<void> add() async {
+  Future<void> openPurchase([Map<String,Object?>? purchase]) async {
     final saved=await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder:(_)=>const NewPurchasePage()),
+      MaterialPageRoute(builder:(_)=>V15PurchaseForm(existing:purchase)),
     );
     if(saved==true) await load();
+  }
+
+  Future<void> deletePurchase(Map<String,Object?> x) async {
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        title:const Text('Delete Purchase?'),
+        content:Text('Move purchase ${x['invoice_no']??x['id']} to Recycle Bin?'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete')),
+        ],
+      ),
+    );
+    if(ok==true) {
+      await AppDatabase.instance.softDeleteById('purchases',x['id'].toString());
+      await load();
+    }
   }
 
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Purchases')),
-    floatingActionButton:FloatingActionButton.extended(
-      onPressed:add,
-      icon:const Icon(Icons.add_shopping_cart_rounded),
-      label:const Text('New Purchase'),
-    ),
+    floatingActionButton:LocalAuthService.instance.isAdmin
+      ?FloatingActionButton.extended(
+        onPressed:()=>openPurchase(),
+        icon:const Icon(Icons.add),
+        label:const Text('New Purchase'),
+      )
+      :null,
     body:loading
       ?const Center(child:CircularProgressIndicator())
-      :RefreshIndicator(
-        onRefresh:load,
-        child:ListView(
-          physics:const AlwaysScrollableScrollPhysics(),
-          padding:QamvioUi.pagePadding,
-          children:[
-            const QamvioPageIntro(
-              title:'Purchases',
-              subtitle:'Receive stock, track supplier payments and manage purchase credit.',
-              icon:Icons.shopping_cart_checkout_rounded,
-            ),
-            const SizedBox(height:18),
-            Row(
-              children:[
-                Expanded(
-                  child:_summary(
-                    context,
-                    'Purchases',
-                    rows.length.toString(),
-                    Icons.receipt_long_outlined,
-                  ),
-                ),
-                const SizedBox(width:10),
-                Expanded(
-                  child:_summary(
-                    context,
-                    'Total',
-                    QamvioUi.money(totalPurchases),
-                    Icons.payments_outlined,
-                  ),
-                ),
-                const SizedBox(width:10),
-                Expanded(
-                  child:_summary(
-                    context,
-                    'Due',
-                    QamvioUi.money(totalDue),
-                    Icons.account_balance_wallet_outlined,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height:18),
-            TextField(
-              controller:search,
-              decoration:InputDecoration(
-                hintText:'Search supplier or date',
-                prefixIcon:const Icon(Icons.search_rounded),
-                suffixIcon:search.text.isEmpty
-                  ?null
-                  :IconButton(
-                    onPressed:()=>search.clear(),
-                    icon:const Icon(Icons.close_rounded),
-                  ),
-              ),
-            ),
-            const SizedBox(height:18),
-            QamvioSectionTitle(
-              'Purchase history',
-              subtitle:'${filtered.length} matching records',
-            ),
-            if(filtered.isEmpty)
-              QamvioEmptyState(
-                icon:Icons.shopping_cart_outlined,
-                title:rows.isEmpty?'No purchases yet':'No matching purchase',
-                subtitle:rows.isEmpty
-                  ?'Create your first purchase to receive stock from a supplier.'
-                  :'Try a different search term.',
-                actionLabel:rows.isEmpty?'New Purchase':null,
-                onAction:rows.isEmpty?add:null,
-              )
-            else
-              ...filtered.map((x)=>Padding(
-                padding:const EdgeInsets.only(bottom:10),
-                child:_purchaseCard(context,x),
-              )),
-          ],
-        ),
-      ),
-  );
-
-  Widget _summary(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  )=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(12),
-      child:Column(
-        crossAxisAlignment:CrossAxisAlignment.start,
+      :ListView(
+        padding:QamvioUi.pagePadding,
         children:[
-          Icon(icon,size:20,color:Theme.of(context).colorScheme.primary),
-          const SizedBox(height:8),
-          Text(
-            value,
-            maxLines:1,
-            overflow:TextOverflow.ellipsis,
-            style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-          ),
-          Text(
-            label,
-            style:Theme.of(context).textTheme.bodySmall?.copyWith(
-              color:const Color(0xFF667085),
+          const Text('Purchases',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900)),
+          const SizedBox(height:10),
+          if(LocalAuthService.instance.isAdmin)
+            FilledButton.icon(
+              onPressed:()=>openPurchase(),
+              icon:const Icon(Icons.add_shopping_cart_rounded),
+              label:const Text('New Purchase'),
+            ),
+          const SizedBox(height:14),
+          Card(
+            child:Padding(
+              padding:const EdgeInsets.all(12),
+              child:Column(
+                crossAxisAlignment:CrossAxisAlignment.start,
+                children:[
+                  const Text('Purchase History',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
+                  const SizedBox(height:8),
+                  SingleChildScrollView(
+                    scrollDirection:Axis.horizontal,
+                    child:DataTable(
+                      columns:const [
+                        DataColumn(label:Text('Date')),
+                        DataColumn(label:Text('Supplier')),
+                        DataColumn(label:Text('Invoice')),
+                        DataColumn(label:Text('Total'),numeric:true),
+                        DataColumn(label:Text('Paid'),numeric:true),
+                        DataColumn(label:Text('Due'),numeric:true),
+                        DataColumn(label:Text('')),
+                      ],
+                      rows:[
+                        for(final x in rows)
+                          DataRow(cells:[
+                            DataCell(Text((x['business_date']??x['created_at']).toString().split('T').first)),
+                            DataCell(Text(x['supplier_name']?.toString()??'')),
+                            DataCell(Text(x['invoice_no']?.toString()??'')),
+                            DataCell(Text(_money(x['total']))),
+                            DataCell(Text(_money(x['paid']))),
+                            DataCell(Text(_money(x['due']))),
+                            DataCell(Row(
+                              mainAxisSize:MainAxisSize.min,
+                              children:[
+                                if(LocalAuthService.instance.isAdmin)
+                                  IconButton(
+                                    tooltip:'Edit',
+                                    onPressed:()=>openPurchase(x),
+                                    icon:const Icon(Icons.edit_outlined),
+                                  ),
+                                if(LocalAuthService.instance.isAdmin)
+                                  IconButton(
+                                    tooltip:'Delete',
+                                    onPressed:()=>deletePurchase(x),
+                                    icon:const Icon(Icons.delete_outline_rounded),
+                                  ),
+                              ],
+                            )),
+                          ]),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
-    ),
-  );
-
-  Widget _purchaseCard(BuildContext context,Map<String,Object?> x)=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(14),
-      child:Column(
-        crossAxisAlignment:CrossAxisAlignment.start,
-        children:[
-          Row(
-            children:[
-              Container(
-                width:46,
-                height:46,
-                decoration:BoxDecoration(
-                  color:Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius:BorderRadius.circular(15),
-                ),
-                child:Icon(
-                  Icons.local_shipping_outlined,
-                  color:Theme.of(context).colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(width:12),
-              Expanded(
-                child:Column(
-                  crossAxisAlignment:CrossAxisAlignment.start,
-                  children:[
-                    Text(
-                      (x['supplier_name']??'Supplier').toString(),
-                      style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-                    ),
-                    const SizedBox(height:3),
-                    Text(
-                      x['created_at'].toString(),
-                      maxLines:1,
-                      overflow:TextOverflow.ellipsis,
-                      style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color:const Color(0xFF667085),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height:12),
-          Wrap(
-            spacing:8,
-            runSpacing:8,
-            children:[
-              QamvioAmountPill(label:'Total',amount:x['total'],strong:true),
-              QamvioAmountPill(label:'Paid',amount:x['paid']),
-              QamvioAmountPill(label:'Due',amount:x['due']),
-            ],
-          ),
-        ],
-      ),
-    ),
   );
 }
 
-class NewPurchasePage extends StatefulWidget {
-  const NewPurchasePage({super.key});
+class V15PurchaseForm extends StatefulWidget {
+  final Map<String,Object?>? existing;
+  const V15PurchaseForm({this.existing,super.key});
 
   @override
-  State<NewPurchasePage> createState()=>_NewPurchasePageState();
+  State<V15PurchaseForm> createState()=>_V15PurchaseFormState();
 }
 
-class _NewPurchasePageState extends State<NewPurchasePage> {
+class _V15PurchaseFormState extends State<V15PurchaseForm> {
   List<Map<String,Object?>> suppliers=const [];
   List<Map<String,Object?>> products=const [];
-  final cart=<String,Map<String,Object?>>{};
-  final search=TextEditingController();
-  final paid=TextEditingController(text:'0');
+  final lines=<Map<String,Object?>>[];
+
+  DateTime date=DateTime.now();
   String supplierId='';
+  String selectedProductId='';
+  final invoiceNo=TextEditingController();
+  final paid=TextEditingController(text:'0');
+  final note=TextEditingController();
+  final qty=TextEditingController();
+  final cost=TextEditingController();
   bool loading=true;
   bool saving=false;
+
+  bool get editing=>widget.existing!=null;
+  double get total=>lines.fold<double>(0,(a,x)=>a+_n(x['qty'])*_n(x['cost']));
 
   @override
   void initState() {
     super.initState();
-    search.addListener(_refresh);
-    paid.addListener(_refresh);
     _load();
   }
 
   @override
   void dispose() {
-    search.removeListener(_refresh);
-    paid.removeListener(_refresh);
-    search.dispose();
+    invoiceNo.dispose();
     paid.dispose();
+    note.dispose();
+    qty.dispose();
+    cost.dispose();
     super.dispose();
   }
 
-  void _refresh()=>setState(() {});
-
   Future<void> _load() async {
     final db=await AppDatabase.instance.database;
-    final ss=await db.query('suppliers',orderBy:'name COLLATE NOCASE');
-    final ps=await db.query('products',orderBy:'name COLLATE NOCASE');
+    final s=await db.query('suppliers',orderBy:'name COLLATE NOCASE');
+    final p=await db.query('products',orderBy:'name COLLATE NOCASE');
+    if(editing) {
+      final x=widget.existing!;
+      date=DateTime.tryParse(x['business_date']?.toString()??'')??DateTime.now();
+      supplierId=x['supplier_id']?.toString()??'';
+      invoiceNo.text=x['invoice_no']?.toString()??'';
+      paid.text=_money(x['paid']);
+      note.text=x['note']?.toString()??'';
+      final old=await db.query('purchase_items',where:'purchase_id=?',whereArgs:[x['id']]);
+      for(final item in old) {
+        lines.add({
+          'product_id':item['product_id'],
+          'product_name':item['product_name'],
+          'qty':_n(item['qty']),
+          'cost':_n(item['cost']),
+        });
+      }
+    } else if(s.isNotEmpty) {
+      supplierId=s.first['id'].toString();
+    }
+    if(p.isNotEmpty) selectedProductId=p.first['id'].toString();
     if(!mounted) return;
     setState(() {
-      suppliers=ss;
-      products=ps;
-      supplierId=ss.isEmpty?'':ss.first['id'].toString();
+      suppliers=s;
+      products=p;
       loading=false;
     });
   }
 
-  List<Map<String,Object?>> get visibleProducts {
-    final q=search.text.trim().toLowerCase();
-    if(q.isEmpty) return products;
-    return products.where((p)=>[
-      p['name'],
-      p['barcode'],
-      p['category'],
-    ].join(' ').toLowerCase().contains(q)).toList();
-  }
-
-  double get total=>cart.values.fold<double>(
-    0,
-    (a,x)=>a+
-      (((x['qty'] as num?)?.toDouble()??0)*
-      ((x['cost'] as num?)?.toDouble()??0)),
-  );
-
-  double get paidValue=>double.tryParse(paid.text.trim())??0;
-  double get due=>(total-paidValue).clamp(0,double.infinity).toDouble();
-
-  void _add(Map<String,Object?> p) {
-    final id=p['id'].toString();
-    final old=cart[id];
-    final qty=((old?['qty'] as num?)?.toDouble()??0)+1;
-    cart[id]={
-      'product_id':id,
-      'product_name':p['name'],
-      'qty':qty,
-      'cost':(p['cost'] as num?)?.toDouble()??0,
-    };
-    setState(() {});
-  }
-
-  void _qty(String id,double delta) {
-    final item=cart[id];
-    if(item==null) return;
-    final qty=((item['qty'] as num?)?.toDouble()??0)+delta;
-    if(qty<=0) {
-      cart.remove(id);
-    } else {
-      item['qty']=qty;
-    }
-    setState(() {});
-  }
-
-  Future<void> _editCost(String id) async {
-    final item=cart[id];
-    if(item==null) return;
-    final controller=TextEditingController(text:QamvioUi.money(item['cost']));
-    final ok=await showDialog<bool>(
+  Future<void> chooseDate() async {
+    final d=await showDatePicker(
       context:context,
-      builder:(dialogContext)=>AlertDialog(
-        title:Text('Edit cost — ${item['product_name']}'),
-        content:TextField(
-          controller:controller,
-          autofocus:true,
-          keyboardType:const TextInputType.numberWithOptions(decimal:true),
-          decoration:const InputDecoration(
-            labelText:'Unit cost',
-            prefixIcon:Icon(Icons.price_change_outlined),
-          ),
-        ),
-        actions:[
-          TextButton(
-            onPressed:()=>Navigator.pop(dialogContext,false),
-            child:const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed:()=>Navigator.pop(dialogContext,true),
-            child:const Text('Apply'),
-          ),
-        ],
-      ),
+      firstDate:DateTime(2000),
+      lastDate:DateTime(2100),
+      initialDate:date,
     );
-    if(ok==true) {
-      final value=double.tryParse(controller.text.trim());
-      if(value!=null && value>=0) {
-        item['cost']=value;
-        setState(() {});
-      }
-    }
-    controller.dispose();
+    if(d!=null) setState(()=>date=d);
   }
 
-  Future<void> _save() async {
-    if(supplierId.isEmpty || cart.isEmpty || saving) {
+  void addLine() {
+    if(selectedProductId.isEmpty) return;
+    final p=products.where((x)=>x['id'].toString()==selectedProductId);
+    if(p.isEmpty) return;
+    final q=double.tryParse(qty.text.trim())??0;
+    final c=double.tryParse(cost.text.trim())??0;
+    if(q<=0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text('Select a supplier and add at least one product.')),
+        const SnackBar(content:Text('Qty must be greater than zero.')),
       );
       return;
     }
-    if(paidValue<0) {
+    setState(() {
+      lines.add({
+        'product_id':selectedProductId,
+        'product_name':p.first['name'],
+        'qty':q,
+        'cost':c,
+      });
+      qty.clear();
+      cost.clear();
+    });
+  }
+
+  Future<void> save() async {
+    if(saving||supplierId.isEmpty||lines.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text('Paid amount cannot be negative.')),
+        const SnackBar(content:Text('Select Supplier and add at least one line.')),
       );
       return;
     }
     setState(()=>saving=true);
     try {
       await AppDatabase.instance.createPurchase(
-        id:DateTime.now().microsecondsSinceEpoch.toString(),
+        id:widget.existing?['id']?.toString()??DateTime.now().microsecondsSinceEpoch.toString(),
         supplierId:supplierId,
-        items:cart.values.toList(),
-        paid:paidValue,
+        items:lines,
+        paid:double.tryParse(paid.text.trim())??0,
+        invoiceNo:invoiceNo.text.trim(),
+        note:note.text.trim(),
+        businessDate:date,
       );
       if(!mounted) return;
       Navigator.pop(context,true);
     } catch(e) {
-      if(!mounted) return;
-      setState(()=>saving=false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content:Text('Could not save purchase: $e')),
-      );
+      if(mounted) {
+        setState(()=>saving=false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Purchase save failed: $e')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context)=>Scaffold(
-    appBar:AppBar(
-      title:const Text('New Purchase'),
-      actions:[
-        if(cart.isNotEmpty)
-          TextButton(
-            onPressed:saving?null:_save,
-            child:const Text('SAVE'),
-          ),
-      ],
-    ),
+    appBar:AppBar(title:Text(editing?'Edit Purchase':'Purchases')),
     body:loading
       ?const Center(child:CircularProgressIndicator())
       :suppliers.isEmpty||products.isEmpty
-        ?QamvioEmptyState(
+        ?const QamvioEmptyState(
           icon:Icons.shopping_cart_outlined,
-          title:'Setup required',
-          subtitle:'Add at least one supplier and one product before creating a purchase.',
+          title:'Supplier and Product required',
+          subtitle:'Create Supplier and Product records before Purchase.',
         )
         :ListView(
           padding:QamvioUi.pagePadding,
           children:[
-            const QamvioPageIntro(
-              title:'Receive Stock',
-              subtitle:'Choose a supplier, add products, set costs and record the amount paid.',
-              icon:Icons.inventory_rounded,
-            ),
-            const SizedBox(height:18),
-            const QamvioSectionTitle(
-              'Supplier',
-              subtitle:'This purchase and any outstanding due will be linked to this account',
-            ),
-            DropdownButtonFormField<String>(
-              initialValue:supplierId,
-              decoration:const InputDecoration(
-                labelText:'Supplier',
-                prefixIcon:Icon(Icons.local_shipping_outlined),
-              ),
-              items:suppliers.map(
-                (x)=>DropdownMenuItem(
-                  value:x['id'].toString(),
-                  child:Text(x['name'].toString()),
-                ),
-              ).toList(),
-              onChanged:(v)=>setState(()=>supplierId=v??''),
-            ),
-            const SizedBox(height:18),
-            QamvioSectionTitle(
-              'Add products',
-              subtitle:'${visibleProducts.length} products available',
-            ),
-            TextField(
-              controller:search,
-              decoration:InputDecoration(
-                hintText:'Search product or barcode',
-                prefixIcon:const Icon(Icons.search_rounded),
-                suffixIcon:search.text.isEmpty
-                  ?null
-                  :IconButton(
-                    onPressed:()=>search.clear(),
-                    icon:const Icon(Icons.close_rounded),
-                  ),
-              ),
-            ),
-            const SizedBox(height:10),
-            ...visibleProducts.take(20).map((p)=>Padding(
-              padding:const EdgeInsets.only(bottom:8),
-              child:_product(context,p),
-            )),
-            const SizedBox(height:14),
-            QamvioSectionTitle(
-              'Purchase items',
-              subtitle:'${cart.length} selected products',
-            ),
-            if(cart.isEmpty)
-              const QamvioEmptyState(
-                icon:Icons.add_shopping_cart_rounded,
-                title:'No purchase items',
-                subtitle:'Tap Add on products above to receive stock.',
-              )
-            else
-              ...cart.entries.map((entry)=>Padding(
-                padding:const EdgeInsets.only(bottom:8),
-                child:_item(context,entry.key,entry.value),
-              )),
-            const SizedBox(height:14),
-            const QamvioSectionTitle(
-              'Payment',
-              subtitle:'Record cash paid now; the remaining amount becomes supplier payable',
-            ),
             Card(
               child:Padding(
                 padding:const EdgeInsets.all(14),
                 child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.stretch,
                   children:[
-                    _line('Purchase total',total,strong:true),
-                    const SizedBox(height:12),
-                    TextField(
-                      controller:paid,
-                      keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(
-                        labelText:'Paid now',
-                        prefixIcon:Icon(Icons.payments_outlined),
-                      ),
+                    Wrap(
+                      spacing:10,
+                      runSpacing:10,
+                      children:[
+                        SizedBox(
+                          width:170,
+                          child:InkWell(
+                            onTap:chooseDate,
+                            child:InputDecorator(
+                              decoration:const InputDecoration(labelText:'Date'),
+                              child:Text(_day(date)),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width:220,
+                          child:DropdownButtonFormField<String>(
+                            initialValue:supplierId,
+                            decoration:const InputDecoration(labelText:'Supplier'),
+                            items:[
+                              for(final x in suppliers)
+                                DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
+                            ],
+                            onChanged:(v)=>setState(()=>supplierId=v??supplierId),
+                          ),
+                        ),
+                        SizedBox(width:180,child:TextField(controller:invoiceNo,decoration:const InputDecoration(labelText:'Invoice No'))),
+                        SizedBox(width:150,child:TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Paid'))),
+                        SizedBox(width:260,child:TextField(controller:note,decoration:const InputDecoration(labelText:'Note'))),
+                      ],
                     ),
                     const Divider(height:28),
-                    _line('Supplier due',due,strong:due>0),
+                    Wrap(
+                      spacing:10,
+                      runSpacing:10,
+                      crossAxisAlignment:WrapCrossAlignment.end,
+                      children:[
+                        SizedBox(
+                          width:260,
+                          child:DropdownButtonFormField<String>(
+                            initialValue:selectedProductId,
+                            decoration:const InputDecoration(labelText:'Product'),
+                            items:[
+                              for(final x in products)
+                                DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
+                            ],
+                            onChanged:(v) {
+                              setState(()=>selectedProductId=v??selectedProductId);
+                              final p=products.where((x)=>x['id'].toString()==selectedProductId);
+                              if(p.isNotEmpty) cost.text=_money(p.first['cost']);
+                            },
+                          ),
+                        ),
+                        SizedBox(width:130,child:TextField(controller:qty,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Qty'))),
+                        SizedBox(width:150,child:TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost Price'))),
+                        OutlinedButton(onPressed:addLine,child:const Text('Add Line')),
+                      ],
+                    ),
+                    const SizedBox(height:10),
+                    SingleChildScrollView(
+                      scrollDirection:Axis.horizontal,
+                      child:DataTable(
+                        columns:const [
+                          DataColumn(label:Text('Product')),
+                          DataColumn(label:Text('Qty'),numeric:true),
+                          DataColumn(label:Text('Cost'),numeric:true),
+                          DataColumn(label:Text('Amount'),numeric:true),
+                          DataColumn(label:Text('')),
+                        ],
+                        rows:[
+                          for(var i=0;i<lines.length;i++)
+                            DataRow(cells:[
+                              DataCell(Text(lines[i]['product_name'].toString())),
+                              DataCell(Text(_money(lines[i]['qty']))),
+                              DataCell(Text(_money(lines[i]['cost']))),
+                              DataCell(Text(_money(_n(lines[i]['qty'])*_n(lines[i]['cost'])))),
+                              DataCell(IconButton(
+                                onPressed:()=>setState(()=>lines.removeAt(i)),
+                                icon:const Icon(Icons.close_rounded),
+                              )),
+                            ]),
+                          DataRow(cells:[
+                            const DataCell(Text('Total',style:TextStyle(fontWeight:FontWeight.w900))),
+                            const DataCell(Text('')),
+                            const DataCell(Text('')),
+                            DataCell(Text(_money(total),style:const TextStyle(fontWeight:FontWeight.w900))),
+                            const DataCell(Text('')),
+                          ]),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height:10),
+                    Wrap(
+                      spacing:8,
+                      children:[
+                        FilledButton(
+                          onPressed:saving?null:save,
+                          child:Text(saving?'Saving…':'Save Purchase'),
+                        ),
+                        if(editing)
+                          OutlinedButton(
+                            onPressed:()=>Navigator.pop(context),
+                            child:const Text('Cancel Edit'),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height:18),
-            FilledButton.icon(
-              onPressed:cart.isEmpty||saving?null:_save,
-              icon:saving
-                ?const SizedBox(
-                  width:18,
-                  height:18,
-                  child:CircularProgressIndicator(strokeWidth:2),
-                )
-                :const Icon(Icons.check_circle_outline_rounded),
-              label:Text(saving?'Saving purchase…':'Save Purchase'),
-            ),
           ],
         ),
-  );
-
-  Widget _product(BuildContext context,Map<String,Object?> p) {
-    final id=p['id'].toString();
-    final selected=cart[id];
-    return Card(
-      child:Padding(
-        padding:const EdgeInsets.all(13),
-        child:Row(
-          children:[
-            Container(
-              width:44,
-              height:44,
-              decoration:BoxDecoration(
-                color:Theme.of(context).colorScheme.primaryContainer,
-                borderRadius:BorderRadius.circular(14),
-              ),
-              child:Icon(
-                Icons.inventory_2_outlined,
-                color:Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(width:12),
-            Expanded(
-              child:Column(
-                crossAxisAlignment:CrossAxisAlignment.start,
-                children:[
-                  Text(
-                    p['name'].toString(),
-                    style:const TextStyle(fontWeight:FontWeight.w800),
-                  ),
-                  const SizedBox(height:3),
-                  Text(
-                    'Stock ${QamvioUi.money(p['stock'])} • Current cost ${QamvioUi.money(p['cost'])}',
-                    style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color:const Color(0xFF667085),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if(selected!=null)
-              Padding(
-                padding:const EdgeInsets.only(right:6),
-                child:CircleAvatar(
-                  radius:14,
-                  child:Text(
-                    '${((selected['qty'] as num?)?.toDouble()??0).toStringAsFixed(0)}',
-                    style:const TextStyle(fontSize:12,fontWeight:FontWeight.w800),
-                  ),
-                ),
-              ),
-            IconButton.filledTonal(
-              onPressed:()=>_add(p),
-              icon:const Icon(Icons.add_rounded),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _item(
-    BuildContext context,
-    String id,
-    Map<String,Object?> item,
-  ) {
-    final qty=(item['qty'] as num?)?.toDouble()??0;
-    final cost=(item['cost'] as num?)?.toDouble()??0;
-    return Card(
-      child:Padding(
-        padding:const EdgeInsets.all(13),
-        child:Column(
-          children:[
-            Row(
-              children:[
-                Expanded(
-                  child:Text(
-                    item['product_name'].toString(),
-                    style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-                  ),
-                ),
-                IconButton(
-                  onPressed:()=>setState(()=>cart.remove(id)),
-                  icon:const Icon(Icons.delete_outline_rounded),
-                ),
-              ],
-            ),
-            Row(
-              children:[
-                IconButton.filledTonal(
-                  onPressed:()=>_qty(id,-1),
-                  icon:const Icon(Icons.remove_rounded),
-                ),
-                Padding(
-                  padding:const EdgeInsets.symmetric(horizontal:12),
-                  child:Text(
-                    QamvioUi.money(qty),
-                    style:const TextStyle(fontWeight:FontWeight.w900,fontSize:18),
-                  ),
-                ),
-                IconButton.filledTonal(
-                  onPressed:()=>_qty(id,1),
-                  icon:const Icon(Icons.add_rounded),
-                ),
-                const Spacer(),
-                InkWell(
-                  borderRadius:BorderRadius.circular(12),
-                  onTap:()=>_editCost(id),
-                  child:Padding(
-                    padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
-                    child:Column(
-                      crossAxisAlignment:CrossAxisAlignment.end,
-                      children:[
-                        Text(
-                          'Cost ${QamvioUi.money(cost)}',
-                          style:const TextStyle(fontWeight:FontWeight.w700),
-                        ),
-                        Text(
-                          'Total ${QamvioUi.money(qty*cost)}',
-                          style:TextStyle(
-                            fontWeight:FontWeight.w900,
-                            color:Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _line(String label,double value,{bool strong=false})=>Row(
-    children:[
-      Expanded(
-        child:Text(
-          label,
-          style:TextStyle(
-            fontWeight:strong?FontWeight.w900:FontWeight.w600,
-            fontSize:strong?17:15,
-          ),
-        ),
-      ),
-      Text(
-        QamvioUi.money(value),
-        style:TextStyle(
-          fontWeight:FontWeight.w900,
-          fontSize:strong?20:16,
-          color:strong?Theme.of(context).colorScheme.primary:null,
-        ),
-      ),
-    ],
   );
 }

@@ -155,8 +155,13 @@ class AppDatabase {
   }
 
   Future<void> createSale({
-    required String id, required String invoiceNo, String? customerId,
-    required List<Map<String, Object?>> items, double discount = 0, double paid = 0,
+    required String id,
+    required String invoiceNo,
+    String? customerId,
+    String? salesmanId,
+    required List<Map<String,Object?>> items,
+    double discount=0,
+    double paid=0,
   }) async {
     final db = await database;
     await db.transaction((txn) async {
@@ -170,10 +175,25 @@ class AppDatabase {
       final total = (subtotal - discount).clamp(0, double.infinity).toDouble();
       final due = (total - paid).clamp(0, double.infinity).toDouble();
       await txn.insert('sales', {
-        'id': id, 'invoice_no': invoiceNo, 'customer_id': customerId,
-        'subtotal': subtotal, 'discount': discount, 'total': total,
-        'paid': paid, 'due': due, 'created_at': now, 'updated_at': now, 'sync_state': 0,
+        'id':id,
+        'invoice_no':invoiceNo,
+        'customer_id':customerId,
+        'salesman_id':salesmanId,
+        'subtotal':subtotal,
+        'discount':discount,
+        'total':total,
+        'paid':paid,
+        'due':due,
+        'created_at':now,
+        'updated_at':now,
+        'sync_state':0,
       });
+      if(customerId!=null && customerId.isNotEmpty && due>0) {
+        await txn.rawUpdate(
+          'UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+          [due,now,customerId],
+        );
+      }
       for (var i = 0; i < items.length; i++) {
         final item = items[i];
         final qty = (item['qty'] as num?)?.toDouble() ?? 0;

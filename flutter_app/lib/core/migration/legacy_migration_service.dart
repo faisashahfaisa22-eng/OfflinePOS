@@ -142,7 +142,7 @@ class LegacyMigrationService {
     final db=await _db;
     const tables=[
       'products','customers','suppliers','salesmen','sales','purchases',
-      'expenses','customer_loans','supplier_transactions','fuel_tanks',
+      'expenses','customer_loans','salesman_loans','supplier_transactions','fuel_tanks',
       'fuel_nozzles','fuel_shifts'
     ];
     for(final table in tables) {
@@ -341,6 +341,7 @@ class LegacyMigrationService {
     final sales=_rows(legacy,'sales');
     final purchases=_rows(legacy,'purchases');
     final customerLoans=_rows(legacy,'customerLoans');
+    final salesmanLoans=_rows(legacy,'salesmanLoans');
     final supplierTransactions=_rows(legacy,'supplierTransactions');
     final expenses=_rows(legacy,'expenses');
     final adjustments=_rows(legacy,'stockAdjustments');
@@ -352,6 +353,7 @@ class LegacyMigrationService {
     final customerIds=_ids(customers,'customer');
     final supplierIds=_ids(suppliers,'supplier');
     final salesmanIds=_ids(salesmen,'salesman');
+    final saleIds=_ids(sales,'sale');
     final tankIds=_ids(fuelTanks,'tank');
     final nozzleIds=_ids(fuelNozzles,'nozzle');
 
@@ -473,6 +475,7 @@ class LegacyMigrationService {
       'purchases':0,
       'purchase_items':0,
       'customer_loans':0,
+      'salesman_loans':0,
       'supplier_transactions':0,
       'expenses':0,
       'fuel_tanks':0,
@@ -788,6 +791,64 @@ class LegacyMigrationService {
               'sync_state':0,
             });
             inserted['customer_loans']=inserted['customer_loans']!+1;
+          }
+        }
+
+        for(var i=0;i<salesmanLoans.length;i++) {
+          final row=salesmanLoans[i];
+          var salesmanId=_mapped(salesmanIds,row['salesmanId']);
+          if(salesmanId==null) {
+            final wanted=_text(row['name']).trim().toLowerCase();
+            if(wanted.isNotEmpty) {
+              for(var j=0;j<salesmen.length;j++) {
+                if(_text(salesmen[j]['name']).trim().toLowerCase()==wanted) {
+                  final oldId=_text(salesmen[j]['id']).trim();
+                  final lookup=oldId.isEmpty?'@'+j.toString():oldId;
+                  salesmanId=salesmanIds[lookup];
+                  break;
+                }
+              }
+            }
+          }
+          if(salesmanId==null) continue;
+          final given=_n(row['given']);
+          final received=_n(row['received']);
+          final base=_text(row['id']).trim().isEmpty
+            ?'legacy_sl_'+i.toString()
+            :_text(row['id']).trim();
+          final source=_text(row['source']).trim().isEmpty
+            ?'manual'
+            :_text(row['source']).trim();
+          final linkedSaleId=_mapped(saleIds,row['linkedSaleId']);
+          if(given>0) {
+            await txn.insert('salesman_loans',{
+              'id':base+'_given',
+              'salesman_id':salesmanId,
+              'amount':given,
+              'type':'loan',
+              'source':source,
+              'linked_sale_id':linkedSaleId,
+              'note':_text(row['note']),
+              'created_at':_stamp(row['date'],now),
+              'updated_at':now,
+              'sync_state':0,
+            });
+            inserted['salesman_loans']=inserted['salesman_loans']!+1;
+          }
+          if(received>0) {
+            await txn.insert('salesman_loans',{
+              'id':base+'_received',
+              'salesman_id':salesmanId,
+              'amount':received,
+              'type':'payment',
+              'source':source,
+              'linked_sale_id':linkedSaleId,
+              'note':_text(row['note']),
+              'created_at':_stamp(row['date'],now),
+              'updated_at':now,
+              'sync_state':0,
+            });
+            inserted['salesman_loans']=inserted['salesman_loans']!+1;
           }
         }
 

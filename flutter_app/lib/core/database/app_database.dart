@@ -339,9 +339,19 @@ class AppDatabase {
     double creditLimit=0,
     String? note,
   }) async {
-    final db = await database;
-    final now = DateTime.now().toUtc().toIso8601String();
-    await db.insert('customers', {
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    final existing=await db.query(
+      'customers',
+      columns:['opening','balance'],
+      where:'id=?',
+      whereArgs:[id],
+      limit:1,
+    );
+    final balance=existing.isEmpty
+      ?opening
+      :_nDb(existing.first['balance'])+(opening-_nDb(existing.first['opening']));
+    await db.insert('customers',{
       'id':id,
       'name':name.trim(),
       'phone':phone,
@@ -350,10 +360,10 @@ class AppDatabase {
       'opening':opening,
       'credit_limit':creditLimit,
       'note':note,
-      'balance':opening,
+      'balance':balance,
       'updated_at':now,
       'sync_state':0,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    },conflictAlgorithm:ConflictAlgorithm.replace);
   }
 
   Future<List<Map<String, Object?>>> suppliers() async {
@@ -369,19 +379,29 @@ class AppDatabase {
     double opening=0,
     String? note,
   }) async {
-    final db = await database;
-    final now = DateTime.now().toUtc().toIso8601String();
-    await db.insert('suppliers', {
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    final existing=await db.query(
+      'suppliers',
+      columns:['opening','balance'],
+      where:'id=?',
+      whereArgs:[id],
+      limit:1,
+    );
+    final balance=existing.isEmpty
+      ?opening
+      :_nDb(existing.first['balance'])+(opening-_nDb(existing.first['opening']));
+    await db.insert('suppliers',{
       'id':id,
       'name':name.trim(),
       'phone':phone,
       'address':address,
       'opening':opening,
       'note':note,
-      'balance':opening,
+      'balance':balance,
       'updated_at':now,
       'sync_state':0,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    },conflictAlgorithm:ConflictAlgorithm.replace);
   }
 
   Future<List<Map<String,Object?>>> salesmen() async {

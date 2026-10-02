@@ -543,7 +543,7 @@ class LegacyMigrationService {
               :_text(row['name']).trim(),
             'phone':_text(row['phone']).trim().isEmpty?null:_text(row['phone']).trim(),
             'address':address.isEmpty?null:address,
-            'salesman_id':_mapped(salesmanIds,row['salesmanId']),
+            'salesman_id':null,
             'opening':_n(row['opening']),
             'credit_limit':_n(row['creditLimit']),
             'note':_text(row['note']).trim().isEmpty?null:_text(row['note']).trim(),
@@ -595,6 +595,21 @@ class LegacyMigrationService {
             'sync_state':0,
           });
           inserted['salesmen']=inserted['salesmen']!+1;
+        }
+
+        for(var i=0;i<customers.length;i++) {
+          final row=customers[i];
+          final oldId=_text(row['id']).trim();
+          final lookup=oldId.isEmpty?'@'+i.toString():oldId;
+          final salesmanId=_mapped(salesmanIds,row['salesmanId']);
+          if(salesmanId!=null) {
+            await txn.update(
+              'customers',
+              {'salesman_id':salesmanId},
+              where:'id=?',
+              whereArgs:[customerIds[lookup]],
+            );
+          }
         }
 
         for(var i=0;i<fuelTanks.length;i++) {

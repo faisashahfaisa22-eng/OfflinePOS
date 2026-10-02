@@ -75,6 +75,8 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
           title:'QAMVIO POS',
           builder:(context,child)=>Directionality(textDirection:s.direction,child:child??const SizedBox.shrink()),
           theme:QamvioUi.theme(),
+          darkTheme:QamvioUi.darkTheme(),
+          themeMode:ThemeMode.system,
           home:!auth.unlocked
             ? const LoginPage()
             : auth.isAdmin

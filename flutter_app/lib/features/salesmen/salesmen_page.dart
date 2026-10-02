@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
 class SalesmenPage extends StatefulWidget {
@@ -32,7 +33,22 @@ class _SalesmenPageState extends State<SalesmenPage> {
   void _refresh()=>setState(() {});
 
   Future<void> load() async {
-    final x=await AppDatabase.instance.salesmen();
+    final db=await AppDatabase.instance.database;
+    final user=LocalAuthService.instance.current;
+    var x=await db.rawQuery(
+      "SELECT sm.*,"
+      "COALESCE((SELECT SUM(s.due) FROM sales s WHERE s.salesman_id=sm.id),0) invoice_due,"
+      "COALESCE((SELECT SUM(CASE WHEN l.type='payment' THEN -l.amount ELSE l.amount END) "
+      "FROM salesman_loans l WHERE l.salesman_id=sm.id "
+      "AND COALESCE(l.source,'manual') NOT IN ('sale_due','sale_recovery')),0) manual_loan_balance "
+      "FROM salesmen sm ORDER BY sm.name COLLATE NOCASE",
+    );
+    if(user?.role==UserRole.salesman) {
+      final linked=user?.salesmanId??'';
+      x=linked.isEmpty
+        ?<Map<String,Object?>>[]
+        :x.where((row)=>row['id']?.toString()==linked).toList();
+    }
     if(!mounted) return;
     setState(() {
       rows=x;
@@ -52,6 +68,14 @@ class _SalesmenPageState extends State<SalesmenPage> {
   int get activeCount=>rows.where((x)=>(x['active'] as num?)?.toInt()!=0).length;
 
   Future<void> edit([Map<String,Object?>? existing]) async {
+    if(!LocalAuthService.instance.isAdmin) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content:Text('Admin access is required to edit salesmen.')),
+        );
+      }
+      return;
+    }
     final name=TextEditingController(text:existing?['name']?.toString()??'');
     final phone=TextEditingController(text:existing?['phone']?.toString()??'');
     final commission=TextEditingController(
@@ -156,13 +180,19 @@ class _SalesmenPageState extends State<SalesmenPage> {
   }
 
   @override
-  Widget build(BuildContext context)=>Scaffold(
-    appBar:AppBar(title:const Text('Salesmen')),
-    floatingActionButton:FloatingActionButton.extended(
-      onPressed:()=>edit(),
-      icon:const Icon(Icons.person_add_alt_1_rounded),
-      label:const Text('Add Salesman'),
-    ),
+  Widget build(BuildContext context) {
+    final auth=LocalAuthService.instance;
+    final canEdit=auth.isAdmin;
+    final ownOnly=auth.current?.role==UserRole.salesman;
+    return Scaffold(
+    appBar:AppBar(title:Text(ownOnly?'My Salesman Account':'Salesmen')),
+    floatingActionButton:canEdit
+      ?FloatingActionButton.extended(
+        onPressed:()=>edit(),
+        icon:const Icon(Icons.person_add_alt_1_rounded),
+        label:const Text('Add Salesman'),
+      )
+      :null,
     body:loading
       ?const Center(child:CircularProgressIndicator())
       :RefreshIndicator(
@@ -171,9 +201,11 @@ class _SalesmenPageState extends State<SalesmenPage> {
           physics:const AlwaysScrollableScrollPhysics(),
           padding:QamvioUi.pagePadding,
           children:[
-            const QamvioPageIntro(
-              title:'Salesmen',
-              subtitle:'Assign invoices, track outstanding credit and keep salesman contact details.',
+            QamvioPageIntro(
+              title:ownOnly?'My Salesman Account':'Salesmen',
+              subtitle:ownOnly
+                ?'Your assigned invoices and outstanding salesman balance.'
+                :'Assign invoices, track outstanding credit and keep salesman contact details.',
               icon:Icons.badge_rounded,
             ),
             const SizedBox(height:18),
@@ -284,10 +316,14 @@ class _SalesmenPageState extends State<SalesmenPage> {
 
   Widget _card(BuildContext context,Map<String,Object?> x) {
     final active=((x['active'] as num?)?.toInt()??1)!=0;
+    final canEdit=LocalAuthService.instance.isAdmin;
+    final invoiceDue=(x['invoice_due'] as num?)?.toDouble()??0;
+    final manualLoan=(x['manual_loan_balance'] as num?)?.toDouble()??0;
+    final totalOutstanding=invoiceDue+manualLoan;
     return Card(
       child:InkWell(
         borderRadius:BorderRadius.circular(20),
-        onTap:()=>edit(x),
+        onTap:canEdit?()=>edit(x):null,
         child:Padding(
           padding:const EdgeInsets.all(14),
           child:Row(
@@ -327,11 +363,27 @@ class _SalesmenPageState extends State<SalesmenPage> {
                     const SizedBox(height:7),
                     Wrap(
                       spacing:8,
+                      runSpacing:8,
                       children:[
                         QamvioAmountPill(
-                          label:'Commission',
-                          amount:x['commission'],
+                          label:'Invoice due',
+                          amount:invoiceDue,
+                          strong:invoiceDue>0,
                         ),
+                        QamvioAmountPill(
+                          label:'Manual loan',
+                          amount:manualLoan,
+                        ),
+                        QamvioAmountPill(
+                          label:'Outstanding',
+                          amount:totalOutstanding,
+                          strong:totalOutstanding>0,
+                        ),
+                        if(canEdit)
+                          QamvioAmountPill(
+                            label:'Commission',
+                            amount:x['commission'],
+                          ),
                         Container(
                           padding:const EdgeInsets.symmetric(horizontal:9,vertical:6),
                           decoration:BoxDecoration(
@@ -354,11 +406,13 @@ class _SalesmenPageState extends State<SalesmenPage> {
                   ],
                 ),
               ),
-              const Icon(Icons.edit_outlined,color:Color(0xFF667085)),
+              if(canEdit)
+                const Icon(Icons.edit_outlined,color:Color(0xFF667085)),
             ],
           ),
         ),
       ),
     );
+  }
   }
 }

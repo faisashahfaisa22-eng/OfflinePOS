@@ -36,6 +36,79 @@ class _PartyPageState extends State<PartyPage> {
     }
   }
 
+  Future<void> supplierPayment(Map<String,Object?> supplier) async {
+    String type='payment';
+    final amount=TextEditingController();
+    final note=TextEditingController();
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(dialogContext)=>StatefulBuilder(
+        builder:(dialogContext,setLocal)=>AlertDialog(
+          title:Text('${supplier['name']} — Payment / Receipt'),
+          content:Column(
+            mainAxisSize:MainAxisSize.min,
+            children:[
+              DropdownButtonFormField<String>(
+                initialValue:type,
+                items:const [
+                  DropdownMenuItem(value:'payment',child:Text('Paid to supplier')),
+                  DropdownMenuItem(value:'received',child:Text('Received from supplier')),
+                ],
+                onChanged:(v)=>setLocal(()=>type=v!),
+              ),
+              const SizedBox(height:8),
+              TextField(
+                controller:amount,
+                keyboardType:const TextInputType.numberWithOptions(decimal:true),
+                decoration:const InputDecoration(labelText:'Amount'),
+              ),
+              const SizedBox(height:8),
+              TextField(
+                controller:note,
+                decoration:const InputDecoration(labelText:'Note'),
+              ),
+            ],
+          ),
+          actions:[
+            TextButton(
+              onPressed:()=>Navigator.pop(dialogContext,false),
+              child:const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed:()=>Navigator.pop(dialogContext,true),
+              child:const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if(ok!=true) {
+      amount.dispose();
+      note.dispose();
+      return;
+    }
+    final value=double.tryParse(amount.text.trim())??0;
+    final memo=note.text.trim();
+    amount.dispose();
+    note.dispose();
+    if(value<=0) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content:Text('Amount must be greater than zero.')),
+        );
+      }
+      return;
+    }
+    await AppDatabase.instance.saveSupplierTransaction(
+      id:DateTime.now().microsecondsSinceEpoch.toString(),
+      supplierId:supplier['id'].toString(),
+      amount:value,
+      type:type,
+      note:memo,
+    );
+    await load();
+  }
+
   Future<void> add() async {
     final name=TextEditingController(), phone=TextEditingController(), address=TextEditingController();
     final ok=await showDialog<bool>(context: context,builder:(context)=>AlertDialog(
@@ -77,6 +150,11 @@ class _PartyPageState extends State<PartyPage> {
               mainAxisSize:MainAxisSize.min,
               children:[
                 Text('Balance: ${WhatsAppShare.money(x['balance'])}'),
+                IconButton(
+                  tooltip:'Supplier payment / receipt',
+                  icon:const Icon(Icons.payments),
+                  onPressed:()=>supplierPayment(x),
+                ),
                 IconButton(
                   tooltip:'Share supplier credit on WhatsApp',
                   icon:const Icon(Icons.chat),

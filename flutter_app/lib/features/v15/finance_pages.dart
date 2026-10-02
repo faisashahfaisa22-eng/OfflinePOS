@@ -216,9 +216,21 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
     final recovery=await one('SELECT COALESCE(SUM(recovery),0) FROM sales WHERE business_date=?',[d]);
     final saleExpenses=await one('SELECT COALESCE(SUM(oil+other),0) FROM sales WHERE business_date=?',[d]);
     final expenses=await one(
-      "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE substr(created_at,1,10)=?",
+      "SELECT COALESCE(SUM(amount),0) FROM expenses "
+      "WHERE COALESCE(business_date,substr(created_at,1,10))=?",
       [d],
     );
+    final expenseBreakdown=await db.rawQuery(
+      "SELECT COALESCE(category,'Other') category,SUM(amount) amount FROM expenses "
+      "WHERE COALESCE(business_date,substr(created_at,1,10))=? "
+      "GROUP BY category ORDER BY amount DESC",
+      [d],
+    );
+    final saleOil=await one('SELECT COALESCE(SUM(oil),0) FROM sales WHERE business_date=?',[d]);
+    final saleOther=await one('SELECT COALESCE(SUM(other),0) FROM sales WHERE business_date=?',[d]);
+    final expenseRows=<Map<String,Object?>>[...expenseBreakdown];
+    if(saleOil>0) expenseRows.add({'category':'Oil (Sales)','amount':saleOil});
+    if(saleOther>0) expenseRows.add({'category':'Extra / Other (Sales)','amount':saleOther});
     final cogs=await one(
       'SELECT COALESCE(SUM(si.qty*COALESCE(si.cost,0)),0) '
       'FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE s.business_date=?',
@@ -239,7 +251,8 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
     );
     final salesman=await db.rawQuery(
       'SELECT sm.name,COUNT(s.id) invoices,COALESCE(SUM(s.total),0) sales,'
-      'COALESCE(SUM(s.paid),0) received,COALESCE(SUM(s.due),0) due '
+      'COALESCE(SUM(s.paid),0) received,COALESCE(SUM(s.due),0) due,'
+      'COALESCE(SUM(s.recovery),0) recovery '
       'FROM sales s LEFT JOIN salesmen sm ON sm.id=s.salesman_id '
       'WHERE s.business_date=? GROUP BY s.salesman_id,sm.name ORDER BY sales DESC',
       [d],
@@ -261,6 +274,7 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
       'count':count,
       'invoices':invoices,
       'salesman':salesman,
+      'expenseBreakdown':expenseRows,
     };
   }
 
@@ -279,6 +293,46 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
     }
   }
 
+  Future<void> printClosing() async {
+    final x=await future;
+    final doc=pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat:PdfPageFormat.a4,
+        build:(ctx)=>[
+          pw.Text('QAMVIO POS — Daily Closing',style:pw.TextStyle(fontSize:20,fontWeight:pw.FontWeight.bold)),
+          pw.Text('Date: ${_day(date)}'),
+          pw.SizedBox(height:10),
+          pw.TableHelper.fromTextArray(
+            headers:['Description','Amount'],
+            data:[
+              ['Gross Sales',_money(x['gross'])],
+              ['Discount',_money(x['discount'])],
+              ['Net Sales',_money(x['net'])],
+              ['Cash Received',_money(x['received'])],
+              ['Due Created',_money(x['due'])],
+              ['Recovery',_money(x['recovery'])],
+              ['Total Expenses',_money(x['expenses'])],
+              ['COGS',_money(x['cogs'])],
+              ['Gross Profit',_money(x['grossProfit'])],
+              ['Net Profit / Loss',_money(x['profit'])],
+            ],
+          ),
+          pw.SizedBox(height:12),
+          pw.Text('Expense Breakdown',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+          pw.TableHelper.fromTextArray(
+            headers:['Category','Amount'],
+            data:[
+              for(final r in (x['expenseBreakdown'] as List<Map<String,Object?>>))
+                [r['category'],_money(r['amount'])],
+            ],
+          ),
+        ],
+      ),
+    );
+    await Printing.layoutPdf(name:'QAMVIO-daily-closing-${_day(date)}.pdf',onLayout:(_)=>doc.save());
+  }
+
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(
@@ -288,6 +342,11 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
           onPressed:chooseDate,
           icon:const Icon(Icons.calendar_month_outlined),
           label:Text(_day(date)),
+        ),
+        IconButton(
+          tooltip:'Print Closing',
+          onPressed:printClosing,
+          icon:const Icon(Icons.print_outlined),
         ),
       ],
     ),
@@ -351,6 +410,20 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
               ],
             ),
             const SizedBox(height:18),
+            const QamvioSectionTitle('Expense Breakdown'),
+            Card(
+              child:Column(
+                children:[
+                  for(final r in (x['expenseBreakdown'] as List<Map<String,Object?>>))
+                    ListTile(
+                      dense:true,
+                      title:Text(r['category'].toString()),
+                      trailing:Text(_money(r['amount']),style:const TextStyle(fontWeight:FontWeight.w900)),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height:18),
             const QamvioSectionTitle('Salesman Day Summary'),
             Card(
               child:SingleChildScrollView(
@@ -362,6 +435,7 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
                     DataColumn(label:Text('Sales'),numeric:true),
                     DataColumn(label:Text('Received'),numeric:true),
                     DataColumn(label:Text('Due'),numeric:true),
+                    DataColumn(label:Text('Recovery'),numeric:true),
                   ],
                   rows:[
                     for(final r in (x['salesman'] as List<Map<String,Object?>>))
@@ -371,6 +445,7 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
                         DataCell(Text(_money(r['sales']))),
                         DataCell(Text(_money(r['received']))),
                         DataCell(Text(_money(r['due']))),
+                        DataCell(Text(_money(r['recovery']))),
                       ]),
                   ],
                 ),
@@ -437,13 +512,26 @@ class CashBookPage extends StatefulWidget {
 }
 
 class _CashBookPageState extends State<CashBookPage> {
+  DateTime? from;
+  DateTime? to;
+  final search=TextEditingController();
   late Future<List<Map<String,Object?>>> future;
 
   @override
   void initState() {
     super.initState();
+    search.addListener(_filterRefresh);
     future=_load();
   }
+
+  @override
+  void dispose() {
+    search.removeListener(_filterRefresh);
+    search.dispose();
+    super.dispose();
+  }
+
+  void _filterRefresh()=>setState(() {});
 
   Future<List<Map<String,Object?>>> _load() async {
     final db=await AppDatabase.instance.database;
@@ -451,31 +539,23 @@ class _CashBookPageState extends State<CashBookPage> {
 
     final sales=await db.query('sales');
     for(final x in sales) {
+      final date=x['business_date']??x['created_at'];
       if(_n(x['paid'])>0) {
         out.add({
-          'date':x['business_date']??x['created_at'],
-          'type':'Sale Cash',
-          'in':_n(x['paid']),
-          'out':0.0,
-          'note':'Invoice ${x['invoice_no']}',
+          'date':date,'type':'Sale Cash','ref':x['invoice_no'],
+          'in':_n(x['paid']),'out':0.0,'note':x['note']??'',
         });
       }
       if(_n(x['oil'])>0) {
         out.add({
-          'date':x['business_date']??x['created_at'],
-          'type':'Oil Expense',
-          'in':0.0,
-          'out':_n(x['oil']),
-          'note':'Invoice ${x['invoice_no']}',
+          'date':date,'type':'Oil Expense','ref':x['invoice_no'],
+          'in':0.0,'out':_n(x['oil']),'note':'Invoice ${x['invoice_no']}',
         });
       }
       if(_n(x['other'])>0) {
         out.add({
-          'date':x['business_date']??x['created_at'],
-          'type':'Other Expense',
-          'in':0.0,
-          'out':_n(x['other']),
-          'note':'Invoice ${x['invoice_no']}',
+          'date':date,'type':'Other Expense','ref':x['invoice_no'],
+          'in':0.0,'out':_n(x['other']),'note':'Invoice ${x['invoice_no']}',
         });
       }
     }
@@ -486,9 +566,8 @@ class _CashBookPageState extends State<CashBookPage> {
       out.add({
         'date':x['business_date']??x['created_at'],
         'type':'Purchase Payment',
-        'in':0.0,
-        'out':_n(x['paid']),
-        'note':'Purchase ${x['invoice_no']??''}',
+        'ref':x['invoice_no']??x['id'],
+        'in':0.0,'out':_n(x['paid']),'note':x['note']??'',
       });
     }
 
@@ -496,8 +575,9 @@ class _CashBookPageState extends State<CashBookPage> {
     for(final x in supplierTx) {
       final payment=x['type']=='payment';
       out.add({
-        'date':x['created_at'],
+        'date':x['business_date']??x['created_at'],
         'type':payment?'Supplier Paid':'Supplier Received',
+        'ref':x['id'],
         'in':payment?0.0:_n(x['amount']),
         'out':payment?_n(x['amount']):0.0,
         'note':x['note']??'',
@@ -508,8 +588,9 @@ class _CashBookPageState extends State<CashBookPage> {
     for(final x in customerLoans) {
       final given=x['type']=='loan';
       out.add({
-        'date':x['created_at'],
+        'date':x['business_date']??x['created_at'],
         'type':given?'Customer Loan Given':'Customer Loan Received',
+        'ref':x['id'],
         'in':given?0.0:_n(x['amount']),
         'out':given?_n(x['amount']):0.0,
         'note':x['note']??'',
@@ -523,8 +604,9 @@ class _CashBookPageState extends State<CashBookPage> {
     for(final x in salesmanLoans) {
       final given=x['type']=='loan';
       out.add({
-        'date':x['created_at'],
+        'date':x['business_date']??x['created_at'],
         'type':given?'Salesman Loan Given':'Salesman Loan Received',
+        'ref':x['id'],
         'in':given?0.0:_n(x['amount']),
         'out':given?_n(x['amount']):0.0,
         'note':x['note']??'',
@@ -534,11 +616,11 @@ class _CashBookPageState extends State<CashBookPage> {
     final expenses=await db.query('expenses');
     for(final x in expenses) {
       out.add({
-        'date':x['created_at'],
+        'date':x['business_date']??x['created_at'],
         'type':'Expense / ${x['category']??''}',
-        'in':0.0,
-        'out':_n(x['amount']),
-        'note':x['name']??x['note']??'',
+        'ref':x['id'],
+        'in':0.0,'out':_n(x['amount']),
+        'note':'${x['name']??''} ${x['note']??''}'.trim(),
       });
     }
 
@@ -551,6 +633,59 @@ class _CashBookPageState extends State<CashBookPage> {
     return out;
   }
 
+  List<Map<String,Object?>> _filtered(List<Map<String,Object?>> rows) {
+    final q=search.text.trim().toLowerCase();
+    return rows.where((x) {
+      final ds=x['date'].toString().split('T').first;
+      final d=DateTime.tryParse(ds);
+      if(from!=null&&d!=null&&d.isBefore(DateTime(from!.year,from!.month,from!.day))) return false;
+      if(to!=null&&d!=null&&d.isAfter(DateTime(to!.year,to!.month,to!.day))) return false;
+      if(q.isEmpty) return true;
+      return [x['type'],x['ref'],x['note'],x['date']]
+        .join(' ').toLowerCase().contains(q);
+    }).toList();
+  }
+
+  Future<void> _pick(bool start) async {
+    final current=start?(from??DateTime.now()):(to??DateTime.now());
+    final d=await showDatePicker(
+      context:context,
+      firstDate:DateTime(2000),
+      lastDate:DateTime(2100),
+      initialDate:current,
+    );
+    if(d!=null) setState(() { if(start) from=d; else to=d; });
+  }
+
+  Future<void> printBook(List<Map<String,Object?>> rows) async {
+    final filtered=_filtered(rows);
+    final doc=pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat:PdfPageFormat.a4,
+        build:(ctx)=>[
+          pw.Text('QAMVIO POS — Cash Book',style:pw.TextStyle(fontSize:20,fontWeight:pw.FontWeight.bold)),
+          pw.Text(
+            'From: ${from==null?'All':_day(from!)}   To: ${to==null?'All':_day(to!)}   Search: ${search.text}',
+          ),
+          pw.SizedBox(height:10),
+          pw.TableHelper.fromTextArray(
+            headers:['Date','Type','Reference','Cash In','Cash Out','Running Balance','Note'],
+            data:[
+              for(final x in filtered)
+                [
+                  x['date'].toString().split('T').first,
+                  x['type'],x['ref']??'',
+                  _money(x['in']),_money(x['out']),_money(x['balance']),x['note']??'',
+                ],
+            ],
+          ),
+        ],
+      ),
+    );
+    await Printing.layoutPdf(name:'QAMVIO-cash-book.pdf',onLayout:(_)=>doc.save());
+  }
+
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Cash Book')),
@@ -558,26 +693,83 @@ class _CashBookPageState extends State<CashBookPage> {
       future:future,
       builder:(context,snapshot) {
         if(!snapshot.hasData) return const Center(child:CircularProgressIndicator());
-        final rows=snapshot.data!;
+        final all=snapshot.data!;
+        final rows=_filtered(all);
         final cashIn=rows.fold<double>(0,(a,x)=>a+_n(x['in']));
         final cashOut=rows.fold<double>(0,(a,x)=>a+_n(x['out']));
         final balance=cashIn-cashOut;
         return ListView(
           padding:QamvioUi.pagePadding,
           children:[
-            const QamvioPageIntro(
-              title:'Cash Book',
-              subtitle:'Automatic cash movement from sales, purchases, loans and expenses.',
-              icon:Icons.menu_book_rounded,
+            const Text('Cash Book',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900)),
+            const SizedBox(height:8),
+            Container(
+              padding:const EdgeInsets.all(12),
+              decoration:BoxDecoration(
+                color:const Color(0xFFEFF6FF),
+                borderRadius:BorderRadius.circular(10),
+                border:Border.all(color:const Color(0xFFBFDBFE)),
+              ),
+              child:const Text(
+                'Automatic cash ledger built from Sales, Purchases, Loans, Supplier Payments and Expenses. '
+                'Automatic invoice due/recovery entries are not double-counted.',
+              ),
             ),
-            const SizedBox(height:14),
+            const SizedBox(height:10),
+            Wrap(
+              spacing:8,
+              runSpacing:8,
+              crossAxisAlignment:WrapCrossAlignment.end,
+              children:[
+                SizedBox(
+                  width:150,
+                  child:InkWell(
+                    onTap:()=>_pick(true),
+                    child:InputDecorator(
+                      decoration:const InputDecoration(labelText:'From'),
+                      child:Text(from==null?'All':_day(from!)),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width:150,
+                  child:InkWell(
+                    onTap:()=>_pick(false),
+                    child:InputDecorator(
+                      decoration:const InputDecoration(labelText:'To'),
+                      child:Text(to==null?'All':_day(to!)),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width:260,
+                  child:TextField(
+                    controller:search,
+                    decoration:const InputDecoration(
+                      labelText:'Search',
+                      hintText:'Type, reference, note...',
+                    ),
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed:()=>setState(() { from=null; to=null; search.clear(); }),
+                  child:const Text('Refresh'),
+                ),
+                OutlinedButton.icon(
+                  onPressed:()=>printBook(all),
+                  icon:const Icon(Icons.print_outlined),
+                  label:const Text('Print'),
+                ),
+              ],
+            ),
+            const SizedBox(height:12),
             Row(
               children:[
                 Expanded(child:_summary(context,'Cash In',cashIn,QamvioUi.success)),
                 const SizedBox(width:8),
                 Expanded(child:_summary(context,'Cash Out',cashOut,QamvioUi.danger)),
                 const SizedBox(width:8),
-                Expanded(child:_summary(context,'Balance',balance,Theme.of(context).colorScheme.primary)),
+                Expanded(child:_summary(context,'Net Cash Movement',balance,Theme.of(context).colorScheme.primary)),
               ],
             ),
             const SizedBox(height:14),
@@ -588,9 +780,10 @@ class _CashBookPageState extends State<CashBookPage> {
                   columns:const [
                     DataColumn(label:Text('Date')),
                     DataColumn(label:Text('Type')),
+                    DataColumn(label:Text('Reference')),
                     DataColumn(label:Text('Cash In'),numeric:true),
                     DataColumn(label:Text('Cash Out'),numeric:true),
-                    DataColumn(label:Text('Balance'),numeric:true),
+                    DataColumn(label:Text('Running Balance'),numeric:true),
                     DataColumn(label:Text('Note')),
                   ],
                   rows:[
@@ -598,6 +791,7 @@ class _CashBookPageState extends State<CashBookPage> {
                       DataRow(cells:[
                         DataCell(Text(x['date'].toString().split('T').first)),
                         DataCell(Text(x['type'].toString())),
+                        DataCell(Text(x['ref']?.toString()??'')),
                         DataCell(Text(_money(x['in']),style:const TextStyle(color:QamvioUi.success,fontWeight:FontWeight.w800))),
                         DataCell(Text(_money(x['out']),style:const TextStyle(color:QamvioUi.danger,fontWeight:FontWeight.w800))),
                         DataCell(Text(_money(x['balance']),style:const TextStyle(fontWeight:FontWeight.w900))),

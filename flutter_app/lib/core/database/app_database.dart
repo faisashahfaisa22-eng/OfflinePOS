@@ -600,6 +600,7 @@ class AppDatabase {
         if(due>0) {
           await txn.insert('salesman_loans',{
             'id':'${id}_sale_due',
+            'business_date':day,
             'salesman_id':salesmanId,
             'amount':due,
             'type':'loan',
@@ -614,6 +615,7 @@ class AppDatabase {
         if(recovery>0) {
           await txn.insert('salesman_loans',{
             'id':'${id}_sale_recovery',
+            'business_date':day,
             'salesman_id':salesmanId,
             'amount':recovery,
             'type':'payment',
@@ -724,32 +726,112 @@ class AppDatabase {
     });
   }
 
-  Future<void> saveCustomerLoan({required String id,required String customerId,required double amount,required String type,String? note,DateTime? businessDate}) async {
-    final db=await database,now=DateTime.now().toUtc().toIso8601String();
-    await db.transaction((txn) async {await txn.insert('customer_loans',{'id':id,'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,'customer_id':customerId,'amount':amount,'type':type,'note':note,'created_at':now,'updated_at':now,'sync_state':0});final delta=type=='payment'?-amount:amount;await txn.rawUpdate('UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',[delta,now,customerId]);});
-  }
-
-  Future<void> saveSalesmanLoan({required String id,required String salesmanId,required double amount,required String type,String? note,DateTime? businessDate}) async {
+  Future<void> saveCustomerLoan({
+    required String id,
+    required String customerId,
+    required double amount,
+    required String type,
+    String? note,
+    DateTime? businessDate,
+  }) async {
     if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
-    if(type!='loan' && type!='payment') throw ArgumentError.value(type,'type','Use loan or payment.');
-    final db=await database,now=DateTime.now().toUtc().toIso8601String();
-    await db.insert('salesman_loans',{
-      'id':id,'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
-      'salesman_id':salesmanId,'amount':amount,'type':type,
-      'source':'manual','linked_sale_id':null,'note':note,
-      'created_at':now,'updated_at':now,'sync_state':0,
+    if(type!='loan'&&type!='payment') throw ArgumentError.value(type,'type','Use loan or payment.');
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    await db.transaction((txn) async {
+      final old=await txn.query('customer_loans',where:'id=?',whereArgs:[id],limit:1);
+      if(old.isNotEmpty) {
+        final o=old.first;
+        final oldDelta=o['type']=='payment'?-_nDb(o['amount']):_nDb(o['amount']);
+        await txn.rawUpdate(
+          'UPDATE customers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+          [oldDelta,now,o['customer_id']],
+        );
+        await txn.delete('customer_loans',where:'id=?',whereArgs:[id]);
+      }
+      await txn.insert('customer_loans',{
+        'id':id,
+        'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+        'customer_id':customerId,
+        'amount':amount,
+        'type':type,
+        'note':note,
+        'created_at':old.isEmpty?now:old.first['created_at'],
+        'updated_at':now,
+        'sync_state':0,
+      });
+      final delta=type=='payment'?-amount:amount;
+      await txn.rawUpdate(
+        'UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+        [delta,now,customerId],
+      );
     });
   }
 
-  Future<void> saveSupplierTransaction({required String id,required String supplierId,required double amount,required String type,String? note,DateTime? businessDate}) async {
+  Future<void> saveSalesmanLoan({
+    required String id,
+    required String salesmanId,
+    required double amount,
+    required String type,
+    String? note,
+    DateTime? businessDate,
+  }) async {
     if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
-    if(type!='payment' && type!='received') throw ArgumentError.value(type,'type','Use payment or received.');
-    final db=await database,now=DateTime.now().toUtc().toIso8601String();
+    if(type!='loan'&&type!='payment') throw ArgumentError.value(type,'type','Use loan or payment.');
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    final old=await db.query('salesman_loans',where:'id=?',whereArgs:[id],limit:1);
+    if(old.isNotEmpty&&old.first['source']!='manual') {
+      throw StateError('Automatic invoice ledger entries cannot be edited manually.');
+    }
+    await db.insert('salesman_loans',{
+      'id':id,
+      'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+      'salesman_id':salesmanId,
+      'amount':amount,
+      'type':type,
+      'source':'manual',
+      'linked_sale_id':null,
+      'note':note,
+      'created_at':old.isEmpty?now:old.first['created_at'],
+      'updated_at':now,
+      'sync_state':0,
+    },conflictAlgorithm:ConflictAlgorithm.replace);
+  }
+
+  Future<void> saveSupplierTransaction({
+    required String id,
+    required String supplierId,
+    required double amount,
+    required String type,
+    String? note,
+    DateTime? businessDate,
+  }) async {
+    if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
+    if(type!='payment'&&type!='received') throw ArgumentError.value(type,'type','Use payment or received.');
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
     await db.transaction((txn) async {
+      final old=await txn.query('supplier_transactions',where:'id=?',whereArgs:[id],limit:1);
+      if(old.isNotEmpty) {
+        final o=old.first;
+        final oldDelta=o['type']=='payment'?-_nDb(o['amount']):_nDb(o['amount']);
+        await txn.rawUpdate(
+          'UPDATE suppliers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+          [oldDelta,now,o['supplier_id']],
+        );
+        await txn.delete('supplier_transactions',where:'id=?',whereArgs:[id]);
+      }
       await txn.insert('supplier_transactions',{
-        'id':id,'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
-        'supplier_id':supplierId,'amount':amount,'type':type,'note':note,
-        'created_at':now,'updated_at':now,'sync_state':0,
+        'id':id,
+        'business_date':(businessDate??DateTime.now()).toIso8601String().split('T').first,
+        'supplier_id':supplierId,
+        'amount':amount,
+        'type':type,
+        'note':note,
+        'created_at':old.isEmpty?now:old.first['created_at'],
+        'updated_at':now,
+        'sync_state':0,
       });
       final delta=type=='payment'?-amount:amount;
       await txn.rawUpdate(

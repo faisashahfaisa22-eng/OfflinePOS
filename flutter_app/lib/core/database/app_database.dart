@@ -498,6 +498,34 @@ class AppDatabase {
     final db=await database;
     await db.transaction((txn) async {
       final now=DateTime.now().toUtc().toIso8601String();
+
+      // v15 edit semantics: reverse the existing invoice first, then write the
+      // edited invoice with the same ID inside this one transaction.
+      final existing=await txn.query('sales',where:'id=?',whereArgs:[id],limit:1);
+      if(existing.isNotEmpty) {
+        final old=existing.first;
+        final oldItems=await txn.query('sale_items',where:'sale_id=?',whereArgs:[id]);
+        for(final item in oldItems) {
+          final pid=item['product_id']?.toString();
+          if(pid!=null&&pid.isNotEmpty) {
+            await txn.rawUpdate(
+              'UPDATE products SET stock=stock+?,updated_at=?,sync_state=0 WHERE id=?',
+              [_nDb(item['qty']),now,pid],
+            );
+          }
+        }
+        final oldCustomer=old['customer_id']?.toString();
+        if(oldCustomer!=null&&oldCustomer.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE customers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(old['total'])-_nDb(old['paid']),now,oldCustomer],
+          );
+        }
+        await txn.delete('salesman_loans',where:'linked_sale_id=?',whereArgs:[id]);
+        await txn.delete('sale_items',where:'sale_id=?',whereArgs:[id]);
+        await txn.delete('sales',where:'id=?',whereArgs:[id]);
+      }
+
       final day=(businessDate??DateTime.now()).toIso8601String().split('T').first;
       double subtotal=0;
       double lineDiscount=0;

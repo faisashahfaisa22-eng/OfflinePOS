@@ -118,6 +118,28 @@ class _SalesmenPageState extends State<SalesmenPage> {
     await load();
   }
 
+  Future<void> remove(Map<String,Object?> x) async {
+    if(!canEdit) return;
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        title:const Text('Delete Salesman?'),
+        content:Text('Move "${x['name']}" to Recycle Bin? Linked sales/loans must be removed first.'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete')),
+        ],
+      ),
+    )??false;
+    if(!ok) return;
+    try {
+      await AppDatabase.instance.softDeleteById('salesmen',x['id'].toString());
+      await load();
+    } catch(e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));
+    }
+  }
+
   Future<void> shareAll() async {
     final b=StringBuffer('QAMVIO POS — Salesman Outstanding\n\n');
     for(final x in rows) {
@@ -211,6 +233,12 @@ class _SalesmenPageState extends State<SalesmenPage> {
                               tooltip:'Edit',
                               onPressed:()=>edit(x),
                               icon:const Icon(Icons.edit_outlined),
+                            ),
+                          if(canEdit)
+                            IconButton(
+                              tooltip:'Delete',
+                              onPressed:()=>remove(x),
+                              icon:const Icon(Icons.delete_outline_rounded),
                             ),
                         ],
                       )),

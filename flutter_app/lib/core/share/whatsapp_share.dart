@@ -36,18 +36,48 @@ class WhatsAppShare {
       'SELECT COALESCE(SUM(total),0) total,COALESCE(SUM(paid),0) paid,COALESCE(SUM(due),0) due FROM sales WHERE salesman_id=?',
       [id],
     );
+    final loanRows=await db.rawQuery(
+      "SELECT COALESCE(SUM(CASE WHEN type='payment' THEN -amount ELSE amount END),0) balance "
+      "FROM salesman_loans WHERE salesman_id=? "
+      "AND COALESCE(source,'manual') NOT IN ('sale_due','sale_recovery')",
+      [id],
+    );
+    final recentLoans=await db.query(
+      'salesman_loans',
+      where:'salesman_id=?',
+      whereArgs:[id],
+      orderBy:'created_at DESC',
+      limit:20,
+    );
     final t=totals.first;
+    final invoiceDue=(t['due'] as num?)?.toDouble()??0;
+    final manualLoan=(loanRows.first['balance'] as num?)?.toDouble()??0;
+    final outstanding=invoiceDue+manualLoan;
     final b=StringBuffer()
       ..writeln('QAMVIO POS — Salesman Credit Statement')
       ..writeln('Salesman: ${salesman['name']??''}')
       ..writeln('Phone: ${salesman['phone']??''}')
       ..writeln('Total sales: ${money(t['total'])}')
-      ..writeln('Received: ${money(t['paid'])}')
-      ..writeln('Outstanding credit: ${money(t['due'])}')
+      ..writeln('Invoice received: ${money(t['paid'])}')
+      ..writeln('Invoice due: ${money(invoiceDue)}')
+      ..writeln('Manual loan balance: ${money(manualLoan)}')
+      ..writeln('Total outstanding: ${money(outstanding)}')
       ..writeln();
 
+    if(recentLoans.isNotEmpty) {
+      b.writeln('Recent loan/payment entries:');
+      for(final row in recentLoans) {
+        final payment=row['type']=='payment';
+        b.writeln(
+          '• ${row['created_at']} | ${payment?'Payment received':'Loan given'} '
+          '${money(row['amount'])} | ${row['note']??''}',
+        );
+      }
+      b.writeln();
+    }
+
     if(sales.isEmpty) {
-      b.writeln('No credit invoices found.');
+      b.writeln('No assigned invoices found.');
     } else {
       b.writeln('Recent invoices:');
       for(final row in sales) {
@@ -73,19 +103,38 @@ class WhatsAppShare {
       'SELECT COALESCE(SUM(total),0) total,COALESCE(SUM(paid),0) paid,COALESCE(SUM(due),0) due FROM purchases WHERE supplier_id=?',
       [id],
     );
+    final transactions=await db.query(
+      'supplier_transactions',
+      where:'supplier_id=?',
+      whereArgs:[id],
+      orderBy:'created_at DESC',
+      limit:20,
+    );
     final t=totals.first;
     final b=StringBuffer()
       ..writeln('QAMVIO POS — Supplier Credit Statement')
       ..writeln('Supplier: ${supplier['name']??''}')
       ..writeln('Phone: ${supplier['phone']??''}')
-      ..writeln('Account balance: ${money(supplier['balance'])}')
+      ..writeln('Current payable balance: ${money(supplier['balance'])}')
       ..writeln('Purchases: ${money(t['total'])}')
-      ..writeln('Paid: ${money(t['paid'])}')
-      ..writeln('Purchase due: ${money(t['due'])}')
+      ..writeln('Paid on purchases: ${money(t['paid'])}')
+      ..writeln('Original purchase due: ${money(t['due'])}')
       ..writeln();
 
+    if(transactions.isNotEmpty) {
+      b.writeln('Recent supplier payments/receipts:');
+      for(final row in transactions) {
+        final paid=row['type']=='payment';
+        b.writeln(
+          '• ${row['created_at']} | ${paid?'Paid to supplier':'Received from supplier'} '
+          '${money(row['amount'])} | ${row['note']??''}',
+        );
+      }
+      b.writeln();
+    }
+
     if(purchases.isEmpty) {
-      b.writeln('No purchase credit records found.');
+      b.writeln('No purchase records found.');
     } else {
       b.writeln('Recent purchases:');
       for(final row in purchases) {

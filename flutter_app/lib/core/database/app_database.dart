@@ -41,6 +41,7 @@ class AppDatabase {
   Future<Database> _open() async {
     final root = await getDatabasesPath();
     final path = join(root, 'qamvio_pos.db');
+    await _recoverInterruptedPlainMigration(path);
     await _encryptLegacyPlainDatabaseIfNeeded(path);
     return openDatabase(
       path,
@@ -69,16 +70,76 @@ class AppDatabase {
     }
   }
 
+  Future<void> _verifyEncryptedDatabase(String path) async {
+    final check=await openDatabase(path,password:_sqlcipherKey,readOnly:true);
+    try {
+      final tables=Sqflite.firstIntValue(
+        await check.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table'"),
+      )??0;
+      if(tables==0) {
+        throw StateError('Encrypted database verification found no tables.');
+      }
+      final integrity=await check.rawQuery('PRAGMA integrity_check');
+      final result=integrity.isEmpty ? '' : integrity.first.values.first?.toString()??'';
+      if(result.toLowerCase()!='ok') {
+        throw StateError('Encrypted database integrity check failed: $result');
+      }
+    } finally {
+      await check.close();
+    }
+  }
+
+  Future<void> _deleteSidecars(String base,{bool includeMain=false}) async {
+    final suffixes=includeMain
+      ?const ['','-wal','-shm','-journal']
+      :const ['-wal','-shm','-journal'];
+    for(final suffix in suffixes) {
+      final f=File('$base$suffix');
+      if(await f.exists()) await f.delete();
+    }
+  }
+
+  /// Repairs the only crash-sensitive window in the plaintext -> SQLCipher swap.
+  /// If the app stopped after moving the plaintext DB aside, the next launch
+  /// restores it instead of silently creating a new empty database.
+  Future<void> _recoverInterruptedPlainMigration(String path) async {
+    final backup='$path.plain.bak';
+    final main=File(path);
+    final old=File(backup);
+    if(!await old.exists()) return;
+
+    if(!await main.exists()) {
+      await old.rename(path);
+      return;
+    }
+
+    if(await _isPlainSqlite(path)) {
+      // The normal plaintext database is already back in place.
+      await _deleteSidecars(backup,includeMain:true);
+      return;
+    }
+
+    try {
+      await _verifyEncryptedDatabase(path);
+      // Encrypted replacement is valid; the old plaintext copy can now go.
+      await _deleteSidecars(backup,includeMain:true);
+    } catch(_) {
+      // Replacement is unusable. Restore the untouched plaintext backup.
+      await _deleteSidecars(path,includeMain:true);
+      await old.rename(path);
+    }
+  }
+
   /// Earlier Flutter builds stored the business data unencrypted. On first
   /// unlock it is copied into an encrypted file (sqlcipher_export), verified,
-  /// and only then is the plaintext file deleted.
+  /// and then swapped into place with a rollback copy kept until final verify.
   Future<void> _encryptLegacyPlainDatabaseIfNeeded(String path) async {
     if(!await _isPlainSqlite(path)) return;
     final tmp='$path.enc';
-    for(final suffix in ['','-wal','-shm','-journal']) {
-      final f=File('$tmp$suffix');
-      if(await f.exists()) await f.delete();
-    }
+    final backup='$path.plain.bak';
+    await _deleteSidecars(tmp,includeMain:true);
+    await _deleteSidecars(backup,includeMain:true);
+
     final plain=await openDatabase(path);
     int version;
     try {
@@ -88,22 +149,35 @@ class AppDatabase {
       await plain.rawQuery("SELECT sqlcipher_export('encrypted')");
       await plain.execute('PRAGMA encrypted.user_version = $version');
       await plain.execute('DETACH DATABASE encrypted');
+      // Make the main file self-contained before it becomes our rollback copy.
+      try {
+        await plain.rawQuery('PRAGMA wal_checkpoint(FULL)');
+      } catch(_) {
+        // Not every journal mode supports/needs a WAL checkpoint.
+      }
     } finally {
       await plain.close();
     }
+
     // Verify the encrypted copy before touching the original.
-    final check=await openDatabase(tmp,password:_sqlcipherKey,readOnly:true);
+    await _verifyEncryptedDatabase(tmp);
+
+    // Old WAL/SHM data must never be left beside the new encrypted main file.
+    await _deleteSidecars(path);
+
+    final original=File(path);
+    await original.rename(backup);
     try {
-      final tables=Sqflite.firstIntValue(await check.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table'"))??0;
-      if(tables==0) throw StateError('Encrypted copy verification failed; original database kept.');
-    } finally {
-      await check.close();
+      await File(tmp).rename(path);
+      // Verify again at the final path before deleting the plaintext rollback.
+      await _verifyEncryptedDatabase(path);
+      await _deleteSidecars(backup,includeMain:true);
+    } catch(e) {
+      await _deleteSidecars(path,includeMain:true);
+      final rollback=File(backup);
+      if(await rollback.exists()) await rollback.rename(path);
+      rethrow;
     }
-    for(final suffix in ['','-wal','-shm','-journal']) {
-      final f=File('$path$suffix');
-      if(await f.exists()) await f.delete();
-    }
-    await File(tmp).rename(path);
   }
 
   Future<void> _createSchema(Database db) async {

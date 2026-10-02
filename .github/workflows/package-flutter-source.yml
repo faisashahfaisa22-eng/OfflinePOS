@@ -1,0 +1,32 @@
+name: Package QAMVIO Flutter Source
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - flutter/qamvio-core
+    paths:
+      - .github/workflows/package-flutter-source.yml
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Create Flutter source ZIP
+        run: |
+          zip -r QAMVIO-Flutter-Source.zip flutter_app \
+            -x "flutter_app/build/*" \
+               "flutter_app/.dart_tool/*" \
+               "flutter_app/.flutter-plugins*" \
+               "flutter_app/android/.gradle/*" \
+               "flutter_app/ios/Pods/*"
+
+      - name: Upload Flutter source
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Flutter-Source
+          path: QAMVIO-Flutter-Source.zip
+          retention-days: 30

@@ -415,7 +415,9 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
         if(!await _confirm(
           'Large Discount',
           '${line['product_name']}: Discount (${_money(line['discount'])}) exceeds Amount (${_money(amount)}). Save anyway?',
-        )) return false;
+        )) {
+          return false;
+        }
       }
     }
     final inv=invoiceNo.text.trim();
@@ -452,10 +454,13 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
         if(!await _confirm(
           'Low Stock',
           '${line['product_name']} stock is low. Available ${_money(available)}. Save anyway?',
-        )) return false;
+        )) {
+          return false;
+        }
       }
     }
     if((due>0||recovery>0)&&customerId.isEmpty&&salesmanId.isEmpty) {
+      if(!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Please select either a Customer or a Salesman so the due/recovery can be posted.')),
       );

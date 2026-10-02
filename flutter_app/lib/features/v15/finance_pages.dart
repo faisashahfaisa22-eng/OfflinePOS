@@ -654,7 +654,15 @@ class _CashBookPageState extends State<CashBookPage> {
       lastDate:DateTime(2100),
       initialDate:current,
     );
-    if(d!=null) setState(() { if(start) from=d; else to=d; });
+    if(d!=null) {
+      setState(() {
+        if(start) {
+          from=d;
+        } else {
+          to=d;
+        }
+      });
+    }
   }
 
   Future<void> printBook(List<Map<String,Object?>> rows) async {

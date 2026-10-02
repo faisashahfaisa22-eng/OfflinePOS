@@ -132,6 +132,31 @@ class AppDatabase {
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  Future<List<Map<String,Object?>>> salesmen() async {
+    final db=await database;
+    return db.query('salesmen',orderBy:'name COLLATE NOCASE');
+  }
+
+  Future<void> saveSalesman({
+    required String id,
+    required String name,
+    String? phone,
+    double commission=0,
+    bool active=true,
+  }) async {
+    final db=await database;
+    final now=DateTime.now().toUtc().toIso8601String();
+    await db.insert('salesmen',{
+      'id':id,
+      'name':name.trim(),
+      'phone':phone?.trim(),
+      'commission':commission,
+      'active':active?1:0,
+      'updated_at':now,
+      'sync_state':0,
+    },conflictAlgorithm:ConflictAlgorithm.replace);
+  }
+
   Future<List<Map<String, Object?>>> expenses() async {
     final db = await database;
     return db.query('expenses', orderBy: 'created_at DESC');

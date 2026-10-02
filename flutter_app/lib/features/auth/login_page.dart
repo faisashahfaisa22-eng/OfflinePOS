@@ -180,12 +180,24 @@ class _LoginPageState extends State<LoginPage> {
                             padding:EdgeInsets.only(top:8),
                             child:Text('Deriving your encryption key... this takes a few seconds.',textAlign:TextAlign.center),
                           ),
-                          const SizedBox(height:6),
-                          if(mode==_Mode.create)
-                            TextButton(
-                              onPressed:busy?null:()=>_switch(_Mode.login),
-                              child:const Text('Already have an account? Sign in'),
+                          const SizedBox(height:12),
+                          if(mode==_Mode.create) ...[
+                            const Divider(height:20),
+                            const SizedBox(height:4),
+                            Text(
+                              'Already have an account?',
+                              textAlign:TextAlign.center,
+                              style:Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight:FontWeight.w700,
+                              ),
                             ),
+                            const SizedBox(height:8),
+                            OutlinedButton.icon(
+                              onPressed:busy?null:()=>_switch(_Mode.login),
+                              icon:const Icon(Icons.login_rounded),
+                              label:const Text('Sign in'),
+                            ),
+                          ],
                           if(mode==_Mode.login&&auth.hasAccounts)
                             TextButton(
                               onPressed:busy?null:()=>_switch(_Mode.recover),

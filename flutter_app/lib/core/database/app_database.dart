@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart';
@@ -748,6 +749,268 @@ class AppDatabase {
   Future<void> saveMedicine({required String id,required String name,String? batchNo,String? expiryDate,double price=0,double stock=0}) async {
     final db=await database,now=DateTime.now().toUtc().toIso8601String();
     await db.insert('products',{'id':id,'name':name.trim(),'category':'Pharmacy','price':price,'stock':stock,'unit':'pcs','batch_no':batchNo,'expiry_date':expiryDate,'updated_at':now,'sync_state':0},conflictAlgorithm:ConflictAlgorithm.replace);
+  }
+
+  String _recycleTable(String section) {
+    const map={
+      'sales':'sales',
+      'purchases':'purchases',
+      'salesmen':'salesmen',
+      'customerLoans':'customer_loans',
+      'salesmanLoans':'salesman_loans',
+      'supplierTransactions':'supplier_transactions',
+      'expenses':'expenses',
+      'capital':'capital',
+      'stockAdjustments':'stock_adjustments',
+      'customers':'customers',
+      'suppliers':'suppliers',
+      'products':'products',
+    };
+    final table=map[section];
+    if(table==null) throw ArgumentError.value(section,'section','Unsupported v15 section.');
+    return table;
+  }
+
+  Future<void> softDeleteById(String section,String id) async {
+    final db=await database;
+    final table=_recycleTable(section);
+    await db.transaction((txn) async {
+      final found=await txn.query(table,where:'id=?',whereArgs:[id],limit:1);
+      if(found.isEmpty) throw StateError('Record not found.');
+      final row=Map<String,Object?>.from(found.first);
+      final linked=<String,dynamic>{};
+      final now=DateTime.now().toUtc().toIso8601String();
+
+      if(section=='sales') {
+        final items=await txn.query('sale_items',where:'sale_id=?',whereArgs:[id]);
+        final autoLoans=await txn.query('salesman_loans',where:'linked_sale_id=?',whereArgs:[id]);
+        linked['sale_items']=items;
+        linked['salesman_loans']=autoLoans;
+        for(final item in items) {
+          final pid=item['product_id']?.toString();
+          if(pid!=null&&pid.isNotEmpty) {
+            await txn.rawUpdate(
+              'UPDATE products SET stock=stock+?,updated_at=?,sync_state=0 WHERE id=?',
+              [_nDb(item['qty']),now,pid],
+            );
+          }
+        }
+        final cid=row['customer_id']?.toString();
+        if(cid!=null&&cid.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE customers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['total'])-_nDb(row['paid']),now,cid],
+          );
+        }
+        await txn.delete('salesman_loans',where:'linked_sale_id=?',whereArgs:[id]);
+        await txn.delete('sale_items',where:'sale_id=?',whereArgs:[id]);
+      } else if(section=='purchases') {
+        final items=await txn.query('purchase_items',where:'purchase_id=?',whereArgs:[id]);
+        linked['purchase_items']=items;
+        for(final item in items) {
+          final pid=item['product_id']?.toString();
+          if(pid!=null&&pid.isNotEmpty) {
+            await txn.rawUpdate(
+              'UPDATE products SET stock=stock-?,updated_at=?,sync_state=0 WHERE id=?',
+              [_nDb(item['qty']),now,pid],
+            );
+          }
+        }
+        final sid=row['supplier_id']?.toString();
+        if(sid!=null&&sid.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE suppliers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['due']),now,sid],
+          );
+        }
+        await txn.delete('purchase_items',where:'purchase_id=?',whereArgs:[id]);
+      } else if(section=='customerLoans') {
+        final cid=row['customer_id']?.toString();
+        if(cid!=null&&cid.isNotEmpty) {
+          final delta=row['type']=='payment'?-_nDb(row['amount']):_nDb(row['amount']);
+          await txn.rawUpdate(
+            'UPDATE customers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+            [delta,now,cid],
+          );
+        }
+      } else if(section=='supplierTransactions') {
+        final sid=row['supplier_id']?.toString();
+        if(sid!=null&&sid.isNotEmpty) {
+          final delta=row['type']=='payment'?-_nDb(row['amount']):_nDb(row['amount']);
+          await txn.rawUpdate(
+            'UPDATE suppliers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
+            [delta,now,sid],
+          );
+        }
+      } else if(section=='stockAdjustments') {
+        final pid=row['product_id']?.toString();
+        if(pid!=null&&pid.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE products SET stock=stock-?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['qty']),now,pid],
+          );
+        }
+        final tank=row['fuel_tank_id']?.toString();
+        if(tank!=null&&tank.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE fuel_tanks SET current_stock=current_stock-?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['qty']),now,tank],
+          );
+        }
+      } else if(section=='customers') {
+        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+          'SELECT (SELECT COUNT(*) FROM sales WHERE customer_id=?)+'
+          '(SELECT COUNT(*) FROM customer_loans WHERE customer_id=?)',
+          [id,id],
+        ))??0;
+        if(linkedCount>0) throw StateError('Customer has linked sales/loans. Delete those records first.');
+      } else if(section=='suppliers') {
+        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+          'SELECT (SELECT COUNT(*) FROM purchases WHERE supplier_id=?)+'
+          '(SELECT COUNT(*) FROM supplier_transactions WHERE supplier_id=?)',
+          [id,id],
+        ))??0;
+        if(linkedCount>0) throw StateError('Supplier has linked purchases/transactions. Delete those records first.');
+      } else if(section=='salesmen') {
+        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+          'SELECT (SELECT COUNT(*) FROM sales WHERE salesman_id=?)+'
+          '(SELECT COUNT(*) FROM salesman_loans WHERE salesman_id=?)',
+          [id,id],
+        ))??0;
+        if(linkedCount>0) throw StateError('Salesman has linked sales/loans. Delete those records first.');
+      } else if(section=='products') {
+        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+          'SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id=?)+'
+          '(SELECT COUNT(*) FROM purchase_items WHERE product_id=?)+'
+          '(SELECT COUNT(*) FROM stock_adjustments WHERE product_id=?)',
+          [id,id,id],
+        ))??0;
+        if(linkedCount>0) throw StateError('Product has linked stock history. Delete those records first.');
+      }
+
+      await txn.insert('recycle_bin',{
+        'id':'recycle_${DateTime.now().microsecondsSinceEpoch}_$id',
+        'section':section,
+        'label':row['name']?.toString()??row['invoice_no']?.toString()??id,
+        'record_json':jsonEncode(row),
+        'linked_records_json':jsonEncode(linked),
+        'deleted_at':now,
+      });
+      await txn.delete(table,where:'id=?',whereArgs:[id]);
+    });
+  }
+
+  double _nDb(dynamic v)=>v is num?v.toDouble():double.tryParse(v?.toString()??'')??0;
+
+  Future<void> restoreRecycle(String recycleId) async {
+    final db=await database;
+    await db.transaction((txn) async {
+      final found=await txn.query('recycle_bin',where:'id=?',whereArgs:[recycleId],limit:1);
+      if(found.isEmpty) throw StateError('Recycle record not found.');
+      final bin=found.first;
+      final section=bin['section'].toString();
+      final table=_recycleTable(section);
+      final row=Map<String,Object?>.from(jsonDecode(bin['record_json'].toString()) as Map);
+      final rawLinked=bin['linked_records_json']?.toString();
+      final linked=rawLinked==null||rawLinked.isEmpty
+        ?<String,dynamic>{}
+        :Map<String,dynamic>.from(jsonDecode(rawLinked) as Map);
+      final now=DateTime.now().toUtc().toIso8601String();
+
+      await txn.insert(table,row,conflictAlgorithm:ConflictAlgorithm.abort);
+
+      if(section=='sales') {
+        for(final raw in (linked['sale_items'] as List? ?? const [])) {
+          final item=Map<String,Object?>.from(raw as Map);
+          await txn.insert('sale_items',item);
+          final pid=item['product_id']?.toString();
+          if(pid!=null&&pid.isNotEmpty) {
+            await txn.rawUpdate(
+              'UPDATE products SET stock=stock-?,updated_at=?,sync_state=0 WHERE id=?',
+              [_nDb(item['qty']),now,pid],
+            );
+          }
+        }
+        for(final raw in (linked['salesman_loans'] as List? ?? const [])) {
+          await txn.insert('salesman_loans',Map<String,Object?>.from(raw as Map));
+        }
+        final cid=row['customer_id']?.toString();
+        if(cid!=null&&cid.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['total'])-_nDb(row['paid']),now,cid],
+          );
+        }
+      } else if(section=='purchases') {
+        for(final raw in (linked['purchase_items'] as List? ?? const [])) {
+          final item=Map<String,Object?>.from(raw as Map);
+          await txn.insert('purchase_items',item);
+          final pid=item['product_id']?.toString();
+          if(pid!=null&&pid.isNotEmpty) {
+            await txn.rawUpdate(
+              'UPDATE products SET stock=stock+?,updated_at=?,sync_state=0 WHERE id=?',
+              [_nDb(item['qty']),now,pid],
+            );
+          }
+        }
+        final sid=row['supplier_id']?.toString();
+        if(sid!=null&&sid.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE suppliers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['due']),now,sid],
+          );
+        }
+      } else if(section=='customerLoans') {
+        final cid=row['customer_id']?.toString();
+        if(cid!=null&&cid.isNotEmpty) {
+          final delta=row['type']=='payment'?-_nDb(row['amount']):_nDb(row['amount']);
+          await txn.rawUpdate(
+            'UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+            [delta,now,cid],
+          );
+        }
+      } else if(section=='supplierTransactions') {
+        final sid=row['supplier_id']?.toString();
+        if(sid!=null&&sid.isNotEmpty) {
+          final delta=row['type']=='payment'?-_nDb(row['amount']):_nDb(row['amount']);
+          await txn.rawUpdate(
+            'UPDATE suppliers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
+            [delta,now,sid],
+          );
+        }
+      } else if(section=='stockAdjustments') {
+        final pid=row['product_id']?.toString();
+        if(pid!=null&&pid.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE products SET stock=stock+?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['qty']),now,pid],
+          );
+        }
+        final tank=row['fuel_tank_id']?.toString();
+        if(tank!=null&&tank.isNotEmpty) {
+          await txn.rawUpdate(
+            'UPDATE fuel_tanks SET current_stock=current_stock+?,updated_at=?,sync_state=0 WHERE id=?',
+            [_nDb(row['qty']),now,tank],
+          );
+        }
+      }
+
+      await txn.delete('recycle_bin',where:'id=?',whereArgs:[recycleId]);
+    });
+  }
+
+  Future<void> deleteRecycleForever(String id) async {
+    final db=await database;
+    await db.delete('recycle_bin',where:'id=?',whereArgs:[id]);
+  }
+
+  Future<void> clearSectionToRecycle(String section) async {
+    final db=await database;
+    final table=_recycleTable(section);
+    final ids=await db.query(table,columns:['id']);
+    for(final row in ids) {
+      await softDeleteById(section,row['id'].toString());
+    }
   }
 
   Future<Map<String,num>> extendedReportTotals() async {

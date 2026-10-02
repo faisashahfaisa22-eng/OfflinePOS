@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
-import '../../core/localization/language_controller.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/share/whatsapp_share.dart';
 import '../../core/ui/qamvio_ui.dart';
 
@@ -17,522 +18,405 @@ class PartyPage extends StatefulWidget {
 
 class _PartyPageState extends State<PartyPage> {
   List<Map<String,Object?>> rows=const [];
+  List<Map<String,Object?>> salesmen=const [];
+  List<Map<String,Object?>> supplierTx=const [];
   bool loading=true;
-  final search=TextEditingController();
+  String editingId='';
+
+  final name=TextEditingController();
+  final phone=TextEditingController();
+  final opening=TextEditingController(text:'0');
+  final creditLimit=TextEditingController(text:'0');
+  final note=TextEditingController();
+  String salesmanId='';
 
   bool get customer=>widget.type==PartyType.customer;
+  bool get canEdit=>LocalAuthService.instance.isAdmin;
 
   @override
   void initState() {
     super.initState();
-    search.addListener(_refresh);
     load();
   }
 
   @override
+  void didUpdateWidget(covariant PartyPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if(oldWidget.type!=widget.type) {
+      resetForm();
+      load();
+    }
+  }
+
+  @override
   void dispose() {
-    search.removeListener(_refresh);
-    search.dispose();
+    name.dispose();
+    phone.dispose();
+    opening.dispose();
+    creditLimit.dispose();
+    note.dispose();
     super.dispose();
   }
 
-  void _refresh()=>setState(() {});
-
   Future<void> load() async {
+    final db=await AppDatabase.instance.database;
+    final sm=await db.query('salesmen',orderBy:'name COLLATE NOCASE');
     final data=customer
-      ?await AppDatabase.instance.customers()
-      :await AppDatabase.instance.suppliers();
+      ?await db.rawQuery(
+        'SELECT c.*,sm.name salesman_name FROM customers c '
+        'LEFT JOIN salesmen sm ON sm.id=c.salesman_id ORDER BY c.name COLLATE NOCASE',
+      )
+      :await db.query('suppliers',orderBy:'name COLLATE NOCASE');
+    final tx=customer
+      ?<Map<String,Object?>>[]
+      :await db.rawQuery(
+        'SELECT t.*,s.name supplier_name FROM supplier_transactions t '
+        'JOIN suppliers s ON s.id=t.supplier_id ORDER BY t.created_at DESC',
+      );
     if(!mounted) return;
     setState(() {
+      salesmen=sm;
       rows=data;
+      supplierTx=tx;
       loading=false;
     });
   }
 
-  List<Map<String,Object?>> get filtered {
-    final q=search.text.trim().toLowerCase();
-    if(q.isEmpty) return rows;
-    return rows.where((x)=>[
-      x['name'],
-      x['phone'],
-      x['address'],
-    ].join(' ').toLowerCase().contains(q)).toList();
+  void resetForm() {
+    setState(() {
+      editingId='';
+      name.clear();
+      phone.clear();
+      opening.text='0';
+      creditLimit.text='0';
+      note.clear();
+      salesmanId='';
+    });
   }
 
-  double get totalBalance=>rows.fold<double>(
-    0,
-    (a,x)=>a+((x['balance'] as num?)?.toDouble()??0),
-  );
+  void edit(Map<String,Object?> x) {
+    if(!canEdit) return;
+    setState(() {
+      editingId=x['id'].toString();
+      name.text=x['name'].toString();
+      phone.text=x['phone']?.toString()??'';
+      opening.text=QamvioUi.money(x['opening']);
+      creditLimit.text=QamvioUi.money(x['credit_limit']);
+      note.text=x['note']?.toString()??'';
+      salesmanId=x['salesman_id']?.toString()??'';
+    });
+  }
 
-  Future<void> shareSupplier(Map<String,Object?> supplier) async {
-    try {
-      await WhatsAppShare.shareSupplierCredit(supplier);
-    } catch(e) {
-      if(!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content:Text('WhatsApp: $e')),
+  Future<void> saveMaster() async {
+    if(!canEdit||name.text.trim().isEmpty) return;
+    final id=editingId.isEmpty?DateTime.now().microsecondsSinceEpoch.toString():editingId;
+    if(customer) {
+      await AppDatabase.instance.saveCustomer(
+        id:id,
+        name:name.text.trim(),
+        phone:phone.text.trim(),
+        salesmanId:salesmanId.isEmpty?null:salesmanId,
+        opening:double.tryParse(opening.text.trim())??0,
+        creditLimit:double.tryParse(creditLimit.text.trim())??0,
+        note:note.text.trim(),
+      );
+    } else {
+      await AppDatabase.instance.saveSupplier(
+        id:id,
+        name:name.text.trim(),
+        phone:phone.text.trim(),
+        opening:double.tryParse(opening.text.trim())??0,
+        note:note.text.trim(),
       );
     }
+    resetForm();
+    await load();
   }
 
-  Future<void> supplierPayment(Map<String,Object?> supplier) async {
-    String type='payment';
-    final amount=TextEditingController();
-    final note=TextEditingController();
-    final ok=await showModalBottomSheet<bool>(
+  Future<void> addSupplierTransaction() async {
+    if(rows.isEmpty||!canEdit) return;
+    String supplierId=rows.first['id'].toString();
+    DateTime date=DateTime.now();
+    final paid=TextEditingController(text:'0');
+    final received=TextEditingController(text:'0');
+    final memo=TextEditingController();
+    final ok=await showDialog<bool>(
       context:context,
-      isScrollControlled:true,
-      builder:(sheetContext)=>StatefulBuilder(
-        builder:(sheetContext,setLocal)=>Padding(
-          padding:EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            MediaQuery.viewInsetsOf(sheetContext).bottom+20,
+      builder:(ctx)=>StatefulBuilder(
+        builder:(ctx,setLocal)=>AlertDialog(
+          title:const Text('Supplier Payment / Receipt'),
+          content:SingleChildScrollView(
+            child:Column(
+              mainAxisSize:MainAxisSize.min,
+              children:[
+                ListTile(
+                  contentPadding:EdgeInsets.zero,
+                  title:const Text('Date'),
+                  subtitle:Text(DateFormat('yyyy-MM-dd').format(date)),
+                  trailing:const Icon(Icons.calendar_month_outlined),
+                  onTap:() async {
+                    final d=await showDatePicker(
+                      context:ctx,
+                      firstDate:DateTime(2000),
+                      lastDate:DateTime(2100),
+                      initialDate:date,
+                    );
+                    if(d!=null) setLocal(()=>date=d);
+                  },
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue:supplierId,
+                  decoration:const InputDecoration(labelText:'Supplier'),
+                  items:[
+                    for(final x in rows)
+                      DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
+                  ],
+                  onChanged:(v)=>setLocal(()=>supplierId=v??supplierId),
+                ),
+                const SizedBox(height:10),
+                TextField(
+                  controller:paid,
+                  keyboardType:const TextInputType.numberWithOptions(decimal:true),
+                  decoration:const InputDecoration(labelText:'Paid to Supplier'),
+                ),
+                const SizedBox(height:10),
+                TextField(
+                  controller:received,
+                  keyboardType:const TextInputType.numberWithOptions(decimal:true),
+                  decoration:const InputDecoration(labelText:'Received from Supplier'),
+                ),
+                const SizedBox(height:10),
+                TextField(controller:memo,decoration:const InputDecoration(labelText:'Note')),
+              ],
+            ),
           ),
-          child:Column(
-            mainAxisSize:MainAxisSize.min,
-            crossAxisAlignment:CrossAxisAlignment.stretch,
-            children:[
-              Text(
-                '${supplier['name']} — Payment',
-                style:Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
-                  fontWeight:FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height:4),
-              Text(
-                'Current payable balance: ${QamvioUi.money(supplier['balance'])}',
-              ),
-              const SizedBox(height:16),
-              DropdownButtonFormField<String>(
-                initialValue:type,
-                decoration:const InputDecoration(
-                  labelText:'Transaction type',
-                  prefixIcon:Icon(Icons.swap_vert_rounded),
-                ),
-                items:const [
-                  DropdownMenuItem(
-                    value:'payment',
-                    child:Text('Paid to supplier'),
-                  ),
-                  DropdownMenuItem(
-                    value:'received',
-                    child:Text('Received from supplier'),
-                  ),
-                ],
-                onChanged:(v)=>setLocal(()=>type=v!),
-              ),
-              const SizedBox(height:10),
-              TextField(
-                controller:amount,
-                autofocus:true,
-                keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                decoration:const InputDecoration(
-                  labelText:'Amount',
-                  prefixIcon:Icon(Icons.payments_outlined),
-                ),
-              ),
-              const SizedBox(height:10),
-              TextField(
-                controller:note,
-                decoration:const InputDecoration(
-                  labelText:'Note',
-                  prefixIcon:Icon(Icons.notes_rounded),
-                ),
-              ),
-              const SizedBox(height:18),
-              FilledButton.icon(
-                onPressed:()=>Navigator.pop(sheetContext,true),
-                icon:const Icon(Icons.save_outlined),
-                label:const Text('Save Transaction'),
-              ),
-              const SizedBox(height:8),
-              TextButton(
-                onPressed:()=>Navigator.pop(sheetContext,false),
-                child:const Text('Cancel'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if(ok==true) {
-      final value=double.tryParse(amount.text.trim())??0;
-      if(value>0) {
-        await AppDatabase.instance.saveSupplierTransaction(
-          id:DateTime.now().microsecondsSinceEpoch.toString(),
-          supplierId:supplier['id'].toString(),
-          amount:value,
-          type:type,
-          note:note.text.trim(),
-        );
-        await load();
-      } else if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content:Text('Amount must be greater than zero.')),
-        );
-      }
-    }
-
-    amount.dispose();
-    note.dispose();
-  }
-
-  Future<void> add() async {
-    final name=TextEditingController();
-    final phone=TextEditingController();
-    final address=TextEditingController();
-    final ok=await showModalBottomSheet<bool>(
-      context:context,
-      isScrollControlled:true,
-      builder:(sheetContext)=>Padding(
-        padding:EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          MediaQuery.viewInsetsOf(sheetContext).bottom+20,
-        ),
-        child:Column(
-          mainAxisSize:MainAxisSize.min,
-          crossAxisAlignment:CrossAxisAlignment.stretch,
-          children:[
-            Text(
-              LanguageController.instance.strings.t(
-                customer?'addCustomer':'addSupplier',
-              ),
-              style:Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
-                fontWeight:FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height:4),
-            Text(
-              customer
-                ?'Create a customer account for invoices, credit and payments.'
-                :'Create a supplier account for purchases and payable tracking.',
-            ),
-            const SizedBox(height:18),
-            TextField(
-              controller:name,
-              autofocus:true,
-              decoration:InputDecoration(
-                labelText:LanguageController.instance.strings.t('name'),
-                prefixIcon:Icon(customer?Icons.person_outline:Icons.store_outlined),
-              ),
-            ),
-            const SizedBox(height:10),
-            TextField(
-              controller:phone,
-              keyboardType:TextInputType.phone,
-              decoration:InputDecoration(
-                labelText:LanguageController.instance.strings.t('phone'),
-                prefixIcon:const Icon(Icons.phone_outlined),
-              ),
-            ),
-            const SizedBox(height:10),
-            TextField(
-              controller:address,
-              decoration:InputDecoration(
-                labelText:LanguageController.instance.strings.t('address'),
-                prefixIcon:const Icon(Icons.location_on_outlined),
-              ),
-            ),
-            const SizedBox(height:18),
-            FilledButton.icon(
-              onPressed:()=>Navigator.pop(sheetContext,true),
-              icon:const Icon(Icons.save_outlined),
-              label:Text(customer?'Save Customer':'Save Supplier'),
-            ),
-            const SizedBox(height:8),
-            TextButton(
-              onPressed:()=>Navigator.pop(sheetContext,false),
-              child:const Text('Cancel'),
-            ),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+            FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Save')),
           ],
         ),
       ),
     );
-
-    if(ok==true && name.text.trim().isNotEmpty) {
-      final id=DateTime.now().microsecondsSinceEpoch.toString();
-      if(customer) {
-        await AppDatabase.instance.saveCustomer(
-          id:id,
-          name:name.text,
-          phone:phone.text,
-          address:address.text,
-        );
+    if(ok==true) {
+      final p=double.tryParse(paid.text.trim())??0;
+      final r=double.tryParse(received.text.trim())??0;
+      if((p>0&&r>0)||(p<=0&&r<=0)) {
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content:Text('Use only one amount: Paid OR Received.')),
+          );
+        }
       } else {
-        await AppDatabase.instance.saveSupplier(
-          id:id,
-          name:name.text,
-          phone:phone.text,
-          address:address.text,
+        await AppDatabase.instance.saveSupplierTransaction(
+          id:DateTime.now().microsecondsSinceEpoch.toString(),
+          supplierId:supplierId,
+          amount:p>0?p:r,
+          type:p>0?'payment':'received',
+          note:memo.text.trim(),
+          businessDate:date,
         );
+        await load();
       }
-      await load();
     }
+    paid.dispose();
+    received.dispose();
+    memo.dispose();
+  }
 
-    name.dispose();
-    phone.dispose();
-    address.dispose();
+  Future<void> shareAll() async {
+    final b=StringBuffer('QAMVIO POS — ${customer?'Customer':'Supplier'} Balances\n\n');
+    for(final x in rows) {
+      b.writeln('${x['name']}: ${QamvioUi.money(x['balance'])}');
+    }
+    await WhatsAppShare.send(b.toString());
   }
 
   @override
-  Widget build(BuildContext context) {
-    final s=LanguageController.instance.strings;
-    final title=s.t(customer?'customers':'suppliers');
-    return Scaffold(
-      appBar:AppBar(title:Text(title)),
-      floatingActionButton:FloatingActionButton.extended(
-        onPressed:add,
-        icon:const Icon(Icons.person_add_alt_1_rounded),
-        label:Text(s.t(customer?'addCustomer':'addSupplier')),
-      ),
-      body:loading
-        ?const Center(child:CircularProgressIndicator())
-        :RefreshIndicator(
-          onRefresh:load,
-          child:ListView(
-            physics:const AlwaysScrollableScrollPhysics(),
-            padding:QamvioUi.pagePadding,
-            children:[
-              QamvioPageIntro(
-                title:title,
-                subtitle:customer
-                  ?'Manage receivables, contact details and customer accounts.'
-                  :'Manage payables, supplier payments and purchase relationships.',
-                icon:customer?Icons.groups_2_rounded:Icons.local_shipping_rounded,
-              ),
-              const SizedBox(height:18),
-              Row(
-                children:[
-                  Expanded(
-                    child:_summary(
-                      context,
-                      customer?'Customers':'Suppliers',
-                      rows.length.toString(),
-                      customer?Icons.people_outline:Icons.storefront_outlined,
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:Text(customer?'Customers':'Suppliers')),
+    body:loading
+      ?const Center(child:CircularProgressIndicator())
+      :ListView(
+        padding:QamvioUi.pagePadding,
+        children:[
+          Text(
+            customer?'Customers':'Suppliers',
+            style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900),
+          ),
+          const SizedBox(height:10),
+          if(canEdit) _masterForm(context),
+          const SizedBox(height:10),
+          _masterTable(context),
+          if(!customer) ...[
+            const SizedBox(height:14),
+            Card(
+              child:Padding(
+                padding:const EdgeInsets.all(14),
+                child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.start,
+                  children:[
+                    const Text('Supplier Payment / Receipt',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
+                    const SizedBox(height:5),
+                    const Text('Use only one amount per entry: Paid to Supplier OR Received from Supplier.'),
+                    const SizedBox(height:10),
+                    if(canEdit)
+                      FilledButton.icon(
+                        onPressed:addSupplierTransaction,
+                        icon:const Icon(Icons.add),
+                        label:const Text('Add Payment / Receipt'),
+                      ),
+                    const SizedBox(height:10),
+                    SingleChildScrollView(
+                      scrollDirection:Axis.horizontal,
+                      child:DataTable(
+                        columns:const [
+                          DataColumn(label:Text('Date')),
+                          DataColumn(label:Text('Supplier')),
+                          DataColumn(label:Text('Paid'),numeric:true),
+                          DataColumn(label:Text('Received'),numeric:true),
+                          DataColumn(label:Text('Note')),
+                        ],
+                        rows:[
+                          for(final x in supplierTx)
+                            DataRow(cells:[
+                              DataCell(Text((x['business_date']??x['created_at']).toString().split('T').first)),
+                              DataCell(Text(x['supplier_name'].toString())),
+                              DataCell(Text(x['type']=='payment'?QamvioUi.money(x['amount']):'0.00')),
+                              DataCell(Text(x['type']=='received'?QamvioUi.money(x['amount']):'0.00')),
+                              DataCell(Text(x['note']?.toString()??'')),
+                            ]),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width:10),
-                  Expanded(
-                    child:_summary(
-                      context,
-                      customer?'Receivable':'Payable',
-                      QamvioUi.money(totalBalance),
-                      Icons.account_balance_wallet_outlined,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height:18),
-              TextField(
-                controller:search,
-                decoration:InputDecoration(
-                  hintText:'Search name, phone or address',
-                  prefixIcon:const Icon(Icons.search_rounded),
-                  suffixIcon:search.text.isEmpty
-                    ?null
-                    :IconButton(
-                      onPressed:()=>search.clear(),
-                      icon:const Icon(Icons.close_rounded),
-                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height:18),
-              QamvioSectionTitle(
-                customer?'Customer accounts':'Supplier accounts',
-                subtitle:'${filtered.length} matching records',
-              ),
-              if(filtered.isEmpty)
-                QamvioEmptyState(
-                  icon:customer
-                    ?Icons.person_outline_rounded
-                    :Icons.local_shipping_outlined,
-                  title:rows.isEmpty
-                    ?(customer?'No customers yet':'No suppliers yet')
-                    :'No matching account',
-                  subtitle:rows.isEmpty
-                    ?(customer
-                      ?'Add your first customer to start invoices and credit tracking.'
-                      :'Add your first supplier to start purchase and payable tracking.')
-                    :'Try a different search term.',
-                  actionLabel:rows.isEmpty
-                    ?(customer?'Add Customer':'Add Supplier')
-                    :null,
-                  onAction:rows.isEmpty?add:null,
-                )
-              else
-                ...filtered.map((x)=>Padding(
-                  padding:const EdgeInsets.only(bottom:10),
-                  child:_partyCard(context,x),
-                )),
-            ],
-          ),
-        ),
-    );
-  }
+            ),
+          ],
+        ],
+      ),
+  );
 
-  Widget _summary(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  )=>Card(
+  Widget _masterForm(BuildContext context)=>Card(
     child:Padding(
       padding:const EdgeInsets.all(14),
-      child:Row(
+      child:Column(
+        crossAxisAlignment:CrossAxisAlignment.start,
         children:[
-          Container(
-            width:42,
-            height:42,
-            decoration:BoxDecoration(
-              color:Theme.of(context).colorScheme.primaryContainer,
-              borderRadius:BorderRadius.circular(13),
+          if(!customer)
+            const Padding(
+              padding:EdgeInsets.only(bottom:10),
+              child:Text('Supplier Master',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
             ),
-            child:Icon(
-              icon,
-              color:Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(width:10),
-          Expanded(
-            child:Column(
-              crossAxisAlignment:CrossAxisAlignment.start,
-              children:[
-                Text(
-                  value,
-                  maxLines:1,
-                  overflow:TextOverflow.ellipsis,
-                  style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900),
-                ),
-                Text(
-                  label,
-                  style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:const Color(0xFF667085),
+          Wrap(
+            spacing:10,
+            runSpacing:10,
+            crossAxisAlignment:WrapCrossAlignment.end,
+            children:[
+              SizedBox(width:230,child:TextField(controller:name,decoration:InputDecoration(labelText:customer?'Customer Name':'Supplier Name'))),
+              SizedBox(width:210,child:TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'Phone (with country code)',hintText:'93701234567'))),
+              if(customer)
+                SizedBox(width:145,child:TextField(controller:creditLimit,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Credit Limit'))),
+              if(customer)
+                SizedBox(
+                  width:190,
+                  child:DropdownButtonFormField<String>(
+                    initialValue:salesmanId,
+                    decoration:const InputDecoration(labelText:'Salesman'),
+                    items:[
+                      const DropdownMenuItem(value:'',child:Text('No Salesman')),
+                      for(final x in salesmen)
+                        DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
+                    ],
+                    onChanged:(v)=>setState(()=>salesmanId=v??''),
                   ),
                 ),
-              ],
-            ),
+              SizedBox(width:145,child:TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Balance'))),
+              SizedBox(width:230,child:TextField(controller:note,decoration:const InputDecoration(labelText:'Note'))),
+              FilledButton(onPressed:saveMaster,child:Text(editingId.isEmpty?(customer?'Save':'Save Supplier'):'Update')),
+              if(editingId.isNotEmpty)
+                OutlinedButton(onPressed:resetForm,child:const Text('Cancel Edit')),
+            ],
           ),
         ],
       ),
     ),
   );
 
-  Widget _partyCard(BuildContext context,Map<String,Object?> x) {
-    final balance=(x['balance'] as num?)?.toDouble()??0;
-    final phone=(x['phone']??'').toString();
-    final address=(x['address']??'').toString();
-    return Card(
-      child:Padding(
-        padding:const EdgeInsets.all(14),
-        child:Column(
-          children:[
-            Row(
-              children:[
-                Container(
-                  width:48,
-                  height:48,
-                  decoration:BoxDecoration(
-                    color:Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius:BorderRadius.circular(16),
-                  ),
-                  child:Icon(
-                    customer?Icons.person_rounded:Icons.storefront_rounded,
-                    color:Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(width:12),
-                Expanded(
-                  child:Column(
-                    crossAxisAlignment:CrossAxisAlignment.start,
-                    children:[
-                      Text(
-                        x['name'].toString(),
-                        style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16),
-                      ),
-                      if(phone.isNotEmpty) ...[
-                        const SizedBox(height:3),
-                        Text(
-                          phone,
-                          style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:const Color(0xFF667085),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment:CrossAxisAlignment.end,
-                  children:[
-                    Text(
-                      QamvioUi.money(balance),
-                      style:TextStyle(
-                        fontWeight:FontWeight.w900,
-                        fontSize:17,
-                        color:balance>0
-                          ?Theme.of(context).colorScheme.primary
-                          :const Color(0xFF344054),
-                      ),
-                    ),
-                    Text(
-                      customer?'Receivable':'Payable',
-                      style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color:const Color(0xFF667085),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            if(address.isNotEmpty) ...[
-              const SizedBox(height:10),
-              Row(
-                children:[
-                  const Icon(Icons.location_on_outlined,size:16,color:Color(0xFF667085)),
-                  const SizedBox(width:5),
-                  Expanded(
-                    child:Text(
-                      address,
-                      maxLines:1,
-                      overflow:TextOverflow.ellipsis,
-                      style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color:const Color(0xFF667085),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if(!customer) ...[
-              const Divider(height:22),
-              Row(
-                children:[
-                  Expanded(
-                    child:OutlinedButton.icon(
-                      onPressed:()=>supplierPayment(x),
-                      icon:const Icon(Icons.payments_outlined),
-                      label:const Text('Payment'),
-                    ),
-                  ),
-                  const SizedBox(width:10),
-                  Expanded(
-                    child:FilledButton.tonalIcon(
-                      onPressed:()=>shareSupplier(x),
-                      icon:const Icon(Icons.chat_rounded),
-                      label:const Text('WhatsApp'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+  Widget _masterTable(BuildContext context)=>Card(
+    child:SingleChildScrollView(
+      scrollDirection:Axis.horizontal,
+      child:DataTable(
+        columns:customer
+          ?[
+            const DataColumn(label:Text('Customer Name')),
+            const DataColumn(label:Text('Phone')),
+            const DataColumn(label:Text('Salesman')),
+            const DataColumn(label:Text('Credit Limit'),numeric:true),
+            const DataColumn(label:Text('Opening'),numeric:true),
+            const DataColumn(label:Text('Current Balance'),numeric:true),
+            const DataColumn(label:Text('Status')),
+            const DataColumn(label:Text('Note')),
+            DataColumn(label:TextButton.icon(onPressed:rows.isEmpty?null:shareAll,icon:const Icon(Icons.chat_rounded),label:const Text('WhatsApp All'))),
+          ]
+          :[
+            const DataColumn(label:Text('Supplier Name')),
+            const DataColumn(label:Text('Phone')),
+            const DataColumn(label:Text('Opening'),numeric:true),
+            const DataColumn(label:Text('Current Balance'),numeric:true),
+            const DataColumn(label:Text('Note')),
+            DataColumn(label:TextButton.icon(onPressed:rows.isEmpty?null:shareAll,icon:const Icon(Icons.chat_rounded),label:const Text('WhatsApp All'))),
           ],
-        ),
+        rows:[
+          for(final x in rows)
+            DataRow(
+              cells:customer
+                ?[
+                  DataCell(Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800))),
+                  DataCell(Text(x['phone']?.toString()??'')),
+                  DataCell(Text(x['salesman_name']?.toString()??'')),
+                  DataCell(Text(QamvioUi.money(x['credit_limit']))),
+                  DataCell(Text(QamvioUi.money(x['opening']))),
+                  DataCell(Text(QamvioUi.money(x['balance']),style:const TextStyle(fontWeight:FontWeight.w900))),
+                  DataCell(Text(_status(x))),
+                  DataCell(Text(x['note']?.toString()??'')),
+                  DataCell(Row(
+                    mainAxisSize:MainAxisSize.min,
+                    children:[
+                      if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
+                    ],
+                  )),
+                ]
+                :[
+                  DataCell(Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800))),
+                  DataCell(Text(x['phone']?.toString()??'')),
+                  DataCell(Text(QamvioUi.money(x['opening']))),
+                  DataCell(Text(QamvioUi.money(x['balance']),style:const TextStyle(fontWeight:FontWeight.w900))),
+                  DataCell(Text(x['note']?.toString()??'')),
+                  DataCell(Row(
+                    mainAxisSize:MainAxisSize.min,
+                    children:[
+                      IconButton(
+                        tooltip:'WhatsApp',
+                        onPressed:()=>WhatsAppShare.shareSupplierCredit(x),
+                        icon:const Icon(Icons.chat_rounded),
+                      ),
+                      if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
+                    ],
+                  )),
+                ],
+            ),
+        ],
       ),
-    );
+    ),
+  );
+
+  String _status(Map<String,Object?> x) {
+    final balance=(x['balance'] as num?)?.toDouble()??0;
+    final limit=(x['credit_limit'] as num?)?.toDouble()??0;
+    if(limit>0&&balance>limit) return 'Over Limit';
+    if(balance>0) return 'Due';
+    if(balance<0) return 'Advance';
+    return 'Clear';
   }
 }

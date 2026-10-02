@@ -81,9 +81,15 @@ class _ProductsPageState extends State<ProductsPage> {
       );
       return;
     }
-    final old=editingId.isEmpty
-      ?null
-      :rows.cast<Map<String,Object?>>().where((x)=>x['id'].toString()==editingId).firstOrNull;
+    Map<String,Object?>? old;
+    if(editingId.isNotEmpty) {
+      for(final x in rows) {
+        if(x['id'].toString()==editingId) {
+          old=x;
+          break;
+        }
+      }
+    }
     final opening=double.tryParse(openingQty.text.trim())??0;
     var currentStock=opening;
     if(old!=null) {

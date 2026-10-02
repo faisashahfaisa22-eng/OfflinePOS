@@ -5,6 +5,7 @@ import 'core/cloud/background_backup.dart';
 import 'core/cloud/cloud_config.dart';
 import 'core/database/app_database.dart';
 import 'core/localization/language_controller.dart';
+import 'core/ui/qamvio_ui.dart';
 import 'features/auth/login_page.dart';
 import 'features/migration/legacy_migration_gate.dart';
 
@@ -32,12 +33,7 @@ class QamvioApp extends StatelessWidget {
           debugShowCheckedModeBanner:false,
           title:'QAMVIO POS',
           builder:(context,child)=>Directionality(textDirection:s.direction,child:child??const SizedBox.shrink()),
-          theme:ThemeData(
-            useMaterial3:true,
-            colorSchemeSeed:const Color(0xFF174EA6),
-            scaffoldBackgroundColor:const Color(0xFFF6F8FC),
-            inputDecorationTheme:const InputDecorationTheme(border:OutlineInputBorder()),
-          ),
+          theme:QamvioUi.theme(),
           home:StreamBuilder<AuthState>(
             stream:Supabase.instance.client.auth.onAuthStateChange,
             builder:(context,snapshot){

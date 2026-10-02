@@ -64,7 +64,32 @@ class _CloudPageState extends State<CloudPage> {
       context:context,
       builder:(_)=>const _RestoreDialog(),
     );
-    if(cred==null) return;
+    if(cred==null||!mounted) return;
+
+    final confirmed=await showDialog<bool>(
+      context:context,
+      builder:(dialogContext)=>AlertDialog(
+        title:const Text('Replace local business data?'),
+        content:const Text(
+          'Restoring the cloud backup will replace the current Flutter business '
+          'tables on this device. This cannot be undone from this screen. '
+          'Continue only if the cloud backup is the copy you want to restore.',
+        ),
+        actions:[
+          TextButton(
+            onPressed:()=>Navigator.pop(dialogContext,false),
+            child:const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed:()=>Navigator.pop(dialogContext,true),
+            icon:const Icon(Icons.restore_rounded),
+            label:const Text('Replace & Restore'),
+          ),
+        ],
+      ),
+    );
+    if(confirmed!=true) return;
+
     await run(
       ()async {
         final ok=await CloudBackupService.instance.restoreLatest(
@@ -193,7 +218,7 @@ class _CloudPageState extends State<CloudPage> {
                     context,
                     Icons.cloud_upload_outlined,
                     'Backup now',
-                    'Upload the current local SQLite business database to cloud backup.',
+                    'Encrypt the current local business database and upload the protected backup.',
                   ),
                   const SizedBox(height:12),
                   FilledButton.icon(
@@ -211,7 +236,7 @@ class _CloudPageState extends State<CloudPage> {
                     context,
                     Icons.restore_rounded,
                     'Restore latest',
-                    'Replace local Flutter tables with the latest validated Flutter backup.',
+                    'Validate, decrypt and replace local Flutter tables with the selected cloud backup.',
                   ),
                   const SizedBox(height:12),
                   OutlinedButton.icon(

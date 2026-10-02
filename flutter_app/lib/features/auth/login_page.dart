@@ -181,8 +181,30 @@ class _LoginPageState extends State<LoginPage> {
                             child:Text('Deriving your encryption key... this takes a few seconds.',textAlign:TextAlign.center),
                           ),
                           const SizedBox(height:6),
+                          if(mode==_Mode.create)
+                            TextButton(
+                              onPressed:busy?null:()=>_switch(_Mode.login),
+                              child:const Text('Already have an account? Sign in'),
+                            ),
                           if(mode==_Mode.login&&auth.hasAccounts)
-                            TextButton(onPressed:busy?null:()=>_switch(_Mode.recover),child:const Text('Forgot password? Use recovery code')),
+                            TextButton(
+                              onPressed:busy?null:()=>_switch(_Mode.recover),
+                              child:const Text('Forgot password? Use recovery code'),
+                            ),
+                          if(mode==_Mode.login&&!auth.hasAccounts)
+                            Padding(
+                              padding:const EdgeInsets.only(top:2),
+                              child:Text(
+                                'Sign in works with an account already saved on this device.',
+                                textAlign:TextAlign.center,
+                                style:Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          if(mode==_Mode.login&&!auth.hasAccounts)
+                            TextButton(
+                              onPressed:busy?null:()=>_switch(_Mode.create),
+                              child:const Text('New here? Create admin account'),
+                            ),
                           if(mode==_Mode.recover)
                             TextButton(onPressed:busy?null:()=>_switch(_Mode.login),child:const Text('Back to sign in')),
                         ],

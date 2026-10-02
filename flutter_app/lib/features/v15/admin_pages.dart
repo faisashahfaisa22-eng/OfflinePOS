@@ -1,3 +1,5 @@
+import 'package:cryptography/cryptography.dart'
+    show SecretBoxAuthenticationError;
 import 'package:flutter/material.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
@@ -458,21 +460,128 @@ class _SafetyCenterPageState extends State<SafetyCenterPage> {
   }
 
   Future<void> selfTest() async {
-    setState(()=>testResult='Running…');
+    setState(() => testResult = 'Running…');
+    final lines = <String>[];
+
+    // 1) SQLCipher integrity + schema
     try {
-      final db=await AppDatabase.instance.database;
-      final integrity=await db.rawQuery('PRAGMA integrity_check');
-      final value=integrity.isEmpty?'unknown':integrity.first.values.first?.toString()??'unknown';
-      final auth=LocalAuthService.instance;
-      if(!mounted) return;
-      setState(()=>testResult=
-        'SQLCipher DB integrity: $value\n'
-        'Local login unlocked: ${auth.unlocked?'YES':'NO'}\n'
-        'PBKDF2 iterations: ${CryptoUtils.kdfIterations}\n'
-        'Cloud payload cipher: AES-GCM-256',
+      final db = await AppDatabase.instance.database;
+      final integrity = await db.rawQuery('PRAGMA integrity_check');
+      final value = integrity.isEmpty
+          ? 'unknown'
+          : integrity.first.values.first?.toString() ?? 'unknown';
+      lines.add('SQLCipher DB integrity: $value');
+
+      final tables = Sqflite.firstIntValue(
+            await db.rawQuery(
+              "SELECT COUNT(*) FROM sqlite_master WHERE type='table'",
+            ),
+          ) ??
+          0;
+      lines.add('Schema tables present: $tables');
+    } catch (e) {
+      lines.add('SQLCipher DB check FAILED: $e');
+    }
+
+    // 2) Auth state
+    final auth = LocalAuthService.instance;
+    lines.add('Local login unlocked: ${auth.unlocked ? 'YES' : 'NO'}');
+    lines.add('Active users: ${auth.users.where((u) => u.active).length}');
+
+    // 3) PBKDF2 determinism
+    try {
+      final k1 = await CryptoUtils.deriveKey(
+        'selftest-pw',
+        'aabb',
+        iterations: 1000,
       );
-    } catch(e) {
-      if(mounted) setState(()=>testResult='Security self-test failed: $e');
+      final k2 = await CryptoUtils.deriveKey(
+        'selftest-pw',
+        'aabb',
+        iterations: 1000,
+      );
+      lines.add(
+        'PBKDF2 iterations (production): ${CryptoUtils.kdfIterations}',
+      );
+      lines.add(
+        'PBKDF2 deterministic: '
+        '${CryptoUtils.constantTimeEquals(k1, k2) ? 'YES' : 'NO'}',
+      );
+      lines.add('PBKDF2 key length: ${k1.length} bytes');
+    } catch (e) {
+      lines.add('PBKDF2 FAILED: $e');
+    }
+
+    // 4) AES-GCM round trip + wrong-key rejection
+    try {
+      final key = CryptoUtils.randomBytes(32);
+      final box = await CryptoUtils.encryptBox(
+        const [1, 2, 3, 4, 5, 6, 7, 8],
+        key,
+      );
+      final clear = await CryptoUtils.decryptBox(box, key);
+      final ok = CryptoUtils.constantTimeEquals(
+        clear,
+        const [1, 2, 3, 4, 5, 6, 7, 8],
+      );
+      lines.add('AES-GCM round trip: ${ok ? 'YES' : 'NO'}');
+
+      var wrongKeyRejected = false;
+      try {
+        await CryptoUtils.decryptBox(
+          box,
+          CryptoUtils.randomBytes(32),
+        );
+      } on SecretBoxAuthenticationError {
+        wrongKeyRejected = true;
+      } catch (_) {
+        // A non-authentication crypto error is still a failed self-test.
+      }
+      lines.add(
+        'AES-GCM wrong-key rejected: '
+        '${wrongKeyRejected ? 'YES' : 'NO'}',
+      );
+    } catch (e) {
+      lines.add('AES-GCM FAILED: $e');
+    }
+
+    // 5) Recovery code format
+    try {
+      final code = CryptoUtils.generateRecoveryCode();
+      final normalized =
+          CryptoUtils.normalizeRecoveryCode(code.toLowerCase());
+      final okFormat =
+          RegExp(r'^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$').hasMatch(code);
+      lines.add('Recovery code format: ${okFormat ? 'OK' : 'BAD'}');
+      lines.add(
+        'Recovery code normalized length: ${normalized.length}',
+      );
+    } catch (e) {
+      lines.add('Recovery code FAILED: $e');
+    }
+
+    // 6) Password policy
+    final weak = CryptoUtils.validatePasswordStrength('short');
+    final strong = CryptoUtils.validatePasswordStrength('abcd1234');
+    lines.add(
+      'Password policy: weak rejected=${weak != null}, '
+      'strong accepted=${strong == null}',
+    );
+
+    // 7) Cloud backup key derivation (only while unlocked)
+    if (auth.unlocked) {
+      try {
+        final bk = await auth.backupKey();
+        lines.add('Cloud backup key derived: ${bk.length} bytes');
+      } catch (e) {
+        lines.add('Cloud backup key FAILED: $e');
+      }
+    } else {
+      lines.add('Cloud backup key: not available (locked)');
+    }
+
+    if (mounted) {
+      setState(() => testResult = lines.join('\n'));
     }
   }
 

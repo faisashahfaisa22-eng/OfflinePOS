@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
 class FuelPage extends StatefulWidget {
@@ -54,6 +55,14 @@ class _FuelPageState extends State<FuelPage> {
   );
 
   Future<void> addTank() async {
+    if(!LocalAuthService.instance.isAdmin) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content:Text('Admin access is required to configure fuel tanks.')),
+        );
+      }
+      return;
+    }
     final name=TextEditingController();
     final type=TextEditingController(text:'Diesel');
     final capacity=TextEditingController();
@@ -158,6 +167,14 @@ class _FuelPageState extends State<FuelPage> {
   }
 
   Future<void> addNozzle() async {
+    if(!LocalAuthService.instance.isAdmin) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content:Text('Admin access is required to configure fuel nozzles.')),
+        );
+      }
+      return;
+    }
     if(tanks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Add a fuel tank first.')),
@@ -324,26 +341,28 @@ class _FuelPageState extends State<FuelPage> {
               ],
             ),
             const SizedBox(height:18),
-            Row(
-              children:[
-                Expanded(
-                  child:FilledButton.icon(
-                    onPressed:addTank,
-                    icon:const Icon(Icons.add_rounded),
-                    label:const Text('Add Tank'),
+            if(LocalAuthService.instance.isAdmin) ...[
+              Row(
+                children:[
+                  Expanded(
+                    child:FilledButton.icon(
+                      onPressed:addTank,
+                      icon:const Icon(Icons.add_rounded),
+                      label:const Text('Add Tank'),
+                    ),
                   ),
-                ),
-                const SizedBox(width:10),
-                Expanded(
-                  child:OutlinedButton.icon(
-                    onPressed:addNozzle,
-                    icon:const Icon(Icons.local_gas_station_rounded),
-                    label:const Text('Add Nozzle'),
+                  const SizedBox(width:10),
+                  Expanded(
+                    child:OutlinedButton.icon(
+                      onPressed:addNozzle,
+                      icon:const Icon(Icons.local_gas_station_rounded),
+                      label:const Text('Add Nozzle'),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height:22),
+                ],
+              ),
+              const SizedBox(height:22),
+            ],
             QamvioSectionTitle(
               'Fuel tanks',
               subtitle:'${tanks.length} configured tanks',

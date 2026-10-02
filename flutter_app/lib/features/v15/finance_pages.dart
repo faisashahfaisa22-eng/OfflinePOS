@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/ui/qamvio_ui.dart';
@@ -35,16 +38,16 @@ class _CapitalPageState extends State<CapitalPage> {
     });
   }
 
-  Future<void> add() async {
-    final name=TextEditingController();
-    final amount=TextEditingController();
-    final note=TextEditingController();
-    DateTime date=DateTime.now();
+  Future<void> add([Map<String,Object?>? existing]) async {
+    final name=TextEditingController(text:existing?['name']?.toString()??'');
+    final amount=TextEditingController(text:existing==null?'':_money(existing['amount']));
+    final note=TextEditingController(text:existing?['note']?.toString()??'');
+    DateTime date=DateTime.tryParse(existing?['business_date']?.toString()??'')??DateTime.now();
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>StatefulBuilder(
         builder:(ctx,setLocal)=>AlertDialog(
-          title:const Text('Owner / Partner Money'),
+          title:Text(existing==null?'Owner / Partner Money':'Edit Owner / Partner Money'),
           content:SingleChildScrollView(
             child:Column(
               mainAxisSize:MainAxisSize.min,
@@ -88,7 +91,7 @@ class _CapitalPageState extends State<CapitalPage> {
       final value=double.tryParse(amount.text.trim())??0;
       if(value>0) {
         await AppDatabase.instance.saveCapital(
-          id:DateTime.now().microsecondsSinceEpoch.toString(),
+          id:existing?['id']?.toString()??DateTime.now().microsecondsSinceEpoch.toString(),
           name:name.text.trim().isEmpty?'Owner / Partner':name.text.trim(),
           amount:value,
           note:note.text.trim(),
@@ -100,6 +103,24 @@ class _CapitalPageState extends State<CapitalPage> {
     name.dispose();
     amount.dispose();
     note.dispose();
+  }
+
+  Future<void> remove(Map<String,Object?> x) async {
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        title:const Text('Delete Owner / Partner Money?'),
+        content:const Text('Move this entry to Recycle Bin?'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete')),
+        ],
+      ),
+    )??false;
+    if(ok) {
+      await AppDatabase.instance.softDeleteById('capital',x['id'].toString());
+      await load();
+    }
   }
 
   @override
@@ -136,6 +157,7 @@ class _CapitalPageState extends State<CapitalPage> {
                     DataColumn(label:Text('Person / Partner')),
                     DataColumn(label:Text('Amount'),numeric:true),
                     DataColumn(label:Text('Note')),
+                    DataColumn(label:Text('')),
                   ],
                   rows:[
                     for(final x in rows)
@@ -144,6 +166,13 @@ class _CapitalPageState extends State<CapitalPage> {
                         DataCell(Text(x['name'].toString())),
                         DataCell(Text(_money(x['amount']))),
                         DataCell(Text(x['note']?.toString()??'')),
+                        DataCell(Row(
+                          mainAxisSize:MainAxisSize.min,
+                          children:[
+                            IconButton(onPressed:()=>add(x),icon:const Icon(Icons.edit_outlined)),
+                            IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
+                          ],
+                        )),
                       ]),
                   ],
                 ),

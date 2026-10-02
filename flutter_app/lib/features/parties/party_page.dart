@@ -133,13 +133,36 @@ class _PartyPageState extends State<PartyPage> {
     await load();
   }
 
-  Future<void> addSupplierTransaction() async {
+  Future<void> removeMaster(Map<String,Object?> x) async {
+    if(!canEdit) return;
+    final section=customer?'customers':'suppliers';
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        title:Text('Delete ${customer?'Customer':'Supplier'}?'),
+        content:Text('Move "${x['name']}" to Recycle Bin? Linked records must be removed first.'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete')),
+        ],
+      ),
+    )??false;
+    if(!ok) return;
+    try {
+      await AppDatabase.instance.softDeleteById(section,x['id'].toString());
+      await load();
+    } catch(e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));
+    }
+  }
+
+  Future<void> addSupplierTransaction([Map<String,Object?>? existing]) async {
     if(rows.isEmpty||!canEdit) return;
-    String supplierId=rows.first['id'].toString();
-    DateTime date=DateTime.now();
-    final paid=TextEditingController(text:'0');
-    final received=TextEditingController(text:'0');
-    final memo=TextEditingController();
+    String supplierId=existing?['supplier_id']?.toString()??rows.first['id'].toString();
+    DateTime date=DateTime.tryParse(existing?['business_date']?.toString()??'')??DateTime.now();
+    final paid=TextEditingController(text:existing?['type']=='payment'?QamvioUi.money(existing?['amount']):'0');
+    final received=TextEditingController(text:existing?['type']=='received'?QamvioUi.money(existing?['amount']):'0');
+    final memo=TextEditingController(text:existing?['note']?.toString()??'');
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>StatefulBuilder(
@@ -191,7 +214,7 @@ class _PartyPageState extends State<PartyPage> {
             ),
           ),
           actions:[
-            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel Edit')),
             FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Save')),
           ],
         ),
@@ -208,7 +231,7 @@ class _PartyPageState extends State<PartyPage> {
         }
       } else {
         await AppDatabase.instance.saveSupplierTransaction(
-          id:DateTime.now().microsecondsSinceEpoch.toString(),
+          id:existing?['id']?.toString()??DateTime.now().microsecondsSinceEpoch.toString(),
           supplierId:supplierId,
           amount:p>0?p:r,
           type:p>0?'payment':'received',
@@ -221,6 +244,25 @@ class _PartyPageState extends State<PartyPage> {
     paid.dispose();
     received.dispose();
     memo.dispose();
+  }
+
+  Future<void> removeSupplierTransaction(Map<String,Object?> x) async {
+    if(!canEdit) return;
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        title:const Text('Delete Supplier Transaction?'),
+        content:const Text('Move this payment / receipt to Recycle Bin and reverse its balance effect?'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete')),
+        ],
+      ),
+    )??false;
+    if(ok) {
+      await AppDatabase.instance.softDeleteById('supplierTransactions',x['id'].toString());
+      await load();
+    }
   }
 
   Future<void> shareAll() async {
@@ -275,6 +317,7 @@ class _PartyPageState extends State<PartyPage> {
                           DataColumn(label:Text('Paid'),numeric:true),
                           DataColumn(label:Text('Received'),numeric:true),
                           DataColumn(label:Text('Note')),
+                          DataColumn(label:Text('')),
                         ],
                         rows:[
                           for(final x in supplierTx)
@@ -284,6 +327,13 @@ class _PartyPageState extends State<PartyPage> {
                               DataCell(Text(x['type']=='payment'?QamvioUi.money(x['amount']):'0.00')),
                               DataCell(Text(x['type']=='received'?QamvioUi.money(x['amount']):'0.00')),
                               DataCell(Text(x['note']?.toString()??'')),
+                              DataCell(Row(
+                                mainAxisSize:MainAxisSize.min,
+                                children:[
+                                  if(canEdit) IconButton(onPressed:()=>addSupplierTransaction(x),icon:const Icon(Icons.edit_outlined)),
+                                  if(canEdit) IconButton(onPressed:()=>removeSupplierTransaction(x),icon:const Icon(Icons.delete_outline_rounded)),
+                                ],
+                              )),
                             ]),
                         ],
                       ),
@@ -384,6 +434,7 @@ class _PartyPageState extends State<PartyPage> {
                     mainAxisSize:MainAxisSize.min,
                     children:[
                       if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
+                      if(canEdit) IconButton(onPressed:()=>removeMaster(x),icon:const Icon(Icons.delete_outline_rounded)),
                     ],
                   )),
                 ]

@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 class QamvioUi {
   QamvioUi._();
 
-  static const brand=Color(0xFF174EA6);
-  static const brandDark=Color(0xFF0F3474);
-  static const success=Color(0xFF17795B);
-  static const warning=Color(0xFFB56A00);
-  static const danger=Color(0xFFB3261E);
+  static const brand=Color(0xFF4F46E5);
+  static const brandDark=Color(0xFF3730A3);
+  static const success=Color(0xFF0D9488);
+  static const warning=Color(0xFFD97706);
+  static const danger=Color(0xFFDC2626);
 
   static const pagePadding=EdgeInsets.fromLTRB(16,12,16,96);
 
@@ -20,12 +20,12 @@ class QamvioUi {
     final scheme=ColorScheme.fromSeed(
       seedColor:brand,
       brightness:Brightness.light,
-      surface:const Color(0xFFF8FAFD),
+      surface:const Color(0xFFFFFFFF),
     );
     return ThemeData(
       useMaterial3:true,
       colorScheme:scheme,
-      scaffoldBackgroundColor:const Color(0xFFF4F7FB),
+      scaffoldBackgroundColor:const Color(0xFFF2F5FB),
       appBarTheme:const AppBarTheme(
         centerTitle:false,
         elevation:0,
@@ -33,7 +33,7 @@ class QamvioUi {
         backgroundColor:Colors.transparent,
         surfaceTintColor:Colors.transparent,
         titleTextStyle:TextStyle(
-          color:Color(0xFF182230),
+          color:Color(0xFF1E2433),
           fontSize:22,
           fontWeight:FontWeight.w800,
         ),
@@ -45,7 +45,7 @@ class QamvioUi {
         surfaceTintColor:Colors.transparent,
         shape:RoundedRectangleBorder(
           borderRadius:BorderRadius.circular(20),
-          side:const BorderSide(color:Color(0xFFE7ECF3)),
+          side:const BorderSide(color:Color(0xFFDFE4EE)),
         ),
       ),
       inputDecorationTheme:InputDecorationTheme(
@@ -53,7 +53,7 @@ class QamvioUi {
         fillColor:Colors.white,
         border:OutlineInputBorder(
           borderRadius:BorderRadius.circular(14),
-          borderSide:const BorderSide(color:Color(0xFFD9E0E9)),
+          borderSide:const BorderSide(color:Color(0xFFDFE4EE)),
         ),
         enabledBorder:OutlineInputBorder(
           borderRadius:BorderRadius.circular(14),
@@ -76,7 +76,7 @@ class QamvioUi {
         style:OutlinedButton.styleFrom(
           minimumSize:const Size(0,52),
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-          side:const BorderSide(color:Color(0xFFD3DBE7)),
+          side:const BorderSide(color:Color(0xFFDFE4EE)),
           textStyle:const TextStyle(fontWeight:FontWeight.w700),
         ),
       ),
@@ -86,7 +86,7 @@ class QamvioUi {
         shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
       ),
       dividerTheme:const DividerThemeData(
-        color:Color(0xFFE9EDF3),
+        color:Color(0xFFDFE4EE),
         thickness:1,
         space:1,
       ),
@@ -107,6 +107,58 @@ class QamvioUi {
       snackBarTheme:SnackBarThemeData(
         behavior:SnackBarBehavior.floating,
         shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  static ThemeData darkTheme() {
+    final scheme=ColorScheme.fromSeed(
+      seedColor:const Color(0xFF818CF8),
+      brightness:Brightness.dark,
+      surface:const Color(0xFF111827),
+    );
+    return ThemeData(
+      useMaterial3:true,
+      brightness:Brightness.dark,
+      colorScheme:scheme,
+      scaffoldBackgroundColor:const Color(0xFF0B1220),
+      appBarTheme:const AppBarTheme(
+        elevation:0,
+        scrolledUnderElevation:0,
+        backgroundColor:Colors.transparent,
+        surfaceTintColor:Colors.transparent,
+        foregroundColor:Color(0xFFEEF2FF),
+      ),
+      cardTheme:CardThemeData(
+        elevation:0,
+        margin:EdgeInsets.zero,
+        color:const Color(0xFF111827),
+        surfaceTintColor:Colors.transparent,
+        shape:RoundedRectangleBorder(
+          borderRadius:BorderRadius.circular(16),
+          side:const BorderSide(color:Color(0xFF1F2937)),
+        ),
+      ),
+      inputDecorationTheme:InputDecorationTheme(
+        filled:true,
+        fillColor:const Color(0xFF111827),
+        border:OutlineInputBorder(
+          borderRadius:BorderRadius.circular(10),
+          borderSide:const BorderSide(color:Color(0xFF334155)),
+        ),
+        enabledBorder:OutlineInputBorder(
+          borderRadius:BorderRadius.circular(10),
+          borderSide:const BorderSide(color:Color(0xFF334155)),
+        ),
+        focusedBorder:OutlineInputBorder(
+          borderRadius:BorderRadius.circular(10),
+          borderSide:const BorderSide(color:Color(0xFF818CF8),width:1.5),
+        ),
+      ),
+      dividerTheme:const DividerThemeData(color:Color(0xFF1F2937)),
+      navigationDrawerTheme:const NavigationDrawerThemeData(
+        backgroundColor:Color(0xFF111827),
+        surfaceTintColor:Colors.transparent,
       ),
     );
   }
@@ -131,7 +183,7 @@ class QamvioPageIntro extends StatelessWidget {
     padding:const EdgeInsets.all(18),
     decoration:BoxDecoration(
       gradient:const LinearGradient(
-        colors:[Color(0xFF174EA6),Color(0xFF356FD2)],
+        colors:[Color(0xFF111827),Color(0xFF3730A3)],
         begin:Alignment.topLeft,
         end:Alignment.bottomRight,
       ),
@@ -140,7 +192,7 @@ class QamvioPageIntro extends StatelessWidget {
         BoxShadow(
           blurRadius:22,
           offset:Offset(0,10),
-          color:Color(0x24174EA6),
+          color:Color(0x244F46E5),
         ),
       ],
     ),

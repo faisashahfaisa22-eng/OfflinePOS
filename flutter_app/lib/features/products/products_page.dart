@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/localization/language_controller.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
 class ProductsPage extends StatefulWidget {
@@ -67,6 +68,14 @@ class _ProductsPageState extends State<ProductsPage> {
   );
 
   Future<void> addProduct() async {
+    if(!LocalAuthService.instance.isAdmin) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content:Text('Admin access is required to add inventory items.')),
+        );
+      }
+      return;
+    }
     final name=TextEditingController();
     final barcode=TextEditingController();
     final category=TextEditingController();
@@ -209,13 +218,16 @@ class _ProductsPageState extends State<ProductsPage> {
   @override
   Widget build(BuildContext context) {
     final s=LanguageController.instance.strings;
+    final canEdit=LocalAuthService.instance.isAdmin;
     return Scaffold(
       appBar:AppBar(title:Text(s.t('inventory'))),
-      floatingActionButton:FloatingActionButton.extended(
-        onPressed:addProduct,
-        icon:const Icon(Icons.add_rounded),
-        label:Text(s.t('addProduct')),
-      ),
+      floatingActionButton:canEdit
+        ?FloatingActionButton.extended(
+          onPressed:addProduct,
+          icon:const Icon(Icons.add_rounded),
+          label:Text(s.t('addProduct')),
+        )
+        :null,
       body:loading
         ?const Center(child:CircularProgressIndicator())
         :RefreshIndicator(
@@ -286,8 +298,8 @@ class _ProductsPageState extends State<ProductsPage> {
                   subtitle:rows.isEmpty
                     ?'Add your first product with cost, price and opening stock.'
                     :'Try a different search term.',
-                  actionLabel:rows.isEmpty?'Add Product':null,
-                  onAction:rows.isEmpty?addProduct:null,
+                  actionLabel:rows.isEmpty&&canEdit?'Add Product':null,
+                  onAction:rows.isEmpty&&canEdit?addProduct:null,
                 )
               else
                 ...filtered.map((p)=>Padding(

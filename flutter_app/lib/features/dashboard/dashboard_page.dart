@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/business/business_model_controller.dart';
 import '../../core/cloud/cloud_backup_service.dart';
 import '../../core/database/app_database.dart';
 import '../../core/localization/app_strings.dart';
@@ -15,6 +16,7 @@ import '../cloud/cloud_page.dart';
 import '../expenses/expenses_page.dart';
 import '../fuel/fuel_page.dart';
 import '../parties/party_page.dart';
+import '../pharmacy/pharmacy_page.dart';
 import '../products/products_page.dart';
 import '../purchases/purchases_page.dart';
 import '../reports/reports_page.dart';
@@ -28,6 +30,13 @@ import '../v15/statement_pages.dart';
 
 double _d(dynamic v)=>v is num?v.toDouble():double.tryParse(v?.toString()??'')??0;
 String _m(dynamic v)=>QamvioUi.money(v);
+
+bool _businessAllowsPage(AppPage page) {
+  final model=BusinessModelController.instance.type;
+  if(page==AppPage.fuelPump) return model==BusinessModelType.fuelStation;
+  if(page==AppPage.pharmacy) return model==BusinessModelType.pharmacy;
+  return true;
+}
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -245,6 +254,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _go(AppPage page,Widget widget) async {
+    if(!_businessAllowsPage(page)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('This module is not enabled for the selected business model.')),
+      );
+      return;
+    }
     if(!Permissions.canOpen(page)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Your login role does not have access to this page.')),
@@ -261,7 +276,7 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       drawer:V15NavigationDrawer(onNavigate:_go,strings:strings),
       appBar:AppBar(
-        title:const Text('QAMVIO POS'),
+        title:Text('QAMVIO • ${BusinessModelController.instance.label}'),
         actions:[
           IconButton(
             tooltip:'WhatsApp all debts / report',
@@ -374,7 +389,12 @@ class _DashboardPageState extends State<DashboardPage> {
           childAspectRatio:1.45,
           children:[
             _quickTile(Icons.shopping_cart_rounded,'New Sale',AppPage.saleInvoice,const SalesPage()),
-            _quickTile(Icons.inventory_2_rounded,'Add Product',AppPage.products,const ProductsPage()),
+            if(BusinessModelController.instance.type==BusinessModelType.fuelStation)
+              _quickTile(Icons.local_gas_station_rounded,'Fuel Control',AppPage.fuelPump,const FuelPage())
+            else if(BusinessModelController.instance.type==BusinessModelType.pharmacy)
+              _quickTile(Icons.local_pharmacy_rounded,'Pharmacy',AppPage.pharmacy,const PharmacyPage())
+            else
+              _quickTile(Icons.inventory_2_rounded,'Add Product',AppPage.products,const ProductsPage()),
             _quickTile(Icons.person_add_alt_1_rounded,'Add Customer',AppPage.customers,const PartyPage(type:PartyType.customer)),
             _quickTile(Icons.receipt_long_rounded,'Add Expense',AppPage.expenses,const ExpensesPage()),
             _quickTile(Icons.bar_chart_rounded,'Reports',AppPage.reports,const ReportsPage()),
@@ -821,6 +841,12 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
         widget: const FuelPage(),
       ),
       (
+        page: AppPage.pharmacy,
+        label: 'Pharmacy',
+        icon: Icons.local_pharmacy_rounded,
+        widget: const PharmacyPage(),
+      ),
+      (
         page: AppPage.stock,
         label: 'Stock',
         icon: Icons.inventory_2_rounded,
@@ -962,11 +988,17 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
 
     final groups = <({String title, List<AppPage> pages})>[
       (
+        title: 'BUSINESS',
+        pages: [
+          AppPage.fuelPump,
+          AppPage.pharmacy,
+        ],
+      ),
+      (
         title: 'SALES',
         pages: [
           AppPage.quickSearch,
           AppPage.saleInvoice,
-          AppPage.fuelPump,
           AppPage.discounts,
         ],
       ),
@@ -1082,6 +1114,15 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
                       fontSize: 10,
                     ),
                   ),
+                  const SizedBox(height: 3),
+                  Text(
+                    BusinessModelController.instance.label,
+                    style: const TextStyle(
+                      color: Color(0xFF818CF8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 7),
                   Row(
                     children: [
@@ -1120,7 +1161,8 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
               () => Navigator.pop(context),
             ),
             for (final group in groups) ...[
-              if (group.pages.any(Permissions.canOpen))
+              if (group.pages.any((page) =>
+                  Permissions.canOpen(page) && _businessAllowsPage(page)))
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
                   child: Text(
@@ -1135,6 +1177,7 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
                 ),
               for (final item in items)
                 if (group.pages.contains(item.page) &&
+                    _businessAllowsPage(item.page) &&
                     Permissions.canOpen(item.page))
                   _navButton(
                     context,

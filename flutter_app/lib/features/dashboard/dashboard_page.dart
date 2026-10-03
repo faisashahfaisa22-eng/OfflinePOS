@@ -294,18 +294,16 @@ class _DashboardPageState extends State<DashboardPage> {
               children:[
                 _hero(context),
                 const SizedBox(height:14),
+                const _Section("Today's Summary"),
+                _today(context,x),
+                const SizedBox(height:14),
                 const _Section('Owner Summary'),
                 _ownerSummary(context,x),
                 const SizedBox(height:14),
-                const _Section('Core Business Highlights'),
-                _coreHighlights(context,x),
-                const SizedBox(height:10),
+                const _Section('Business Totals'),
                 _secondaryHighlights(context,x),
                 const SizedBox(height:14),
                 _businessPosition(context,x),
-                const SizedBox(height:14),
-                const _Section("Today's Summary"),
-                _today(context,x),
                 const SizedBox(height:14),
                 const _Section('This Week vs Last Week'),
                 _week(context,x),
@@ -335,7 +333,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _hero(BuildContext context)=>Container(
-    padding:const EdgeInsets.all(18),
+    padding:const EdgeInsets.all(14),
     decoration:BoxDecoration(
       gradient:const LinearGradient(
         colors:[Color(0xFF111827),Color(0xFF3730A3)],
@@ -347,89 +345,65 @@ class _DashboardPageState extends State<DashboardPage> {
     child:Column(
       crossAxisAlignment:CrossAxisAlignment.start,
       children:[
-        Wrap(
-          spacing:6,
-          runSpacing:6,
-          children:[
-            _chip('⚡ Fast Overview'),
-            _chip('🛡️ Safe Offline Work'),
-            _chip('📊 Smart Accounts Control'),
-            _chip('🔐 AES-GCM-256'),
-          ],
-        ),
-        const SizedBox(height:14),
-        const Text(
-          'Business Command Dashboard',
-          style:TextStyle(color:Colors.white,fontSize:25,fontWeight:FontWeight.w900),
-        ),
-        const SizedBox(height:5),
-        const Text(
-          'A clean and professional control center for sales, stock, cash, dues, expenses and profit.',
-          style:TextStyle(color:Color(0xFFCBD5E1),height:1.35),
-        ),
-        const SizedBox(height:14),
-        Wrap(
-          spacing:7,
-          runSpacing:7,
-          children:[
-            _quick('🛒','New Sale',AppPage.saleInvoice,const SalesPage()),
-            _quick('📦','Add Product',AppPage.products,const ProductsPage()),
-            _quick('👥','Add Customer',AppPage.customers,const PartyPage(type:PartyType.customer)),
-            _quick('🧾','Add Expense',AppPage.expenses,const ExpensesPage()),
-            _quick('📊','View Reports',AppPage.reports,const ReportsPage()),
-            _quick('⚙️','Settings',AppPage.safetyCenter,const SafetyCenterPage()),
-          ],
-        ),
-        const SizedBox(height:14),
         Row(
           children:[
-            Expanded(child:_heroMini('Today',DateFormat('yyyy-MM-dd').format(now),'Live business date')),
-            const SizedBox(width:8),
-            Expanded(child:_heroMini('Current Time',DateFormat('HH:mm:ss').format(now),'Offline 24-hour clock')),
-            const SizedBox(width:8),
-            Expanded(child:_heroMini('System Status','OFFLINE READY','Local encrypted DB')),
+            Expanded(
+              child:Text(
+                DateFormat('EEE, d MMM yyyy').format(now),
+                style:const TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w800),
+              ),
+            ),
+            Text(
+              DateFormat('HH:mm').format(now),
+              style:const TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w900),
+            ),
+          ],
+        ),
+        const SizedBox(height:2),
+        const Text(
+          'Offline ready  •  Local encrypted data',
+          style:TextStyle(color:Color(0xFF94A3B8),fontSize:11),
+        ),
+        const SizedBox(height:12),
+        GridView.count(
+          crossAxisCount:3,
+          shrinkWrap:true,
+          physics:const NeverScrollableScrollPhysics(),
+          mainAxisSpacing:8,
+          crossAxisSpacing:8,
+          childAspectRatio:1.45,
+          children:[
+            _quickTile(Icons.shopping_cart_rounded,'New Sale',AppPage.saleInvoice,const SalesPage()),
+            _quickTile(Icons.inventory_2_rounded,'Add Product',AppPage.products,const ProductsPage()),
+            _quickTile(Icons.person_add_alt_1_rounded,'Add Customer',AppPage.customers,const PartyPage(type:PartyType.customer)),
+            _quickTile(Icons.receipt_long_rounded,'Add Expense',AppPage.expenses,const ExpensesPage()),
+            _quickTile(Icons.bar_chart_rounded,'Reports',AppPage.reports,const ReportsPage()),
+            _quickTile(Icons.settings_rounded,'Settings',AppPage.safetyCenter,const SafetyCenterPage()),
           ],
         ),
       ],
     ),
   );
 
-  Widget _chip(String text)=>Container(
-    padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),
-    decoration:BoxDecoration(
-      color:Colors.white.withValues(alpha:.10),
-      borderRadius:BorderRadius.circular(999),
-      border:Border.all(color:Colors.white.withValues(alpha:.12)),
-    ),
-    child:Text(text,style:const TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.w700)),
-  );
-
-  Widget _quick(String emoji,String label,AppPage page,Widget widget)=>FilledButton.tonal(
-    onPressed:()=>_go(page,widget),
-    style:FilledButton.styleFrom(
-      minimumSize:const Size(0,40),
-      backgroundColor:Colors.white.withValues(alpha:.12),
-      foregroundColor:Colors.white,
-    ),
-    child:Text('$emoji  $label'),
-  );
-
-  Widget _heroMini(String label,String value,String note)=>Container(
-    padding:const EdgeInsets.all(10),
-    decoration:BoxDecoration(
-      color:Colors.white.withValues(alpha:.08),
-      borderRadius:BorderRadius.circular(10),
-      border:Border.all(color:Colors.white.withValues(alpha:.10)),
-    ),
-    child:Column(
-      crossAxisAlignment:CrossAxisAlignment.start,
-      children:[
-        Text(label,maxLines:1,style:const TextStyle(color:Color(0xFF94A3B8),fontSize:9,fontWeight:FontWeight.w700)),
-        const SizedBox(height:4),
-        Text(value,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:Colors.white,fontSize:14,fontWeight:FontWeight.w900)),
-        const SizedBox(height:2),
-        Text(note,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:Color(0xFF94A3B8),fontSize:8)),
-      ],
+  Widget _quickTile(IconData icon,String label,AppPage page,Widget widget)=>Material(
+    color:Colors.white.withValues(alpha:.12),
+    borderRadius:BorderRadius.circular(12),
+    child:InkWell(
+      borderRadius:BorderRadius.circular(12),
+      onTap:()=>_go(page,widget),
+      child:Column(
+        mainAxisAlignment:MainAxisAlignment.center,
+        children:[
+          Icon(icon,color:Colors.white,size:24),
+          const SizedBox(height:6),
+          Text(
+            label,
+            maxLines:1,
+            overflow:TextOverflow.ellipsis,
+            style:const TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w800),
+          ),
+        ],
+      ),
     ),
   );
 
@@ -468,21 +442,6 @@ class _DashboardPageState extends State<DashboardPage> {
     ],
   );
 
-  Widget _coreHighlights(BuildContext context,Map<String,dynamic> x)=>GridView.count(
-    crossAxisCount:2,
-    shrinkWrap:true,
-    physics:const NeverScrollableScrollPhysics(),
-    mainAxisSpacing:8,
-    crossAxisSpacing:8,
-    childAspectRatio:1.55,
-    children:[
-      _kpi(context,'Total Net Sales',x['sales'],Icons.point_of_sale_rounded),
-      _kpi(context,'Stock Value',x['stock'],Icons.inventory_rounded),
-      _kpi(context,'Customer Receivable',x['receivable'],Icons.groups_rounded),
-      _kpi(context,'Supplier Payable',x['payable'],Icons.local_shipping_rounded),
-    ],
-  );
-
   Widget _secondaryHighlights(BuildContext context,Map<String,dynamic> x)=>GridView.count(
     crossAxisCount:2,
     shrinkWrap:true,
@@ -491,10 +450,10 @@ class _DashboardPageState extends State<DashboardPage> {
     crossAxisSpacing:8,
     childAspectRatio:1.7,
     children:[
+      _kpi(context,'Total Net Sales',x['sales'],Icons.point_of_sale_rounded),
       _kpi(context,'Discounts',x['discounts'],Icons.discount_outlined),
       _kpi(context,'Expenses',x['expenses'],Icons.receipt_long_outlined),
       _kpi(context,'Salesman Loan Outstanding',x['salesmanLoans'],Icons.badge_outlined),
-      _kpi(context,'Calculated Cash Balance',x['cash'],Icons.account_balance_wallet_outlined),
     ],
   );
 
@@ -837,27 +796,6 @@ class V15NavigationDrawer extends StatefulWidget {
 }
 
 class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
-  Timer? _clock;
-  DateTime _now = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    // Tick every second so the offline 24-hour clock stays live while the
-    // drawer is open. The timer is disposed with the drawer.
-    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() => _now = DateTime.now());
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _clock?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = LocalAuthService.instance;
@@ -878,7 +816,7 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
       ),
       (
         page: AppPage.fuelPump,
-        label: '⛽ Fuel / Oil Pump',
+        label: 'Fuel / Oil Pump',
         icon: Icons.local_gas_station_rounded,
         widget: const FuelPage(),
       ),
@@ -1022,6 +960,63 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
       ),
     ];
 
+    final groups = <({String title, List<AppPage> pages})>[
+      (
+        title: 'SALES',
+        pages: [
+          AppPage.quickSearch,
+          AppPage.saleInvoice,
+          AppPage.fuelPump,
+          AppPage.discounts,
+        ],
+      ),
+      (
+        title: 'STOCK',
+        pages: [
+          AppPage.products,
+          AppPage.stock,
+          AppPage.stockLedger,
+          AppPage.purchases,
+        ],
+      ),
+      (
+        title: 'PEOPLE',
+        pages: [
+          AppPage.customers,
+          AppPage.suppliers,
+          AppPage.salesmen,
+          AppPage.customerStatement,
+          AppPage.supplierStatement,
+          AppPage.salesmanStatement,
+        ],
+      ),
+      (
+        title: 'MONEY',
+        pages: [
+          AppPage.cashBook,
+          AppPage.expenses,
+          AppPage.customerLoans,
+          AppPage.salesmanLoans,
+          AppPage.capital,
+          AppPage.dailyClosing,
+        ],
+      ),
+      (
+        title: 'REPORTS',
+        pages: [AppPage.reports],
+      ),
+      (
+        title: 'SYSTEM',
+        pages: [
+          AppPage.backup,
+          AppPage.userManagement,
+          AppPage.safetyCenter,
+          AppPage.recycleBin,
+          AppPage.deleteEntry,
+        ],
+      ),
+    ];
+
     return Drawer(
       backgroundColor: const Color(0xFF111827),
       child: SafeArea(
@@ -1053,8 +1048,6 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
               ),
             ),
             _languageSwitch(context),
-            const SizedBox(height: 8),
-            _clockBox(),
             const SizedBox(height: 8),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -1126,18 +1119,34 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
               true,
               () => Navigator.pop(context),
             ),
-            for (final item in items)
-              if (Permissions.canOpen(item.page))
-                _navButton(
-                  context,
-                  item.label,
-                  item.icon,
-                  false,
-                  () {
-                    Navigator.pop(context);
-                    widget.onNavigate(item.page, item.widget);
-                  },
+            for (final group in groups) ...[
+              if (group.pages.any(Permissions.canOpen))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
+                  child: Text(
+                    group.title,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
                 ),
+              for (final item in items)
+                if (group.pages.contains(item.page) &&
+                    Permissions.canOpen(item.page))
+                  _navButton(
+                    context,
+                    item.label,
+                    item.icon,
+                    false,
+                    () {
+                      Navigator.pop(context);
+                      widget.onNavigate(item.page, item.widget);
+                    },
+                  ),
+            ],
           ],
         ),
       ),
@@ -1190,43 +1199,6 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
       ),
     );
   }
-
-  Widget _clockBox() => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(9),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1F2937),
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(color: const Color(0xFF334155)),
-        ),
-        child: Column(
-          children: [
-            const Text(
-              'OFFLINE 24-HOUR CLOCK',
-              style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 9,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('HH:mm:ss').format(_now),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              DateFormat('yyyy-MM-dd').format(_now),
-              style: const TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 9,
-              ),
-            ),
-          ],
-        ),
-      );
 
   Widget _smallAction(String label, VoidCallback action) => TextButton(
         style: TextButton.styleFrom(

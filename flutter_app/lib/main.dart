@@ -5,12 +5,14 @@ import 'package:workmanager/workmanager.dart';
 import 'core/cloud/background_backup.dart';
 import 'core/cloud/cloud_backup_service.dart';
 import 'core/cloud/cloud_config.dart';
+import 'core/business/business_model_controller.dart';
 import 'core/localization/language_controller.dart';
 import 'core/security/local_auth_service.dart';
 import 'core/ui/qamvio_ui.dart';
 import 'features/auth/login_page.dart';
 import 'features/dashboard/role_home_page.dart';
 import 'features/migration/legacy_migration_gate.dart';
+import 'features/onboarding/business_model_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +34,7 @@ Future<void> main() async {
 
   await LocalAuthService.instance.load();
   await LanguageController.instance.load();
+  await BusinessModelController.instance.load();
   runApp(const QamvioApp());
 }
 
@@ -92,10 +95,12 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
       listenable: Listenable.merge([
         controller,
         LocalAuthService.instance,
+        BusinessModelController.instance,
       ]),
       builder: (context, _) {
         final s = controller.strings;
         final auth = LocalAuthService.instance;
+        final business = BusinessModelController.instance;
 
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -109,9 +114,11 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
           themeMode: ThemeMode.system,
           home: !auth.unlocked
               ? const LoginPage()
-              : auth.isAdmin
-                  ? const LegacyMigrationGate()
-                  : const RoleHomePage(),
+              : !business.configured
+                  ? const BusinessModelPage()
+                  : auth.isAdmin
+                      ? const LegacyMigrationGate()
+                      : const RoleHomePage(),
         );
       },
     );

@@ -383,6 +383,7 @@ class _DashboardPageState extends State<DashboardPage> {
         GridView.count(
           crossAxisCount:3,
           shrinkWrap:true,
+          padding:EdgeInsets.zero,
           physics:const NeverScrollableScrollPhysics(),
           mainAxisSpacing:8,
           crossAxisSpacing:8,
@@ -430,6 +431,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _ownerSummary(BuildContext context,Map<String,dynamic> x)=>GridView.count(
     crossAxisCount:2,
     shrinkWrap:true,
+    padding:EdgeInsets.zero,
     physics:const NeverScrollableScrollPhysics(),
     mainAxisSpacing:8,
     crossAxisSpacing:8,
@@ -465,6 +467,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _secondaryHighlights(BuildContext context,Map<String,dynamic> x)=>GridView.count(
     crossAxisCount:2,
     shrinkWrap:true,
+    padding:EdgeInsets.zero,
     physics:const NeverScrollableScrollPhysics(),
     mainAxisSpacing:8,
     crossAxisSpacing:8,
@@ -506,6 +509,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _today(BuildContext context,Map<String,dynamic> x)=>GridView.count(
     crossAxisCount:2,
     shrinkWrap:true,
+    padding:EdgeInsets.zero,
     physics:const NeverScrollableScrollPhysics(),
     mainAxisSpacing:8,
     crossAxisSpacing:8,
@@ -1025,8 +1029,7 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
       (
         title: 'MONEY',
         pages: [
-          AppPage.cashBook,
-          AppPage.expenses,
+          AppPage.cashBook,          AppPage.expenses,
           AppPage.customerLoans,
           AppPage.salesmanLoans,
           AppPage.capital,
@@ -1079,80 +1082,67 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
                 ],
               ),
             ),
-            _languageSwitch(context),
-            const SizedBox(height: 8),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.all(9),
+              padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
               decoration: BoxDecoration(
                 color: const Color(0xFF1F2937),
                 borderRadius: BorderRadius.circular(9),
                 border: Border.all(color: const Color(0xFF334155)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  const Text(
-                    'SIGNED IN',
-                    style: TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 10,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user?.loginId ?? '—',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          user?.role.label ?? '—',
+                          style: const TextStyle(
+                            color: Color(0xFFCBD5E1),
+                            fontSize: 10,
+                          ),
+                        ),
+                        Text(
+                          BusinessModelController.instance.label,
+                          style: const TextStyle(
+                            color: Color(0xFF818CF8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    user?.loginId ?? '—',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    user?.role.label ?? '—',
-                    style: const TextStyle(
+                  IconButton(
+                    tooltip: 'Logout',
+                    icon: const Icon(
+                      Icons.logout_rounded,
                       color: Color(0xFFCBD5E1),
-                      fontSize: 10,
+                      size: 20,
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    BusinessModelController.instance.label,
-                    style: const TextStyle(
-                      color: Color(0xFF818CF8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _smallAction('Lock', () async {
-                          Navigator.pop(context);
-                          try {
-                            await CloudBackupService.instance
-                                .prepareBackupFile();
-                          } catch (_) {}
-                          await LocalAuthService.instance.logout();
-                        }),
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: _smallAction('Logout', () async {
-                          Navigator.pop(context);
-                          try {
-                            await CloudBackupService.instance
-                                .prepareBackupFile();
-                          } catch (_) {}
-                          await LocalAuthService.instance.logout();
-                        }),
-                      ),
-                    ],
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      try {
+                        await CloudBackupService.instance.prepareBackupFile();
+                      } catch (_) {}
+                      await LocalAuthService.instance.logout();
+                    },
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             _navButton(
               context,
               'Dashboard',
@@ -1195,67 +1185,6 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
       ),
     );
   }
-
-  Widget _languageSwitch(BuildContext context) {
-    final lc = LanguageController.instance;
-
-    Widget button(String text, AppLanguage lang) => Expanded(
-          child: TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: lc.language == lang
-                  ? Colors.white
-                  : const Color(0xFF94A3B8),
-              backgroundColor: lc.language == lang
-                  ? const Color(0xFF4F46E5)
-                  : Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            onPressed: () => lc.setLanguage(lang),
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        );
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1F2937),
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xFF334155)),
-      ),
-      child: Row(
-        children: [
-          button('EN', AppLanguage.english),
-          button('PS', AppLanguage.pashto),
-          button('FA', AppLanguage.dari),
-          button('UR', AppLanguage.urdu),
-        ],
-      ),
-    );
-  }
-
-  Widget _smallAction(String label, VoidCallback action) => TextButton(
-        style: TextButton.styleFrom(
-          backgroundColor: const Color(0xFF334155),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          minimumSize: const Size(0, 30),
-        ),
-        onPressed: action,
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 10),
-        ),
-      );
 
   Widget _navButton(
     BuildContext context,

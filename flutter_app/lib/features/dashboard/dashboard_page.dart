@@ -368,6 +368,7 @@ class _DashboardPageState extends State<DashboardPage> {
         GridView.count(
           crossAxisCount:3,
           shrinkWrap:true,
+          padding:EdgeInsets.zero,
           physics:const NeverScrollableScrollPhysics(),
           mainAxisSpacing:8,
           crossAxisSpacing:8,
@@ -410,6 +411,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _ownerSummary(BuildContext context,Map<String,dynamic> x)=>GridView.count(
     crossAxisCount:2,
     shrinkWrap:true,
+    padding:EdgeInsets.zero,
     physics:const NeverScrollableScrollPhysics(),
     mainAxisSpacing:8,
     crossAxisSpacing:8,
@@ -445,6 +447,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _secondaryHighlights(BuildContext context,Map<String,dynamic> x)=>GridView.count(
     crossAxisCount:2,
     shrinkWrap:true,
+    padding:EdgeInsets.zero,
     physics:const NeverScrollableScrollPhysics(),
     mainAxisSpacing:8,
     crossAxisSpacing:8,
@@ -486,6 +489,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _today(BuildContext context,Map<String,dynamic> x)=>GridView.count(
     crossAxisCount:2,
     shrinkWrap:true,
+    padding:EdgeInsets.zero,
     physics:const NeverScrollableScrollPhysics(),
     mainAxisSpacing:8,
     crossAxisSpacing:8,

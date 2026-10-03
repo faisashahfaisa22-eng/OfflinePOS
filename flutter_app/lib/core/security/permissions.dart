@@ -3,13 +3,14 @@ import 'local_auth_service.dart';
 /// v15 page access rules.
 /// Admin -> every section.
 /// Cashier / Salesman -> exactly the six sections exposed by v15:
-/// Sales / Cash Report, Fuel / Oil Pump, Stock, Stock Ledger,
+/// Sales / Cash Report, model-specific Fuel/Pharmacy access, Stock, Stock Ledger,
 /// Customer Statement and Salesman Statement.
 enum AppPage {
   dashboard,
   quickSearch,
   saleInvoice,
   fuelPump,
+  pharmacy,
   stock,
   stockLedger,
   products,
@@ -41,6 +42,7 @@ class Permissions {
   static const _v15Restricted={
     AppPage.saleInvoice,
     AppPage.fuelPump,
+    AppPage.pharmacy,
     AppPage.stock,
     AppPage.stockLedger,
     AppPage.customerStatement,

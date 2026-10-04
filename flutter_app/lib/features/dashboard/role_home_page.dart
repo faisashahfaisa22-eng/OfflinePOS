@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../core/business/business_model_controller.dart';
 import '../../core/security/local_auth_service.dart';
 import '../../core/security/permissions.dart';
 import '../../core/ui/qamvio_ui.dart';
 import '../fuel/fuel_page.dart';
-import '../pharmacy/pharmacy_page.dart';
 import '../sales/sales_page.dart';
+import '../reports/reports_page.dart';
 import '../v15/quick_stock_pages.dart';
 import '../v15/statement_pages.dart';
 
@@ -20,7 +19,6 @@ class RoleHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = LocalAuthService.instance.current;
-    final model = BusinessModelController.instance.type;
 
     // A Salesman login without a linked salesman record would open pages that
     // cannot be scoped to that salesman. Show a clear message instead.
@@ -28,7 +26,7 @@ class RoleHomePage extends StatelessWidget {
         (user?.salesmanId.isEmpty ?? true)) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('QAMVIO • ${BusinessModelController.instance.label}'),
+          title: Text('QAMVIO • ${user?.role.label ?? ''}'),
           actions: [
             IconButton(
               tooltip: 'Lock / Logout',
@@ -54,20 +52,12 @@ class RoleHomePage extends StatelessWidget {
         'Sales / Cash Report',
         const SalesPage(),
       ),
-      if (model == BusinessModelType.fuelStation)
-        (
-          AppPage.fuelPump,
-          Icons.local_gas_station_rounded,
-          'Fuel / Oil Pump',
-          const FuelPage(),
-        ),
-      if (model == BusinessModelType.pharmacy)
-        (
-          AppPage.pharmacy,
-          Icons.local_pharmacy_rounded,
-          'Pharmacy',
-          const PharmacyPage(),
-        ),
+      (
+        AppPage.fuelPump,
+        Icons.local_gas_station_rounded,
+        'Fuel / Oil Pump',
+        const FuelPage(),
+      ),
       (
         AppPage.stock,
         Icons.inventory_2_rounded,
@@ -92,12 +82,18 @@ class RoleHomePage extends StatelessWidget {
         'Salesman Statement',
         const SalesmanStatementPage(),
       ),
+      (
+        AppPage.reports,
+        Icons.analytics_rounded,
+        'Reports',
+        const ReportsPage(),
+      ),
     ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FB),
       appBar: AppBar(
-        title: Text('QAMVIO • ${BusinessModelController.instance.label}'),
+        title: Text('QAMVIO • ${user?.role.label ?? ''}'),
         actions: [
           IconButton(
             tooltip: 'Lock / Logout',
@@ -140,8 +136,8 @@ class RoleHomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${BusinessModelController.instance.label} • restricted role',
-                  style: const TextStyle(
+                  user?.role==UserRole.viewer?'View only':'Restricted pages',
+                  style: TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 10,
                   ),

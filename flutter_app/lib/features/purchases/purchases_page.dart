@@ -49,6 +49,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
   }
 
   Future<void> deletePurchase(Map<String,Object?> x) async {
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
@@ -69,7 +70,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Purchases')),
-    floatingActionButton:LocalAuthService.instance.isAdmin
+    floatingActionButton:LocalAuthService.instance.canEdit
       ?FloatingActionButton.extended(
         onPressed:()=>openPurchase(),
         icon:const Icon(Icons.add),
@@ -83,7 +84,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
         children:[
           const Text('Purchases',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900)),
           const SizedBox(height:10),
-          if(LocalAuthService.instance.isAdmin)
+          if(LocalAuthService.instance.canEdit)
             FilledButton.icon(
               onPressed:()=>openPurchase(),
               icon:const Icon(Icons.add_shopping_cart_rounded),
@@ -122,13 +123,13 @@ class _PurchasesPageState extends State<PurchasesPage> {
                             DataCell(Row(
                               mainAxisSize:MainAxisSize.min,
                               children:[
-                                if(LocalAuthService.instance.isAdmin)
+                                if(LocalAuthService.instance.canEdit)
                                   IconButton(
                                     tooltip:'Edit',
                                     onPressed:()=>openPurchase(x),
                                     icon:const Icon(Icons.edit_outlined),
                                   ),
-                                if(LocalAuthService.instance.isAdmin)
+                                if(LocalAuthService.instance.canDelete)
                                   IconButton(
                                     tooltip:'Delete',
                                     onPressed:()=>deletePurchase(x),

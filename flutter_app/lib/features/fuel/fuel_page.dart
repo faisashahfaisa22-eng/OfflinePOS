@@ -33,7 +33,7 @@ class _FuelPageState extends State<FuelPage> {
   List<Map<String,Object?>> deliveries=const [];
   bool loading=true;
 
-  bool get admin=>LocalAuthService.instance.isAdmin;
+  bool get admin=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {
@@ -54,15 +54,23 @@ class _FuelPageState extends State<FuelPage> {
     );
     final p=await db.query('products',orderBy:'name COLLATE NOCASE');
     final sup=await db.query('suppliers',orderBy:'name COLLATE NOCASE');
-    final sm=await db.query('salesmen',orderBy:'name COLLATE NOCASE');
-    final cust=await db.query('customers',orderBy:'name COLLATE NOCASE');
+    final own=LocalAuthService.instance.ownSalesmanId;
+    final isSm=LocalAuthService.instance.isSalesmanUser;
+    final sm=isSm
+        ? await db.query('salesmen',where:'id=?',whereArgs:[own],orderBy:'name COLLATE NOCASE')
+        : await db.query('salesmen',orderBy:'name COLLATE NOCASE');
+    final cust=isSm
+        ? await db.query('customers',where:'salesman_id=?',whereArgs:[own],orderBy:'name COLLATE NOCASE')
+        : await db.query('customers',orderBy:'name COLLATE NOCASE');
     final sh=await db.rawQuery(
       'SELECT f.*,n.name nozzle_name,t.name tank_name,sm.name salesman_name,c.name customer_name '
       'FROM fuel_shifts f JOIN fuel_nozzles n ON n.id=f.nozzle_id '
       'LEFT JOIN fuel_tanks t ON t.id=f.tank_id '
       'LEFT JOIN salesmen sm ON sm.id=f.salesman_id '
       'LEFT JOIN customers c ON c.id=f.customer_id '
+      '${isSm?"WHERE f.salesman_id=? ":""}'
       'ORDER BY f.started_at DESC LIMIT 100',
+      isSm?[own]:null,
     );
     final d=await db.rawQuery(
       "SELECT p.*,s.name supplier_name,t.name tank_name,"
@@ -311,9 +319,16 @@ class _FuelPageState extends State<FuelPage> {
 
   Future<void> meterSaleDialog() async {
     if(nozzles.isEmpty) return;
+    final auth=LocalAuthService.instance;
+    if(auth.isSalesmanUser&&auth.ownSalesmanId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('This login is not linked to a Salesman account.')),
+      );
+      return;
+    }
     DateTime date=DateTime.now();
     String nozzleId=nozzles.first['id'].toString();
-    String salesmanId='';
+    String salesmanId=auth.isSalesmanUser?auth.ownSalesmanId:'';
     String customerId='';
     final shift=TextEditingController();
     final invoice=TextEditingController();
@@ -367,10 +382,13 @@ class _FuelPageState extends State<FuelPage> {
                     initialValue:salesmanId,
                     decoration:const InputDecoration(labelText:'Salesman'),
                     items:[
-                      const DropdownMenuItem(value:'',child:Text('Select Salesman')),
+                      if(!LocalAuthService.instance.isSalesmanUser)
+                        const DropdownMenuItem(value:'',child:Text('Select Salesman')),
                       for(final x in salesmen) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
                     ],
-                    onChanged:(v)=>setLocal(()=>salesmanId=v??''),
+                    onChanged:LocalAuthService.instance.isSalesmanUser
+                      ?null
+                      :(v)=>setLocal(()=>salesmanId=v??''),
                   ),
                   const SizedBox(height:10),
                   DropdownButtonFormField<String>(
@@ -424,6 +442,21 @@ class _FuelPageState extends State<FuelPage> {
       ),
     );
     if(ok==true) {
+      if(LocalAuthService.instance.isSalesmanUser) {
+        final own=LocalAuthService.instance.ownSalesmanId;
+        if(own.isEmpty) return;
+        salesmanId=own;
+        if(customerId.isNotEmpty&&!customers.any(
+          (c)=>c['id']?.toString()==customerId&&c['salesman_id']?.toString()==own,
+        )) {
+          if(mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content:Text('You can only use customers linked to your Salesman account.')),
+            );
+          }
+          return;
+        }
+      }
       final o=double.tryParse(opening.text.trim())??0;
       final cl=double.tryParse(closing.text.trim())??0;
       final gross=(cl-o)*_n(price.text);
@@ -775,8 +808,7 @@ class _FuelPageState extends State<FuelPage> {
         DataColumn(label:Text('Shift')),
         DataColumn(label:Text('Nozzle')),
         DataColumn(label:Text('Invoice')),
-        DataColumn(label:Text('Salesman')),
-        DataColumn(label:Text('Customer')),
+        DataColumn(label:Text('Salesman')),        DataColumn(label:Text('Customer')),
         DataColumn(label:Text('Opening'),numeric:true),
         DataColumn(label:Text('Closing'),numeric:true),
         DataColumn(label:Text('Liters'),numeric:true),

@@ -1,11 +1,9 @@
 name: Build and Publish QAMVIO Flutter AAB
 
 on:
-  push:
-    branches: [ "release/flutter-play-v16" ]
-    paths:
-      - "flutter_app/**"
-      - ".github/workflows/build-flutter-play-aab.yml"
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -49,6 +47,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import re
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           s = manifest.read_text()
@@ -79,7 +78,6 @@ jobs:
               s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
               s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
               s = s.replace('targetSdk = flutter.targetSdkVersion', 'targetSdk = 36')
-              import re
               s = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.offlinepos.accounts"', s, count=1)
               if 'create("release")' not in s:
                   marker = '    buildTypes {'
@@ -106,7 +104,6 @@ jobs:
               s = s.replace('minSdkVersion flutter.minSdkVersion', 'minSdkVersion 24')
               s = s.replace('targetSdk flutter.targetSdkVersion', 'targetSdk 36')
               s = s.replace('targetSdkVersion flutter.targetSdkVersion', 'targetSdkVersion 36')
-              import re
               s = re.sub(r'applicationId\s+["\'][^"\']+["\']', 'applicationId "com.offlinepos.accounts"', s, count=1)
               if 'signingConfigs {' not in s:
                   marker = '    buildTypes {'

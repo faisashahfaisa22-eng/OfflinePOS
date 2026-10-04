@@ -9,6 +9,7 @@ import 'core/localization/language_controller.dart';
 import 'core/security/local_auth_service.dart';
 import 'core/ui/qamvio_ui.dart';
 import 'features/auth/login_page.dart';
+import 'features/dashboard/dashboard_page.dart';
 import 'features/dashboard/role_home_page.dart';
 import 'features/migration/legacy_migration_gate.dart';
 
@@ -126,7 +127,9 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
               ? const LoginPage()
               : auth.isAdmin
                   ? const LegacyMigrationGate()
-                  : const RoleHomePage(),
+                  : auth.isManager
+                      ? const DashboardPage()
+                      : const RoleHomePage(),
         );
       },
     );

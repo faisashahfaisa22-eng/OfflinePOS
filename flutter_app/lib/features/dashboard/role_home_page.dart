@@ -5,6 +5,7 @@ import '../../core/security/permissions.dart';
 import '../../core/ui/qamvio_ui.dart';
 import '../fuel/fuel_page.dart';
 import '../sales/sales_page.dart';
+import '../reports/reports_page.dart';
 import '../v15/quick_stock_pages.dart';
 import '../v15/statement_pages.dart';
 
@@ -81,6 +82,12 @@ class RoleHomePage extends StatelessWidget {
         'Salesman Statement',
         const SalesmanStatementPage(),
       ),
+      (
+        AppPage.reports,
+        Icons.analytics_rounded,
+        'Reports',
+        const ReportsPage(),
+      ),
     ];
 
     return Scaffold(
@@ -128,8 +135,8 @@ class RoleHomePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'v15 restricted pages',
+                Text(
+                  user?.role==UserRole.viewer?'View only':'Restricted pages',
                   style: TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 10,

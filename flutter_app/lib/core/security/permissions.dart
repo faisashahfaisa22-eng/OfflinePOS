@@ -47,17 +47,43 @@ class Permissions {
     AppPage.salesmanStatement,
   };
 
+  static const _managerBlocked={
+    AppPage.userManagement,
+    AppPage.backup,
+    AppPage.safetyCenter,
+    AppPage.deleteEntry,
+    AppPage.recycleBin,
+    AppPage.capital,
+  };
+
+  static const _viewerPages={
+    AppPage.quickSearch,
+    AppPage.saleInvoice,
+    AppPage.stock,
+    AppPage.stockLedger,
+    AppPage.customerStatement,
+    AppPage.salesmanStatement,
+    AppPage.reports,
+  };
+
   static bool canOpen(AppPage page) {
     final user=LocalAuthService.instance.current;
     if(user==null||!user.active) return false;
-    if(user.role==UserRole.admin) return true;
-    return _v15Restricted.contains(page);
+    switch(user.role) {
+      case UserRole.admin:
+        return true;
+      case UserRole.manager:
+        return !_managerBlocked.contains(page);
+      case UserRole.viewer:
+        return _viewerPages.contains(page);
+      case UserRole.cashier:
+      case UserRole.salesman:
+        return _v15Restricted.contains(page);
+    }
   }
 
-  static List<AppPage> visiblePages() {
-    final user=LocalAuthService.instance.current;
-    if(user==null||!user.active) return const [];
-    if(user.role==UserRole.admin) return AppPage.values;
-    return _v15Restricted.toList(growable:false);
-  }
+  static List<AppPage> visiblePages()=>[
+    for(final p in AppPage.values)
+      if(canOpen(p)) p,
+  ];
 }

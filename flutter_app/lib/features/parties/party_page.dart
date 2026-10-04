@@ -31,7 +31,7 @@ class _PartyPageState extends State<PartyPage> {
   String salesmanId='';
 
   bool get customer=>widget.type==PartyType.customer;
-  bool get canEdit=>LocalAuthService.instance.isAdmin;
+  bool get canEdit=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {

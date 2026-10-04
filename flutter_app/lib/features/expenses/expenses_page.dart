@@ -23,7 +23,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   final amount=TextEditingController();
   final note=TextEditingController();
 
-  bool get canEdit=>LocalAuthService.instance.isAdmin;
+  bool get canEdit=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {

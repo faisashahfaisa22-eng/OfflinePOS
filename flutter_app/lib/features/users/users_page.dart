@@ -284,6 +284,13 @@ class _UsersPageState extends State<UsersPage> {
                                 });
                               },
                       ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6, left: 4),
+                        child: Text(
+                          role.description,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
                       if (role == UserRole.salesman) ...[
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
@@ -356,9 +363,13 @@ class _UsersPageState extends State<UsersPage> {
                       child: Icon(
                         u.role == UserRole.admin
                             ? Icons.admin_panel_settings_rounded
-                            : u.role == UserRole.salesman
-                                ? Icons.badge_rounded
-                                : Icons.person_rounded,
+                            : u.role == UserRole.manager
+                                ? Icons.manage_accounts_rounded
+                                : u.role == UserRole.salesman
+                                    ? Icons.badge_rounded
+                                    : u.role == UserRole.viewer
+                                        ? Icons.visibility_rounded
+                                        : Icons.person_rounded,
                       ),
                     ),
                     title: Text(u.loginId),

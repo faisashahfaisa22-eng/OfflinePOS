@@ -105,11 +105,13 @@ class _SalesPageState extends State<SalesPage> {
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Sales / Cash Report')),
-    floatingActionButton:FloatingActionButton.extended(
-      onPressed:()=>openInvoice(),
-      icon:const Icon(Icons.add),
-      label:const Text('New Sale'),
-    ),
+    floatingActionButton:LocalAuthService.instance.canSell
+      ?FloatingActionButton.extended(
+        onPressed:()=>openInvoice(),
+        icon:const Icon(Icons.add),
+        label:const Text('New Sale'),
+      )
+      :null,
     body:loading
       ?const Center(child:CircularProgressIndicator())
       :ListView(
@@ -131,11 +133,12 @@ class _SalesPageState extends State<SalesPage> {
             ),
           ),
           const SizedBox(height:10),
-          FilledButton.icon(
-            onPressed:()=>openInvoice(),
-            icon:const Icon(Icons.add_shopping_cart_rounded),
-            label:const Text('New / Clear Form'),
-          ),
+          if(LocalAuthService.instance.canSell)
+            FilledButton.icon(
+              onPressed:()=>openInvoice(),
+              icon:const Icon(Icons.add_shopping_cart_rounded),
+              label:const Text('New / Clear Form'),
+            ),
           const SizedBox(height:14),
           Card(
             child:Padding(
@@ -173,11 +176,12 @@ class _SalesPageState extends State<SalesPage> {
                             DataCell(Row(
                               mainAxisSize:MainAxisSize.min,
                               children:[
-                                IconButton(
-                                  tooltip:'Edit',
-                                  onPressed:()=>openInvoice(x),
-                                  icon:const Icon(Icons.edit_outlined),
-                                ),
+                                if(LocalAuthService.instance.canSell)
+                                  IconButton(
+                                    tooltip:'Edit',
+                                    onPressed:()=>openInvoice(x),
+                                    icon:const Icon(Icons.edit_outlined),
+                                  ),
                                 IconButton(
                                   tooltip:'WhatsApp',
                                   onPressed:()=>share(x),

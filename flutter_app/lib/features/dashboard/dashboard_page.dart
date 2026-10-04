@@ -374,12 +374,15 @@ class _DashboardPageState extends State<DashboardPage> {
           crossAxisSpacing:8,
           childAspectRatio:1.45,
           children:[
-            _quickTile(Icons.shopping_cart_rounded,'New Sale',AppPage.saleInvoice,const SalesPage()),
-            _quickTile(Icons.inventory_2_rounded,'Add Product',AppPage.products,const ProductsPage()),
-            _quickTile(Icons.person_add_alt_1_rounded,'Add Customer',AppPage.customers,const PartyPage(type:PartyType.customer)),
-            _quickTile(Icons.receipt_long_rounded,'Add Expense',AppPage.expenses,const ExpensesPage()),
-            _quickTile(Icons.bar_chart_rounded,'Reports',AppPage.reports,const ReportsPage()),
-            _quickTile(Icons.settings_rounded,'Settings',AppPage.safetyCenter,const SafetyCenterPage()),
+            for(final t in <(IconData,String,AppPage,Widget)>[
+              (Icons.shopping_cart_rounded,'New Sale',AppPage.saleInvoice,const SalesPage()),
+              (Icons.inventory_2_rounded,'Add Product',AppPage.products,const ProductsPage()),
+              (Icons.person_add_alt_1_rounded,'Add Customer',AppPage.customers,const PartyPage(type:PartyType.customer)),
+              (Icons.receipt_long_rounded,'Add Expense',AppPage.expenses,const ExpensesPage()),
+              (Icons.bar_chart_rounded,'Reports',AppPage.reports,const ReportsPage()),
+              (Icons.settings_rounded,'Settings',AppPage.safetyCenter,const SafetyCenterPage()),
+            ])
+              if(Permissions.canOpen(t.$3)) _quickTile(t.$1,t.$2,t.$3,t.$4),
           ],
         ),
       ],

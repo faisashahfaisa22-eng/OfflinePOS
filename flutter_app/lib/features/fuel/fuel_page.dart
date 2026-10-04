@@ -33,7 +33,7 @@ class _FuelPageState extends State<FuelPage> {
   List<Map<String,Object?>> deliveries=const [];
   bool loading=true;
 
-  bool get admin=>LocalAuthService.instance.isAdmin;
+  bool get admin=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {

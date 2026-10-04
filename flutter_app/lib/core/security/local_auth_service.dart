@@ -6,13 +6,24 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../database/app_database.dart';
 import 'crypto_utils.dart';
 
-enum UserRole { admin, cashier, salesman }
+enum UserRole { admin, manager, cashier, salesman, viewer }
 
 extension UserRoleX on UserRole {
   String get label=>switch(this){
     UserRole.admin=>'Admin',
+    UserRole.manager=>'Manager',
     UserRole.cashier=>'Cashier',
     UserRole.salesman=>'Salesman',
+    UserRole.viewer=>'Viewer',
+  };
+
+  /// One-line explanation shown when the owner picks a role.
+  String get description=>switch(this){
+    UserRole.admin=>'Full access, users and backup.',
+    UserRole.manager=>'Everything except users, backup, owner money and deleting records.',
+    UserRole.cashier=>'Sales, fuel pump, stock and statements.',
+    UserRole.salesman=>'Own sales and own statement only (needs a linked salesman).',
+    UserRole.viewer=>'View only: stock, statements and reports. Cannot change anything.',
   };
   static UserRole parse(String v)=>UserRole.values.firstWhere(
     (r)=>r.label.toLowerCase()==v.toLowerCase(),
@@ -128,6 +139,14 @@ class LocalAuthService extends ChangeNotifier {
   bool get unlocked=>_current!=null&&_dek!=null;
   AuthUser? get current=>_current;
   bool get isAdmin=>_current?.role==UserRole.admin;
+  bool get isManager=>_current?.role==UserRole.manager;
+  bool get isViewer=>_current?.role==UserRole.viewer;
+
+  /// Can add / edit records and master data (Admin or Manager).
+  bool get canEdit=>isAdmin||isManager;
+
+  /// Can record sales and stock changes (everyone signed in except Viewer).
+  bool get canSell=>_current!=null&&!isViewer;
   List<AuthUser> get users=>List.unmodifiable(_users);
 
   /// Login id of the first Admin. This account owns the cloud backup.

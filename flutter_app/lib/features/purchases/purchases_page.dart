@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/business/accounting_rules.dart';
 import '../../core/database/app_database.dart';
 import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
@@ -247,6 +248,12 @@ class _V15PurchaseFormState extends State<V15PurchaseForm> {
       );
       return;
     }
+    if(c<0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Cost cannot be negative.')),
+      );
+      return;
+    }
     setState(() {
       lines.add({
         'product_id':selectedProductId,
@@ -266,13 +273,22 @@ class _V15PurchaseFormState extends State<V15PurchaseForm> {
       );
       return;
     }
+    final paidValue=double.tryParse(paid.text.trim())??0;
+    try {
+      AccountingRules.purchaseTotals(items:lines,paid:paidValue);
+    } on ArgumentError catch(e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text(e.message?.toString()??'Invalid purchase values.')),
+      );
+      return;
+    }
     setState(()=>saving=true);
     try {
       await AppDatabase.instance.createPurchase(
         id:widget.existing?['id']?.toString()??DateTime.now().microsecondsSinceEpoch.toString(),
         supplierId:supplierId,
         items:lines,
-        paid:double.tryParse(paid.text.trim())??0,
+        paid:paidValue,
         invoiceNo:invoiceNo.text.trim(),
         note:note.text.trim(),
         businessDate:date,

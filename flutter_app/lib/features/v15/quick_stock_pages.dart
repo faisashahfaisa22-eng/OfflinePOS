@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/business/accounting_rules.dart';
 import '../../core/database/app_database.dart';
 import '../../core/ui/qamvio_ui.dart';
 
@@ -462,7 +463,10 @@ class _StockLedgerPageState extends State<StockLedgerPage> {
         'note':'Invoice ${x['invoice_no']??''}',
       });
     }
-    out.sort((a,b)=>a['date'].toString().compareTo(b['date'].toString()));
+    final ordered=AccountingRules.orderStockLedgerRows(out);
+    out
+      ..clear()
+      ..addAll(ordered);
     double running=0;
     for(final x in out) {
       running+=_n(x['qty']);

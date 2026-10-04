@@ -1,0 +1,36 @@
+name: QAMVIO Accounting Regression Tests
+
+on:
+  push:
+    branches:
+      - test/qamvio-accounting-regression
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/qamvio-accounting-regression.yml"
+  pull_request:
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/qamvio-accounting-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Run Flutter tests
+        run: flutter test

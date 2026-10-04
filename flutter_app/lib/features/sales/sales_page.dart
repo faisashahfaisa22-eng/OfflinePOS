@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../core/business/accounting_rules.dart';
 import '../../core/database/app_database.dart';
 import '../../core/security/local_auth_service.dart';
 import '../../core/share/whatsapp_share.dart';
@@ -416,16 +417,18 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
       );
       return false;
     }
-    for(final line in cart.values) {
-      final amount=_n(line['price'])*_n(line['qty']);
-      if(_n(line['discount'])>amount) {
-        if(!await _confirm(
-          'Large Discount',
-          '${line['product_name']}: Discount (${_money(line['discount'])}) exceeds Amount (${_money(amount)}). Save anyway?',
-        )) {
-          return false;
-        }
-      }
+    try {
+      AccountingRules.saleTotals(
+        items:cart.values.toList(),
+        paid:receivedValue,
+        oil:_n(oil.text),
+        other:_n(other.text),
+      );
+    } on ArgumentError catch(e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text(e.message?.toString()??'Invalid sale values.')),
+      );
+      return false;
     }
     final inv=invoiceNo.text.trim();
     if(inv.isNotEmpty) {

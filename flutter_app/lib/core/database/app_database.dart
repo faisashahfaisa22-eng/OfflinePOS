@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
+import '../business/accounting_rules.dart';
 import '../security/crypto_utils.dart';
 
 /// SQLCipher-encrypted database. It can only be opened after the user signs in
@@ -507,6 +508,13 @@ class AppDatabase {
     String? note,
     DateTime? businessDate,
   }) async {
+    final totals=AccountingRules.saleTotals(
+      items:items,
+      invoiceDiscount:discount,
+      paid:paid,
+      oil:oil,
+      other:other,
+    );
     final db=await database;
     await db.transaction((txn) async {
       final now=DateTime.now().toUtc().toIso8601String();
@@ -539,20 +547,12 @@ class AppDatabase {
       }
 
       final day=(businessDate??DateTime.now()).toIso8601String().split('T').first;
-      double subtotal=0;
-      double lineDiscount=0;
-      for(final item in items) {
-        final qty=(item['qty'] as num?)?.toDouble()??0;
-        final price=(item['price'] as num?)?.toDouble()??0;
-        final disc=(item['discount'] as num?)?.toDouble()??0;
-        subtotal+=qty*price;
-        lineDiscount+=disc;
-      }
-      final totalDiscount=(lineDiscount+discount).clamp(0,double.infinity).toDouble();
-      final total=(subtotal-totalDiscount).clamp(0,double.infinity).toDouble();
-      final delta=total-paid;
-      final due=delta>0?delta:0.0;
-      final recovery=delta<0?-delta:0.0;
+      final subtotal=totals.subtotal;
+      final totalDiscount=totals.totalDiscount;
+      final total=totals.total;
+      final delta=totals.delta;
+      final due=totals.due;
+      final recovery=totals.recovery;
 
       await txn.insert('sales',{
         'id':id,
@@ -597,7 +597,7 @@ class AppDatabase {
           'price':price,
           'discount':disc,
           'cost':(item['cost'] as num?)?.toDouble(),
-          'total':(qty*price-disc).clamp(0,double.infinity).toDouble(),
+          'total':qty*price-disc,
         });
         if(productId!=null) {
           await txn.rawUpdate(
@@ -654,6 +654,7 @@ class AppDatabase {
     String? fuelTankId,
     DateTime? businessDate,
   }) async {
+    final totals=AccountingRules.purchaseTotals(items:items,paid:paid);
     final db=await database;
     await db.transaction((txn) async {
       final now=DateTime.now().toUtc().toIso8601String();
@@ -683,13 +684,8 @@ class AppDatabase {
       }
 
       final day=(businessDate??DateTime.now()).toIso8601String().split('T').first;
-      double total=0;
-      for(final item in items) {
-        final qty=(item['qty'] as num?)?.toDouble()??0;
-        final cost=(item['cost'] as num?)?.toDouble()??0;
-        total+=qty*cost;
-      }
-      final due=(total-paid).clamp(0,double.infinity).toDouble();
+      final total=totals.total;
+      final due=totals.due;
       await txn.insert('purchases',{
         'id':id,
         'business_date':day,
@@ -746,15 +742,17 @@ class AppDatabase {
     String? note,
     DateTime? businessDate,
   }) async {
-    if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
-    if(type!='loan'&&type!='payment') throw ArgumentError.value(type,'type','Use loan or payment.');
+    AccountingRules.loanBalanceDelta(amount:amount,type:type);
     final db=await database;
     final now=DateTime.now().toUtc().toIso8601String();
     await db.transaction((txn) async {
       final old=await txn.query('customer_loans',where:'id=?',whereArgs:[id],limit:1);
       if(old.isNotEmpty) {
         final o=old.first;
-        final oldDelta=o['type']=='payment'?-_nDb(o['amount']):_nDb(o['amount']);
+        final oldDelta=AccountingRules.loanBalanceDelta(
+          amount:_nDb(o['amount']),
+          type:o['type'].toString(),
+        );
         await txn.rawUpdate(
           'UPDATE customers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
           [oldDelta,now,o['customer_id']],
@@ -772,7 +770,7 @@ class AppDatabase {
         'updated_at':now,
         'sync_state':0,
       });
-      final delta=type=='payment'?-amount:amount;
+      final delta=AccountingRules.loanBalanceDelta(amount:amount,type:type);
       await txn.rawUpdate(
         'UPDATE customers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
         [delta,now,customerId],
@@ -788,8 +786,7 @@ class AppDatabase {
     String? note,
     DateTime? businessDate,
   }) async {
-    if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
-    if(type!='loan'&&type!='payment') throw ArgumentError.value(type,'type','Use loan or payment.');
+    AccountingRules.loanBalanceDelta(amount:amount,type:type);
     final db=await database;
     final now=DateTime.now().toUtc().toIso8601String();
     final old=await db.query('salesman_loans',where:'id=?',whereArgs:[id],limit:1);
@@ -819,15 +816,17 @@ class AppDatabase {
     String? note,
     DateTime? businessDate,
   }) async {
-    if(amount<=0) throw ArgumentError.value(amount,'amount','Amount must be greater than zero.');
-    if(type!='payment'&&type!='received') throw ArgumentError.value(type,'type','Use payment or received.');
+    AccountingRules.supplierBalanceDelta(amount:amount,type:type);
     final db=await database;
     final now=DateTime.now().toUtc().toIso8601String();
     await db.transaction((txn) async {
       final old=await txn.query('supplier_transactions',where:'id=?',whereArgs:[id],limit:1);
       if(old.isNotEmpty) {
         final o=old.first;
-        final oldDelta=o['type']=='payment'?-_nDb(o['amount']):_nDb(o['amount']);
+        final oldDelta=AccountingRules.supplierBalanceDelta(
+          amount:_nDb(o['amount']),
+          type:o['type'].toString(),
+        );
         await txn.rawUpdate(
           'UPDATE suppliers SET balance=balance-?,updated_at=?,sync_state=0 WHERE id=?',
           [oldDelta,now,o['supplier_id']],
@@ -845,7 +844,7 @@ class AppDatabase {
         'updated_at':now,
         'sync_state':0,
       });
-      final delta=type=='payment'?-amount:amount;
+      final delta=AccountingRules.supplierBalanceDelta(amount:amount,type:type);
       await txn.rawUpdate(
         'UPDATE suppliers SET balance=balance+?,updated_at=?,sync_state=0 WHERE id=?',
         [delta,now,supplierId],

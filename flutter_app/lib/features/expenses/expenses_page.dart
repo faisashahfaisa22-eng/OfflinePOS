@@ -23,7 +23,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   final amount=TextEditingController();
   final note=TextEditingController();
 
-  bool get canEdit=>LocalAuthService.instance.isAdmin;
+  bool get canEdit=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {
@@ -104,7 +104,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
-    if(!canEdit) return;
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
@@ -201,7 +201,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                         mainAxisSize:MainAxisSize.min,
                         children:[
                           if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                          if(canEdit) IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
+                          if(LocalAuthService.instance.canDelete) IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
                         ],
                       )),
                     ]),

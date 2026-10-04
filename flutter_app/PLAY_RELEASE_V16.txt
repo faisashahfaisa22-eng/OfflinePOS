@@ -1,0 +1,6 @@
+QAMVIO Play release v16
+Branch: release/flutter-play-v16
+Package: com.offlinepos.accounts
+Version: 16.0.0+16
+Target SDK: 36
+Purpose: trigger signed AAB build for Google Play.

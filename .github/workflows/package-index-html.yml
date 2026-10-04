@@ -1,0 +1,26 @@
+name: Package QAMVIO Legacy Index
+
+on:
+  push:
+    branches:
+      - flutter/qamvio-core
+    paths:
+      - .github/workflows/package-index-html.yml
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Verify legacy index
+        run: test -f app/src/main/assets/index.html
+
+      - name: Upload index.html
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Legacy-index-html
+          path: app/src/main/assets/index.html
+          retention-days: 30

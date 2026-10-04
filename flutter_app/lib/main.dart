@@ -118,7 +118,9 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
                   ? const BusinessModelPage()
                   : auth.isAdmin
                       ? const LegacyMigrationGate()
-                      : const RoleHomePage(),
+                      : auth.isManager
+                          ? const DashboardPage()
+                          : const RoleHomePage(),
         );
       },
     );

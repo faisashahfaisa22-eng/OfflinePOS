@@ -77,6 +77,15 @@ class CryptoUtils {
     return Uint8List.fromList(mac.bytes);
   }
 
+  /// Secret used ONLY to sign in to the cloud backup account. It is a one-way
+  /// derivative of [password] with its own domain-separated salt, so the real
+  /// password (which unwraps the database key) is never sent to the cloud
+  /// server, yet the user still types a single password everywhere.
+  static Future<String> deriveCloudPassword(String loginId,String password) async {
+    final key=await deriveKey(password,'qamvio-cloud-auth-v1:$loginId');
+    return base64Url.encode(key).replaceAll('=','');
+  }
+
   /// Human-friendly recovery code (80 bits): XXXX-XXXX-XXXX-XXXX, no ambiguous characters.
   static String generateRecoveryCode() {
     const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

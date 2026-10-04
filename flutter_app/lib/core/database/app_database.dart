@@ -32,6 +32,18 @@ class AppDatabase {
     await db?.close();
   }
 
+  /// Deletes the on-disk database. Only used to roll back a failed
+  /// fresh-install restore, before any real data exists on the device.
+  Future<void> deleteFile() async {
+    await lock();
+    final root=await getDatabasesPath();
+    final path=join(root,'qamvio_pos.db');
+    for(final suffix in const ['','-wal','-shm','-journal']) {
+      final f=File('$path$suffix');
+      if(await f.exists()) await f.delete();
+    }
+  }
+
   Future<Database> get database async {
     if(_keyHex==null) throw StateError('Database is locked. Sign in first.');
     return _db ??= await _open();

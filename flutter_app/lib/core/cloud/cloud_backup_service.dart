@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart'
     show SecretBoxAuthenticationError;
@@ -145,7 +146,12 @@ class CloudBackupService {
       'auth_users': [
         for (final u in auth.users)
           {
+            'id': u.id,
             'loginId': u.loginId,
+            'role': u.role.label,
+            'salesmanId': u.salesmanId,
+            'active': u.active,
+            'createdAt': u.createdAt,
             'kekSalt': u.kekSalt,
             'wdekPw': u.wdekPw,
             'recSalt': u.recSalt,
@@ -287,6 +293,13 @@ class CloudBackupService {
       );
     }
 
+    await _applyDecryptedPayload(payload);
+    return true;
+  }
+
+  /// Validates [payload] and replaces every business table with its data in a
+  /// single transaction (all or nothing).
+  Future<void> _applyDecryptedPayload(Map<String, dynamic> payload) async {
     final rawData = payload['data'];
     if (rawData is! Map) {
       throw const FormatException(
@@ -361,7 +374,94 @@ class CloudBackupService {
         }
       }
     });
+  }
 
+  /// Fresh install (no accounts on this device): downloads the latest backup of
+  /// the already signed-in cloud account, unwraps the data key with [password],
+  /// re-creates every account from the backup (passwords unchanged), restores
+  /// the business data and signs the user in. Returns false when the cloud
+  /// account has no backup.
+  Future<bool> restoreFreshInstall({
+    required String loginId,
+    required String password,
+  }) async {
+    final auth = LocalAuthService.instance;
+    if (auth.hasAccounts) {
+      throw const AuthException('An account already exists on this device.');
+    }
+
+    final client = Supabase.instance.client;
+    final cloudUser = client.auth.currentUser;
+    if (cloudUser == null) return false;
+
+    final row = await client
+        .from('qamvio_flutter_backups')
+        .select('payload')
+        .eq('user_id', cloudUser.id)
+        .maybeSingle();
+    if (row == null) return false;
+
+    final raw = row['payload'];
+    if (raw is! Map) {
+      throw const FormatException('QAMVIO cloud backup payload is invalid.');
+    }
+    final env = Map<String, dynamic>.from(raw);
+    if (env['app'] != 'QAMVIO POS Flutter' || env['format'] != 2) {
+      throw const FormatException(
+        'This cloud backup was made by an older version and cannot restore accounts.',
+      );
+    }
+
+    final rawUsers = env['auth_users'];
+    if (rawUsers is! List || rawUsers.isEmpty) {
+      throw const FormatException(
+        'QAMVIO Flutter backup is missing user keys (auth_users).',
+      );
+    }
+    final entries = <Map<String, dynamic>>[
+      for (final e in rawUsers)
+        if (e is Map) Map<String, dynamic>.from(e),
+    ];
+
+    final id = LocalAuthService.normalizeLoginId(loginId);
+    final mine = entries.where((u) => u['loginId'] == id);
+    if (mine.isEmpty) {
+      throw const AuthException('This account is not part of the cloud backup.');
+    }
+    final u = mine.first;
+
+    final iv = env['iv'];
+    final ct = env['ct'];
+    final salt = u['kekSalt'];
+    final wrapped = u['wdekPw'];
+    if (iv is! String || ct is! String || salt is! String || wrapped is! Map) {
+      throw const FormatException('QAMVIO Flutter backup key material is incomplete.');
+    }
+
+    Uint8List dek;
+    Map<String, dynamic> payload;
+    try {
+      final kek = await CryptoUtils.deriveKey(password, salt);
+      dek = await CryptoUtils.decryptBox(Map<String, dynamic>.from(wrapped), kek);
+      final key = await CryptoUtils.deriveBackupKey(dek);
+      final plain = await CryptoUtils.decryptBox({'iv': iv, 'ct': ct}, key);
+      final decoded = jsonDecode(utf8.decode(plain));
+      if (decoded is! Map) {
+        throw const FormatException('Decrypted QAMVIO backup payload is invalid.');
+      }
+      payload = Map<String, dynamic>.from(decoded);
+    } on SecretBoxAuthenticationError {
+      throw const AuthException('Wrong password for this account.');
+    }
+
+    await auth.installBackedUpAccounts(entries: entries, dek: dek);
+    try {
+      await _applyDecryptedPayload(payload);
+    } catch (_) {
+      await auth.discardRestoredAccounts();
+      rethrow;
+    }
+    auth.completeRestoredSignIn(id);
     return true;
   }
 

@@ -77,6 +77,7 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   Future<void> deleteSale(Map<String,Object?> sale) async {
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
@@ -105,11 +106,13 @@ class _SalesPageState extends State<SalesPage> {
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Sales / Cash Report')),
-    floatingActionButton:FloatingActionButton.extended(
-      onPressed:()=>openInvoice(),
-      icon:const Icon(Icons.add),
-      label:const Text('New Sale'),
-    ),
+    floatingActionButton:LocalAuthService.instance.canSell
+      ?FloatingActionButton.extended(
+        onPressed:()=>openInvoice(),
+        icon:const Icon(Icons.add),
+        label:const Text('New Sale'),
+      )
+      :null,
     body:loading
       ?const Center(child:CircularProgressIndicator())
       :ListView(
@@ -131,11 +134,12 @@ class _SalesPageState extends State<SalesPage> {
             ),
           ),
           const SizedBox(height:10),
-          FilledButton.icon(
-            onPressed:()=>openInvoice(),
-            icon:const Icon(Icons.add_shopping_cart_rounded),
-            label:const Text('New / Clear Form'),
-          ),
+          if(LocalAuthService.instance.canSell)
+            FilledButton.icon(
+              onPressed:()=>openInvoice(),
+              icon:const Icon(Icons.add_shopping_cart_rounded),
+              label:const Text('New / Clear Form'),
+            ),
           const SizedBox(height:14),
           Card(
             child:Padding(
@@ -173,17 +177,18 @@ class _SalesPageState extends State<SalesPage> {
                             DataCell(Row(
                               mainAxisSize:MainAxisSize.min,
                               children:[
-                                IconButton(
-                                  tooltip:'Edit',
-                                  onPressed:()=>openInvoice(x),
-                                  icon:const Icon(Icons.edit_outlined),
-                                ),
+                                if(LocalAuthService.instance.canSell)
+                                  IconButton(
+                                    tooltip:'Edit',
+                                    onPressed:()=>openInvoice(x),
+                                    icon:const Icon(Icons.edit_outlined),
+                                  ),
                                 IconButton(
                                   tooltip:'WhatsApp',
                                   onPressed:()=>share(x),
                                   icon:const Icon(Icons.chat_rounded),
                                 ),
-                                if(LocalAuthService.instance.isAdmin)
+                                if(LocalAuthService.instance.canDelete)
                                   IconButton(
                                     tooltip:'Delete',
                                     onPressed:()=>deleteSale(x),
@@ -279,8 +284,10 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
   Future<void> _load() async {
     final db=await AppDatabase.instance.database;
     final p=await db.query('products',orderBy:'name COLLATE NOCASE');
-    final c=await db.query('customers',orderBy:'name COLLATE NOCASE');
     final forced=widget.forcedSalesmanId?.trim()??'';
+    final c=forced.isNotEmpty
+      ?await db.query('customers',where:'salesman_id=?',whereArgs:[forced],orderBy:'name COLLATE NOCASE')
+      :await db.query('customers',orderBy:'name COLLATE NOCASE');
     final sm=forced.isNotEmpty
       ?await db.query('salesmen',where:'id=?',whereArgs:[forced],limit:1)
       :await db.query('salesmen',orderBy:'name COLLATE NOCASE');

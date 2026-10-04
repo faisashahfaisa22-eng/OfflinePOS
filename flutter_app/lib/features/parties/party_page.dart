@@ -31,7 +31,7 @@ class _PartyPageState extends State<PartyPage> {
   String salesmanId='';
 
   bool get customer=>widget.type==PartyType.customer;
-  bool get canEdit=>LocalAuthService.instance.isAdmin;
+  bool get canEdit=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {
@@ -60,13 +60,21 @@ class _PartyPageState extends State<PartyPage> {
 
   Future<void> load() async {
     final db=await AppDatabase.instance.database;
-    final sm=await db.query('salesmen',orderBy:'name COLLATE NOCASE');
-    final data=customer
+    var sm=await db.query('salesmen',orderBy:'name COLLATE NOCASE');
+    var data=customer
       ?await db.rawQuery(
         'SELECT c.*,sm.name salesman_name FROM customers c '
         'LEFT JOIN salesmen sm ON sm.id=c.salesman_id ORDER BY c.name COLLATE NOCASE',
       )
       :await db.query('suppliers',orderBy:'name COLLATE NOCASE');
+    final auth=LocalAuthService.instance;
+    if(auth.isSalesmanUser) {
+      final own=auth.ownSalesmanId;
+      sm=sm.where((x)=>x['id']?.toString()==own).toList();
+      if(customer) {
+        data=data.where((x)=>x['salesman_id']?.toString()==own).toList();
+      }
+    }
     final tx=customer
       ?<Map<String,Object?>>[]
       :await db.rawQuery(
@@ -134,7 +142,7 @@ class _PartyPageState extends State<PartyPage> {
   }
 
   Future<void> removeMaster(Map<String,Object?> x) async {
-    if(!canEdit) return;
+    if(!LocalAuthService.instance.canDelete) return;
     final section=customer?'customers':'suppliers';
     final ok=await showDialog<bool>(
       context:context,
@@ -247,7 +255,7 @@ class _PartyPageState extends State<PartyPage> {
   }
 
   Future<void> removeSupplierTransaction(Map<String,Object?> x) async {
-    if(!canEdit) return;
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
@@ -331,7 +339,7 @@ class _PartyPageState extends State<PartyPage> {
                                 mainAxisSize:MainAxisSize.min,
                                 children:[
                                   if(canEdit) IconButton(onPressed:()=>addSupplierTransaction(x),icon:const Icon(Icons.edit_outlined)),
-                                  if(canEdit) IconButton(onPressed:()=>removeSupplierTransaction(x),icon:const Icon(Icons.delete_outline_rounded)),
+                                  if(LocalAuthService.instance.canDelete) IconButton(onPressed:()=>removeSupplierTransaction(x),icon:const Icon(Icons.delete_outline_rounded)),
                                 ],
                               )),
                             ]),
@@ -434,7 +442,7 @@ class _PartyPageState extends State<PartyPage> {
                     mainAxisSize:MainAxisSize.min,
                     children:[
                       if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                      if(canEdit) IconButton(onPressed:()=>removeMaster(x),icon:const Icon(Icons.delete_outline_rounded)),
+                      if(LocalAuthService.instance.canDelete) IconButton(onPressed:()=>removeMaster(x),icon:const Icon(Icons.delete_outline_rounded)),
                     ],
                   )),
                 ]

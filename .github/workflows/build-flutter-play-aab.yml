@@ -1,0 +1,178 @@
+name: Build and Publish QAMVIO Flutter AAB
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-aab:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create Android platform
+        run: flutter create --platforms=android --org com.qamvio --project-name qamvio_pos .
+
+      - name: Configure Play Store Android app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          s = manifest.read_text()
+          if 'android.permission.INTERNET' not in s:
+              s = s.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                  '    <uses-permission android:name="android.permission.INTERNET"/>',
+                  1,
+              )
+          s = s.replace('android:label="qamvio_pos"', 'android:label="QAMVIO"')
+          attrs = []
+          if 'android:allowBackup=' not in s:
+              attrs.append('android:allowBackup="false"')
+          if 'android:fullBackupContent=' not in s:
+              attrs.append('android:fullBackupContent="false"')
+          if 'android:usesCleartextTraffic=' not in s:
+              attrs.append('android:usesCleartextTraffic="false"')
+          if attrs:
+              s = s.replace('<application', '<application\n        ' + '\n        '.join(attrs), 1)
+          manifest.write_text(s)
+
+          kts = Path("android/app/build.gradle.kts")
+          groovy = Path("android/app/build.gradle")
+
+          if kts.exists():
+              s = kts.read_text()
+              s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
+              s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
+              s = s.replace('targetSdk = flutter.targetSdkVersion', 'targetSdk = 36')
+              s = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.offlinepos.accounts"', s, count=1)
+              if 'create("release")' not in s:
+                  marker = '    buildTypes {'
+                  block = '''    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
+'''
+                  s = s.replace(marker, block + marker, 1)
+              s = s.replace(
+                  'signingConfig = signingConfigs.getByName("debug")',
+                  'signingConfig = signingConfigs.getByName("release")',
+              )
+              kts.write_text(s)
+          elif groovy.exists():
+              s = groovy.read_text()
+              s = s.replace('compileSdk flutter.compileSdkVersion', 'compileSdk 36')
+              s = s.replace('minSdk flutter.minSdkVersion', 'minSdk 24')
+              s = s.replace('minSdkVersion flutter.minSdkVersion', 'minSdkVersion 24')
+              s = s.replace('targetSdk flutter.targetSdkVersion', 'targetSdk 36')
+              s = s.replace('targetSdkVersion flutter.targetSdkVersion', 'targetSdkVersion 36')
+              s = re.sub(r'applicationId\s+["\'][^"\']+["\']', 'applicationId "com.offlinepos.accounts"', s, count=1)
+              if 'signingConfigs {' not in s:
+                  marker = '    buildTypes {'
+                  block = '''    signingConfigs {
+        release {
+            storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
+'''
+                  s = s.replace(marker, block + marker, 1)
+              s = s.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
+              groovy.write_text(s)
+          else:
+              raise SystemExit("No Android app Gradle file found")
+          PY
+
+          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml
+          grep -R -q 'com.offlinepos.accounts' android/app/build.gradle*
+
+      - name: Restore upload keystore
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/offlinepos-upload.jks"
+          test -s "$RUNNER_TEMP/offlinepos-upload.jks"
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build signed AAB
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/offlinepos-upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: offlinepos
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: flutter build appbundle --release --build-name=16.0.0 --build-number=16
+
+      - name: Verify AAB signature
+        run: jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-PlayStore-AAB-v16
+          path: flutter_app/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      - name: Upload to Google Play internal track
+        if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.offlinepos.accounts
+          releaseFiles: flutter_app/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed

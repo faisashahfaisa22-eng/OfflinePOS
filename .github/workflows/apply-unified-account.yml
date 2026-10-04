@@ -32,18 +32,17 @@ jobs:
           echo "a608042a946db2b83df482d7ced93bd25ae01ea9d602ef54f4c5f3b5e292a7cd  /tmp/qamvio-unified-account.zip" | sha256sum -c -
           unzip -t /tmp/qamvio-unified-account.zip
 
-          expected="$(cat <<'EOF'
-flutter_app/lib/core/cloud/cloud_account.dart
-flutter_app/lib/core/cloud/cloud_backup_service.dart
-flutter_app/lib/core/database/app_database.dart
-flutter_app/lib/core/security/crypto_utils.dart
-flutter_app/lib/core/security/local_auth_service.dart
-flutter_app/lib/features/auth/login_page.dart
-flutter_app/lib/features/cloud/cloud_page.dart
-EOF
-)"
-          actual="$(unzip -Z1 /tmp/qamvio-unified-account.zip)"
-          test "$actual" = "$expected"
+          printf '%s\n' \
+            "flutter_app/lib/core/cloud/cloud_account.dart" \
+            "flutter_app/lib/core/cloud/cloud_backup_service.dart" \
+            "flutter_app/lib/core/database/app_database.dart" \
+            "flutter_app/lib/core/security/crypto_utils.dart" \
+            "flutter_app/lib/core/security/local_auth_service.dart" \
+            "flutter_app/lib/features/auth/login_page.dart" \
+            "flutter_app/lib/features/cloud/cloud_page.dart" \
+            > /tmp/expected-files.txt
+          unzip -Z1 /tmp/qamvio-unified-account.zip > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
 
           unzip -o /tmp/qamvio-unified-account.zip -d .
 

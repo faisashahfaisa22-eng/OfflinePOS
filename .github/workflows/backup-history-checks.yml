@@ -1,0 +1,30 @@
+name: QAMVIO Backup History Checks
+
+on:
+  push:
+    branches:
+      - feature/backup-history-v16
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+      - name: Analyze
+        working-directory: flutter_app
+        run: flutter analyze
+      - name: Unit tests
+        working-directory: flutter_app
+        run: flutter test

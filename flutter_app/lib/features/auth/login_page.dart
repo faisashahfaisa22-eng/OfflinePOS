@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/cloud/cloud_account.dart';
+import '../../core/cloud/cloud_backup_service.dart';
 import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
-enum _Mode { login, create, recover }
+enum _Mode { login, create, recover, restore }
 
 /// Offline sign-in with email or mobile + local password. No internet needed.
 class LoginPage extends StatefulWidget {
@@ -28,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    mode=auth.hasAccounts?_Mode.login:_Mode.create;
+    mode=auth.hasAccounts?_Mode.login:_Mode.restore;
   }
 
   @override
@@ -57,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(()=>message=idErr);
       return;
     }
-    if(mode!=_Mode.login&&password.text!=confirm.text) {
+    if((mode==_Mode.create||mode==_Mode.recover)&&password.text!=confirm.text) {
       setState(()=>message='Passwords do not match.');
       return;
     }
@@ -66,12 +70,18 @@ class _LoginPageState extends State<LoginPage> {
       switch(mode) {
         case _Mode.login:
           await auth.login(id.text,password.text);
+          unawaited(CloudAccount.syncAfterLogin(id.text,password.text));
         case _Mode.create:
+          if(await _offerRestoreInstead()) return;
           final code=await auth.createFirstAccount(id.text,password.text);
+          unawaited(CloudAccount.syncAfterLogin(id.text,password.text));
           if(mounted) await _showRecoveryCode(code);
         case _Mode.recover:
           final code=await auth.resetPasswordWithRecovery(id.text,recovery.text,password.text);
+          unawaited(CloudAccount.syncAfterLogin(id.text,password.text));
           if(mounted) await _showRecoveryCode(code);
+        case _Mode.restore:
+          await _restoreFromCloud();
       }
     } on AuthException catch(e) {
       if(mounted) setState(()=>message=e.message);
@@ -80,6 +90,105 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if(mounted) setState(()=>busy=false);
     }
+  }
+
+  String _cloudMessage(CloudSignInResult r)=>switch(r){
+    CloudSignInResult.needsConfirmation=>
+      'Please confirm your email (or SMS) first, then try again.',
+    CloudSignInResult.offline=>
+      'No internet connection. Connect to the internet to find your account.',
+    CloudSignInResult.existingOtherPassword=>
+      'An account with this email already exists, but with a different password. Enter the password you used before.',
+    CloudSignInResult.notFound=>
+      'No account found for this email and password.',
+    _=>'Could not reach the cloud. Please try again.',
+  };
+
+  String _fmt(DateTime t)=>
+    '${t.year}-${t.month.toString().padLeft(2,'0')}-${t.day.toString().padLeft(2,'0')} '
+    '${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+
+  /// Finds the account in the cloud, tells the user a backup exists, and
+  /// restores accounts + business data after the user confirms.
+  Future<void> _restoreFromCloud({bool alreadyConfirmed=false}) async {
+    if(alreadyConfirmed) {
+      final ok=await CloudBackupService.instance.restoreFreshInstall(
+        loginId:id.text,
+        password:password.text,
+      );
+      if(!ok&&mounted) setState(()=>message='No backup found for this account.');
+      return;
+    }
+    final r=await CloudAccount.signIn(id.text,password.text);
+    if(r!=CloudSignInResult.signedIn) {
+      if(mounted) setState(()=>message=_cloudMessage(r));
+      return;
+    }
+    final when=await CloudAccount.latestBackupTime();
+    if(when==null) {
+      if(mounted) {
+        setState(()=>message='Your cloud account exists, but it has no backup yet. You can create a new account instead.');
+      }
+      return;
+    }
+    if(!mounted) return;
+    final go=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        icon:const Icon(Icons.cloud_done_rounded,size:36),
+        title:const Text('You already have an account'),
+        content:Text(
+          'We found your account ${LocalAuthService.normalizeLoginId(id.text)} with a backup from ${_fmt(when)}.\n\n'
+          'Restore it on this device? Your sales, stock, customers and all users will come back, and you sign in with the same password.',
+        ),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Not now')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Restore my account')),
+        ],
+      ),
+    );
+    if(go!=true) return;
+    final ok=await CloudBackupService.instance.restoreFreshInstall(
+      loginId:id.text,
+      password:password.text,
+    );
+    if(!ok&&mounted) setState(()=>message='No backup found for this account.');
+    // On success LocalAuthService notifies and the app opens the dashboard.
+  }
+
+  /// Before creating a brand-new account, check quietly (when online) whether
+  /// this email already has a cloud backup, and offer to restore it instead.
+  /// Returns true when the restore flow took over (so no new account is made).
+  Future<bool> _offerRestoreInstead() async {
+    DateTime? when;
+    try {
+      final r=await CloudAccount.signIn(id.text,password.text);
+      if(r!=CloudSignInResult.signedIn) return false;
+      when=await CloudAccount.latestBackupTime();
+    } catch(_) {
+      return false; // offline or cloud unreachable: just create the account
+    }
+    if(when==null||!mounted) return false;
+    final DateTime at=when;
+    final restore=await showDialog<bool>(
+      context:context,
+      builder:(ctx)=>AlertDialog(
+        icon:const Icon(Icons.cloud_done_rounded,size:36),
+        title:const Text('You already have an account'),
+        content:Text(
+          'A backup from ${_fmt(at)} exists for this email.\n\n'
+          'Restore it instead of starting empty? If you create a new account, '
+          'the next cloud backup will REPLACE that old backup.',
+        ),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Create new anyway')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Restore my account')),
+        ],
+      ),
+    );
+    if(restore!=true) return false;
+    await _restoreFromCloud(alreadyConfirmed:true); // errors show on screen; we must NOT create a new account
+    return true;
   }
 
   Future<void> _showRecoveryCode(String code) async {
@@ -96,6 +205,7 @@ class _LoginPageState extends State<LoginPage> {
       _Mode.login=>'Sign in',
       _Mode.create=>'Create admin account',
       _Mode.recover=>'Reset password',
+      _Mode.restore=>'Find my account',
     };
     return Scaffold(
       body:SafeArea(
@@ -111,7 +221,9 @@ class _LoginPageState extends State<LoginPage> {
                     title:'QAMVIO POS',
                     subtitle:mode==_Mode.create
                       ?'Your business data is encrypted on this device with your password.'
-                      :'Works fully offline. Enter your email or mobile and password.',
+                      :mode==_Mode.restore
+                        ?'Already used QAMVIO before? Enter your email and password to bring your account and data back.'
+                        :'Works fully offline. Enter your email or mobile and password.',
                     icon:Icons.lock_rounded,
                   ),
                   const SizedBox(height:18),
@@ -153,10 +265,10 @@ class _LoginPageState extends State<LoginPage> {
                                 icon:Icon(obscure?Icons.visibility_rounded:Icons.visibility_off_rounded),
                                 onPressed:()=>setState(()=>obscure=!obscure),
                               ),
-                              helperText:mode==_Mode.login?null:'Min 8 characters, with a letter and a number',
+                              helperText:(mode==_Mode.login||mode==_Mode.restore)?null:'Min 8 characters, with a letter and a number',
                             ),
                           ),
-                          if(mode!=_Mode.login) ...[
+                          if(mode==_Mode.create||mode==_Mode.recover) ...[
                             const SizedBox(height:12),
                             TextField(
                               controller:confirm,
@@ -193,9 +305,9 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height:8),
                             OutlinedButton.icon(
-                              onPressed:busy?null:()=>_switch(_Mode.login),
-                              icon:const Icon(Icons.login_rounded),
-                              label:const Text('Sign in'),
+                              onPressed:busy?null:()=>_switch(auth.hasAccounts?_Mode.login:_Mode.restore),
+                              icon:const Icon(Icons.cloud_download_rounded),
+                              label:Text(auth.hasAccounts?'Sign in':'Find my existing account'),
                             ),
                           ],
                           if(mode==_Mode.login&&auth.hasAccounts)
@@ -203,20 +315,14 @@ class _LoginPageState extends State<LoginPage> {
                               onPressed:busy?null:()=>_switch(_Mode.recover),
                               child:const Text('Forgot password? Use recovery code'),
                             ),
-                          if(mode==_Mode.login&&!auth.hasAccounts)
-                            Padding(
-                              padding:const EdgeInsets.only(top:2),
-                              child:Text(
-                                'Sign in works with an account already saved on this device.',
-                                textAlign:TextAlign.center,
-                                style:Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                          if(mode==_Mode.login&&!auth.hasAccounts)
-                            TextButton(
+                          if(mode==_Mode.restore) ...[
+                            const Divider(height:20),
+                            OutlinedButton.icon(
                               onPressed:busy?null:()=>_switch(_Mode.create),
-                              child:const Text('New here? Create admin account'),
+                              icon:const Icon(Icons.add_circle_outline_rounded),
+                              label:const Text("I'm new - create a new account"),
                             ),
+                          ],
                           if(mode==_Mode.recover)
                             TextButton(onPressed:busy?null:()=>_switch(_Mode.login),child:const Text('Back to sign in')),
                         ],

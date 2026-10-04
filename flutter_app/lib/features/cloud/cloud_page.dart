@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/cloud/cloud_account.dart';
 import '../../core/cloud/cloud_backup_service.dart';
 import '../../core/migration/legacy_migration_service.dart';
+import '../../core/security/local_auth_service.dart' show LocalAuthService;
 import '../../core/ui/qamvio_ui.dart';
 
 class CloudPage extends StatefulWidget {
@@ -470,24 +472,36 @@ class CloudSignInPanel extends StatefulWidget {
   State<CloudSignInPanel> createState()=>_CloudSignInPanelState();
 }
 
+/// Connects THIS device to the cloud backup with the same email and the same
+/// password used to sign in to QAMVIO (no separate cloud password).
 class _CloudSignInPanelState extends State<CloudSignInPanel> {
-  final id=TextEditingController();
   final password=TextEditingController();
-  bool signup=false;
+  final legacy=TextEditingController();
   bool busy=false;
+  bool showLegacy=false;
   String message='';
 
   @override
   void dispose() {
-    id.dispose();
     password.dispose();
+    legacy.dispose();
     super.dispose();
   }
 
+  String _text(CloudSignInResult r)=>switch(r){
+    CloudSignInResult.signedIn=>'Connected. Your data will be backed up automatically.',
+    CloudSignInResult.needsConfirmation=>'Please confirm your email (or SMS) first, then press Connect again.',
+    CloudSignInResult.offline=>'No internet connection.',
+    CloudSignInResult.existingOtherPassword=>'This email already has a cloud account made with a different password. Open "Older cloud password" below and enter it once.',
+    CloudSignInResult.notFound=>'Could not connect. Check your QAMVIO password.',
+    CloudSignInResult.failed=>'Cloud error. Please try again.',
+  };
+
   Future<void> submit() async {
-    final value=id.text.trim();
-    if(value.isEmpty||password.text.length<8) {
-      setState(()=>message='Enter your cloud email/mobile and a password of at least 8 characters.');
+    final user=LocalAuthService.instance.current;
+    if(user==null) return;
+    if(password.text.isEmpty) {
+      setState(()=>message='Enter your QAMVIO password.');
       return;
     }
     setState(() {
@@ -495,16 +509,17 @@ class _CloudSignInPanelState extends State<CloudSignInPanel> {
       message='';
     });
     try {
-      final auth=Supabase.instance.client.auth;
-      final phone=value.startsWith('+');
-      if(signup) {
-        phone?await auth.signUp(phone:value,password:password.text):await auth.signUp(email:value,password:password.text);
-        if(mounted) setState(()=>message='Cloud account created. Confirm your email/SMS if requested, then sign in.');
+      final CloudSignInResult r;
+      if(legacy.text.isNotEmpty) {
+        r=await CloudAccount.connectWithLegacyPassword(
+          loginRaw:user.loginId,
+          password:password.text,
+          legacyPassword:legacy.text,
+        );
       } else {
-        phone?await auth.signInWithPassword(phone:value,password:password.text):await auth.signInWithPassword(email:value,password:password.text);
+        r=await CloudAccount.signIn(user.loginId,password.text,createIfMissing:true);
       }
-    } on AuthException catch(e) {
-      if(mounted) setState(()=>message=e.message);
+      if(mounted) setState(()=>message=_text(r));
     } catch(e) {
       if(mounted) setState(()=>message='Cloud error: $e');
     } finally {
@@ -513,21 +528,40 @@ class _CloudSignInPanelState extends State<CloudSignInPanel> {
   }
 
   @override
-  Widget build(BuildContext context)=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(16),
-      child:Column(
-        crossAxisAlignment:CrossAxisAlignment.stretch,
-        children:[
-          TextField(controller:id,enabled:!busy,decoration:const InputDecoration(labelText:'Cloud email or mobile (+93...)')),
-          const SizedBox(height:10),
-          TextField(controller:password,enabled:!busy,obscureText:true,decoration:const InputDecoration(labelText:'Cloud password')),
-          if(message.isNotEmpty) Padding(padding:const EdgeInsets.only(top:10),child:Text(message)),
-          const SizedBox(height:12),
-          FilledButton(onPressed:busy?null:submit,child:Text(signup?'Create cloud account':'Connect cloud account')),
-          TextButton(onPressed:busy?null:()=>setState(()=>signup=!signup),child:Text(signup?'I already have a cloud account':'Create a cloud account')),
-        ],
+  Widget build(BuildContext context) {
+    final user=LocalAuthService.instance.current;
+    final primary=LocalAuthService.instance.primaryAdminLoginId;
+    if(user==null||user.loginId!=primary) {
+      return Card(
+        child:Padding(
+          padding:const EdgeInsets.all(16),
+          child:Text('Cloud backup is managed by the owner account ${primary??''}. Sign in with that account to connect it.'),
+        ),
+      );
+    }
+    return Card(
+      child:Padding(
+        padding:const EdgeInsets.all(16),
+        child:Column(
+          crossAxisAlignment:CrossAxisAlignment.stretch,
+          children:[
+            Text('Backup account: ${user.loginId}',style:const TextStyle(fontWeight:FontWeight.w800)),
+            const SizedBox(height:4),
+            const Text('Use the same password you use to sign in to QAMVIO.'),
+            const SizedBox(height:10),
+            TextField(controller:password,enabled:!busy,obscureText:true,decoration:const InputDecoration(labelText:'QAMVIO password')),
+            TextButton(
+              onPressed:busy?null:()=>setState(()=>showLegacy=!showLegacy),
+              child:Text(showLegacy?'Hide older cloud password':'Older cloud password (only if asked)'),
+            ),
+            if(showLegacy)
+              TextField(controller:legacy,enabled:!busy,obscureText:true,decoration:const InputDecoration(labelText:'Older separate cloud password')),
+            if(message.isNotEmpty) Padding(padding:const EdgeInsets.only(top:10),child:Text(message)),
+            const SizedBox(height:12),
+            FilledButton(onPressed:busy?null:submit,child:const Text('Connect cloud backup')),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

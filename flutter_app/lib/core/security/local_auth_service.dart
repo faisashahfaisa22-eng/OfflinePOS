@@ -130,6 +130,14 @@ class LocalAuthService extends ChangeNotifier {
   bool get isAdmin=>_current?.role==UserRole.admin;
   List<AuthUser> get users=>List.unmodifiable(_users);
 
+  /// Login id of the first Admin. This account owns the cloud backup.
+  String? get primaryAdminLoginId {
+    for(final u in _users) {
+      if(u.role==UserRole.admin) return u.loginId;
+    }
+    return null;
+  }
+
   // ---------------------------------------------------------------- identity
 
   static String normalizeLoginId(String raw) {
@@ -415,6 +423,58 @@ class LocalAuthService extends ChangeNotifier {
     await _save();
     notifyListeners();
     return code;
+  }
+
+  /// Fresh-install restore: re-creates every account stored in a cloud backup
+  /// and opens a new encrypted database with the SAME data key, so passwords
+  /// and recovery codes keep working. The user is NOT signed in yet (the UI
+  /// stays on the login page) until [completeRestoredSignIn] is called after
+  /// the business data has been restored.
+  Future<void> installBackedUpAccounts({
+    required List<Map<String,dynamic>> entries,
+    required Uint8List dek,
+  }) async {
+    if(hasAccounts) throw const AuthException('An account already exists on this device.');
+    final restored=<AuthUser>[];
+    for(var i=0;i<entries.length;i++) {
+      final e=entries[i];
+      restored.add(AuthUser(
+        id:(e['id'] as String?) ?? CryptoUtils.randomSaltHex(8),
+        loginId:e['loginId'] as String,
+        role:e['role'] is String
+          ?UserRoleX.parse(e['role'] as String)
+          :(i==0?UserRole.admin:UserRole.cashier),
+        salesmanId:(e['salesmanId'] as String?) ?? '',
+        active:(e['active'] as bool?) ?? true,
+        createdAt:(e['createdAt'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
+        kekSalt:e['kekSalt'] as String,
+        wdekPw:Map<String,String>.from(e['wdekPw'] as Map),
+        recSalt:e['recSalt'] as String,
+        wdekRec:Map<String,String>.from(e['wdekRec'] as Map),
+      ));
+    }
+    _users=restored;
+    await _save();
+    _dek=dek;
+    await AppDatabase.instance.unlock(dek);
+    await AppDatabase.instance.database; // creates the empty encrypted DB
+  }
+
+  /// Signs the restored user in (switches the app from the login page to the dashboard).
+  void completeRestoredSignIn(String loginId) {
+    _current=_users.firstWhere((u)=>u.loginId==loginId);
+    notifyListeners();
+  }
+
+  /// Undoes [installBackedUpAccounts] when the data restore fails. Only valid on
+  /// a fresh install, where nothing but the failed restore exists.
+  Future<void> discardRestoredAccounts() async {
+    _users=[];
+    _current=null;
+    _dek=null;
+    await _store.delete(key:_storeKey);
+    await AppDatabase.instance.deleteFile();
+    notifyListeners();
   }
 
   /// Key used to encrypt cloud backups. Only available while unlocked.

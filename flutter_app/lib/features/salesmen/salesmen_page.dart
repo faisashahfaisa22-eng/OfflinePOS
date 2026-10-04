@@ -22,7 +22,7 @@ class _SalesmenPageState extends State<SalesmenPage> {
   final creditLimit=TextEditingController(text:'0');
   final note=TextEditingController();
 
-  bool get canEdit=>LocalAuthService.instance.isAdmin;
+  bool get canEdit=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {
@@ -119,7 +119,7 @@ class _SalesmenPageState extends State<SalesmenPage> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
-    if(!canEdit) return;
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(

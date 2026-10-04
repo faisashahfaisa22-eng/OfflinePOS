@@ -413,7 +413,7 @@ class CloudBackupService {
         .limit(take);
 
     for (final raw in rows) {
-      if (raw is! Map || raw['payload'] is! Map) continue;
+      if (raw['payload'] is! Map) continue;
       final id = raw['id'];
       result.add(
         _infoFromEnvelope(

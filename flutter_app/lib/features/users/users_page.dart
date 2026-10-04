@@ -140,6 +140,7 @@ class _UsersPageState extends State<UsersPage> {
   }
 
   Future<void> _deleteUser(AuthUser user) async {
+    if (!LocalAuthService.instance.canDelete) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

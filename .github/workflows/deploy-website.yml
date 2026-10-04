@@ -11,7 +11,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  actions: read
+  contents: write
   pages: write
   id-token: write
 
@@ -30,6 +31,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Publish Play Store AAB release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARTIFACT_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=QAMVIO-PlayStore-AAB-v16&per_page=100" --jq '.artifacts | map(select(.expired == false)) | sort_by(.created_at) | last | .id // empty')"
+          test -n "$ARTIFACT_ID"
+          rm -rf /tmp/qamvio-aab /tmp/qamvio-aab.zip
+          mkdir -p /tmp/qamvio-aab
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > /tmp/qamvio-aab.zip
+          unzip -j /tmp/qamvio-aab.zip '*.aab' -d /tmp/qamvio-aab
+          AAB="$(find /tmp/qamvio-aab -maxdepth 1 -type f -name '*.aab' -print -quit)"
+          test -s "$AAB"
+          cp "$AAB" /tmp/QAMVIO-v16.0.0-build16.aab
+          gh release upload v1.0.0 /tmp/QAMVIO-v16.0.0-build16.aab --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5

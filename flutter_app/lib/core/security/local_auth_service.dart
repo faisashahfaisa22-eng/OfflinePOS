@@ -22,7 +22,7 @@ extension UserRoleX on UserRole {
     UserRole.admin=>'Full access, users and backup.',
     UserRole.manager=>'Everything except users, backup, owner money and deleting records.',
     UserRole.cashier=>'Sales, fuel pump, stock and statements.',
-    UserRole.salesman=>'Own sales, own customers and own statement only (needs a linked salesman). No stock changes.',
+    UserRole.salesman=>'Own sales and fuel shifts; own customers and statements; stock and stock ledger are view-only. No stock adjustments.',
     UserRole.viewer=>'View only: stock, statements and reports. Cannot change anything.',
   };
   static UserRole parse(String v)=>UserRole.values.firstWhere(
@@ -152,7 +152,7 @@ class LocalAuthService extends ChangeNotifier {
   bool get isSalesmanUser=>_current!=null&&_current!.role==UserRole.salesman;
   String get ownSalesmanId=>isSalesmanUser?_current!.salesmanId:'';
 
-  /// Can record sales and stock changes (everyone signed in except Viewer).
+  /// Can record sales (everyone signed in except Viewer). Manual stock adjustments use canAdjustStock.
   bool get canSell=>_current!=null&&!isViewer;
   List<AuthUser> get users=>List.unmodifiable(_users);
 

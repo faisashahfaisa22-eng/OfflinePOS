@@ -319,9 +319,16 @@ class _FuelPageState extends State<FuelPage> {
 
   Future<void> meterSaleDialog() async {
     if(nozzles.isEmpty) return;
+    final auth=LocalAuthService.instance;
+    if(auth.isSalesmanUser&&auth.ownSalesmanId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('This login is not linked to a Salesman account.')),
+      );
+      return;
+    }
     DateTime date=DateTime.now();
     String nozzleId=nozzles.first['id'].toString();
-    String salesmanId=LocalAuthService.instance.ownSalesmanId;
+    String salesmanId=auth.isSalesmanUser?auth.ownSalesmanId:'';
     String customerId='';
     final shift=TextEditingController();
     final invoice=TextEditingController();
@@ -375,10 +382,13 @@ class _FuelPageState extends State<FuelPage> {
                     initialValue:salesmanId,
                     decoration:const InputDecoration(labelText:'Salesman'),
                     items:[
-                      const DropdownMenuItem(value:'',child:Text('Select Salesman')),
+                      if(!LocalAuthService.instance.isSalesmanUser)
+                        const DropdownMenuItem(value:'',child:Text('Select Salesman')),
                       for(final x in salesmen) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
                     ],
-                    onChanged:(v)=>setLocal(()=>salesmanId=v??''),
+                    onChanged:LocalAuthService.instance.isSalesmanUser
+                      ?null
+                      :(v)=>setLocal(()=>salesmanId=v??''),
                   ),
                   const SizedBox(height:10),
                   DropdownButtonFormField<String>(
@@ -432,6 +442,21 @@ class _FuelPageState extends State<FuelPage> {
       ),
     );
     if(ok==true) {
+      if(LocalAuthService.instance.isSalesmanUser) {
+        final own=LocalAuthService.instance.ownSalesmanId;
+        if(own.isEmpty) return;
+        salesmanId=own;
+        if(customerId.isNotEmpty&&!customers.any(
+          (c)=>c['id']?.toString()==customerId&&c['salesman_id']?.toString()==own,
+        )) {
+          if(mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content:Text('You can only use customers linked to your Salesman account.')),
+            );
+          }
+          return;
+        }
+      }
       final o=double.tryParse(opening.text.trim())??0;
       final cl=double.tryParse(closing.text.trim())??0;
       final gross=(cl-o)*_n(price.text);

@@ -112,7 +112,7 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
-    if(!canEdit) return;
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(

@@ -233,6 +233,7 @@ class _StockPageState extends State<StockPage> {
   }
 
   Future<void> addAdjustment() async {
+    if(!LocalAuthService.instance.canAdjustStock) return;
     if(productId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Select product.')),

@@ -49,6 +49,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
   }
 
   Future<void> deletePurchase(Map<String,Object?> x) async {
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(

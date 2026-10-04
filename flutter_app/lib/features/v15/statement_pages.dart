@@ -137,6 +137,7 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await _confirmDelete('Customer loan');
     if(ok) {
       await AppDatabase.instance.softDeleteById('customerLoans',x['id'].toString());
@@ -353,6 +354,7 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
+    if(!LocalAuthService.instance.canDelete) return;
     if((x['source']?.toString()??'manual')!='manual') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Automatic invoice entry must be deleted/edited from Sales.')),

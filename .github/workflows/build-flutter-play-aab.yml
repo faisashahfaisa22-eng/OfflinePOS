@@ -2,7 +2,7 @@ name: Build and Publish QAMVIO Flutter AAB
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [ "flutter/qamvio-core" ]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 

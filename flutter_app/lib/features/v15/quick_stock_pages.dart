@@ -232,6 +232,7 @@ class _StockPageState extends State<StockPage> {
   }
 
   Future<void> addAdjustment() async {
+    if(!LocalAuthService.instance.canAdjustStock) return;
     if(productId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Select product.')),
@@ -283,7 +284,7 @@ class _StockPageState extends State<StockPage> {
                 child:const Text('Current Stock = Opening + Purchases + Adjustments − Sold Qty.'),
               ),
               const SizedBox(height:10),
-              if(products.isNotEmpty)
+              if(products.isNotEmpty&&LocalAuthService.instance.canAdjustStock)
                 Card(
                   child:Padding(
                     padding:const EdgeInsets.all(12),

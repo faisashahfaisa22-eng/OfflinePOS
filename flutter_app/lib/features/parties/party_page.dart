@@ -331,7 +331,7 @@ class _PartyPageState extends State<PartyPage> {
                                 mainAxisSize:MainAxisSize.min,
                                 children:[
                                   if(canEdit) IconButton(onPressed:()=>addSupplierTransaction(x),icon:const Icon(Icons.edit_outlined)),
-                                  if(canEdit) IconButton(onPressed:()=>removeSupplierTransaction(x),icon:const Icon(Icons.delete_outline_rounded)),
+                                  if(LocalAuthService.instance.canDelete) IconButton(onPressed:()=>removeSupplierTransaction(x),icon:const Icon(Icons.delete_outline_rounded)),
                                 ],
                               )),
                             ]),
@@ -434,7 +434,7 @@ class _PartyPageState extends State<PartyPage> {
                     mainAxisSize:MainAxisSize.min,
                     children:[
                       if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                      if(canEdit) IconButton(onPressed:()=>removeMaster(x),icon:const Icon(Icons.delete_outline_rounded)),
+                      if(LocalAuthService.instance.canDelete) IconButton(onPressed:()=>removeMaster(x),icon:const Icon(Icons.delete_outline_rounded)),
                     ],
                   )),
                 ]

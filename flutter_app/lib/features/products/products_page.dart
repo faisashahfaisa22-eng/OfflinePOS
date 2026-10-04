@@ -242,6 +242,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                 onPressed:()=>edit(x),
                                 icon:const Icon(Icons.edit_outlined),
                               ),
+                              if(LocalAuthService.instance.canDelete)
                               IconButton(
                                 tooltip:'Delete',
                                 onPressed:()=>remove(x),

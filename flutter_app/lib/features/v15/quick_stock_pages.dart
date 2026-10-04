@@ -284,7 +284,7 @@ class _StockPageState extends State<StockPage> {
                 child:const Text('Current Stock = Opening + Purchases + Adjustments − Sold Qty.'),
               ),
               const SizedBox(height:10),
-              if(products.isNotEmpty&&LocalAuthService.instance.canSell)
+              if(products.isNotEmpty&&LocalAuthService.instance.canAdjustStock)
                 Card(
                   child:Padding(
                     padding:const EdgeInsets.all(12),

@@ -201,7 +201,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                         mainAxisSize:MainAxisSize.min,
                         children:[
                           if(canEdit) IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                          if(canEdit) IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
+                          if(LocalAuthService.instance.canDelete) IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
                         ],
                       )),
                     ]),

@@ -234,7 +234,7 @@ class _SalesmenPageState extends State<SalesmenPage> {
                               onPressed:()=>edit(x),
                               icon:const Icon(Icons.edit_outlined),
                             ),
-                          if(canEdit)
+                          if(LocalAuthService.instance.canDelete)
                             IconButton(
                               tooltip:'Delete',
                               onPressed:()=>remove(x),

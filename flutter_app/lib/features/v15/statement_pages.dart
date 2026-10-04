@@ -186,7 +186,7 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
                         children:[
                           if(LocalAuthService.instance.canEdit)
                             IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                          if(LocalAuthService.instance.canEdit)
+                          if(LocalAuthService.instance.canDelete)
                             IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
                         ],
                       )),
@@ -430,7 +430,7 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
                         children:[
                           if(LocalAuthService.instance.canEdit)
                             IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                          if(LocalAuthService.instance.canEdit)
+                          if(LocalAuthService.instance.canDelete)
                             IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
                         ],
                       )),

@@ -22,7 +22,7 @@ extension UserRoleX on UserRole {
     UserRole.admin=>'Full access, users and backup.',
     UserRole.manager=>'Everything except users, backup, owner money and deleting records.',
     UserRole.cashier=>'Sales, fuel pump, stock and statements.',
-    UserRole.salesman=>'Own sales and own statement only (needs a linked salesman).',
+    UserRole.salesman=>'Own sales, own customers and own statement only (needs a linked salesman). No stock changes.',
     UserRole.viewer=>'View only: stock, statements and reports. Cannot change anything.',
   };
   static UserRole parse(String v)=>UserRole.values.firstWhere(
@@ -144,6 +144,13 @@ class LocalAuthService extends ChangeNotifier {
 
   /// Can add / edit records and master data (Admin or Manager).
   bool get canEdit=>isAdmin||isManager;
+  /// Deleting records (and the Recycle Bin) is Admin only.
+  bool get canDelete=>isAdmin;
+  /// Manual stock quantity changes: Admin, Manager, Cashier. Not Salesman/Viewer.
+  bool get canAdjustStock=>isAdmin||isManager||(_current!=null&&_current!.role==UserRole.cashier);
+  /// True for a Salesman account: sees only own data.
+  bool get isSalesmanUser=>_current!=null&&_current!.role==UserRole.salesman;
+  String get ownSalesmanId=>isSalesmanUser?_current!.salesmanId:'';
 
   /// Can record sales and stock changes (everyone signed in except Viewer).
   bool get canSell=>_current!=null&&!isViewer;

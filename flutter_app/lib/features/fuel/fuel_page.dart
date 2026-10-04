@@ -54,15 +54,23 @@ class _FuelPageState extends State<FuelPage> {
     );
     final p=await db.query('products',orderBy:'name COLLATE NOCASE');
     final sup=await db.query('suppliers',orderBy:'name COLLATE NOCASE');
-    final sm=await db.query('salesmen',orderBy:'name COLLATE NOCASE');
-    final cust=await db.query('customers',orderBy:'name COLLATE NOCASE');
+    final own=LocalAuthService.instance.ownSalesmanId;
+    final isSm=LocalAuthService.instance.isSalesmanUser;
+    final sm=isSm
+        ? await db.query('salesmen',where:'id=?',whereArgs:[own],orderBy:'name COLLATE NOCASE')
+        : await db.query('salesmen',orderBy:'name COLLATE NOCASE');
+    final cust=isSm
+        ? await db.query('customers',where:'salesman_id=?',whereArgs:[own],orderBy:'name COLLATE NOCASE')
+        : await db.query('customers',orderBy:'name COLLATE NOCASE');
     final sh=await db.rawQuery(
       'SELECT f.*,n.name nozzle_name,t.name tank_name,sm.name salesman_name,c.name customer_name '
       'FROM fuel_shifts f JOIN fuel_nozzles n ON n.id=f.nozzle_id '
       'LEFT JOIN fuel_tanks t ON t.id=f.tank_id '
       'LEFT JOIN salesmen sm ON sm.id=f.salesman_id '
       'LEFT JOIN customers c ON c.id=f.customer_id '
+      '${isSm?"WHERE f.salesman_id=? ":""}'
       'ORDER BY f.started_at DESC LIMIT 100',
+      isSm?[own]:null,
     );
     final d=await db.rawQuery(
       "SELECT p.*,s.name supplier_name,t.name tank_name,"
@@ -313,7 +321,7 @@ class _FuelPageState extends State<FuelPage> {
     if(nozzles.isEmpty) return;
     DateTime date=DateTime.now();
     String nozzleId=nozzles.first['id'].toString();
-    String salesmanId='';
+    String salesmanId=LocalAuthService.instance.ownSalesmanId;
     String customerId='';
     final shift=TextEditingController();
     final invoice=TextEditingController();

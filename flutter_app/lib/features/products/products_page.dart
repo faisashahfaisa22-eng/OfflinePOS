@@ -22,7 +22,7 @@ class _ProductsPageState extends State<ProductsPage> {
   final openingQty=TextEditingController(text:'0');
   final reorderLevel=TextEditingController(text:'0');
 
-  bool get canEdit=>LocalAuthService.instance.isAdmin;
+  bool get canEdit=>LocalAuthService.instance.canEdit;
 
   @override
   void initState() {
@@ -112,7 +112,7 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
-    if(!canEdit) return;
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(

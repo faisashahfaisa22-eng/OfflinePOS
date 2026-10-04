@@ -1,0 +1,94 @@
+name: Apply QAMVIO Unified Account Package
+
+on:
+  push:
+    branches:
+      - flutter/qamvio-core
+    paths:
+      - ".qamvio-upload/**"
+      - ".github/workflows/apply-unified-account.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: flutter/qamvio-core
+
+      - name: Rebuild and verify uploaded package
+        run: |
+          cat .qamvio-upload/part1.b64 \
+              .qamvio-upload/part2.b64 \
+              .qamvio-upload/part3.b64 \
+              .qamvio-upload/part4.b64 \
+            | tr -d '\n\r ' | base64 -d > /tmp/qamvio-unified-account.zip
+
+          echo "a608042a946db2b83df482d7ced93bd25ae01ea9d602ef54f4c5f3b5e292a7cd  /tmp/qamvio-unified-account.zip" | sha256sum -c -
+          unzip -t /tmp/qamvio-unified-account.zip
+
+          expected="$(cat <<'EOF'
+flutter_app/lib/core/cloud/cloud_account.dart
+flutter_app/lib/core/cloud/cloud_backup_service.dart
+flutter_app/lib/core/database/app_database.dart
+flutter_app/lib/core/security/crypto_utils.dart
+flutter_app/lib/core/security/local_auth_service.dart
+flutter_app/lib/features/auth/login_page.dart
+flutter_app/lib/features/cloud/cloud_page.dart
+EOF
+)"
+          actual="$(unzip -Z1 /tmp/qamvio-unified-account.zip)"
+          test "$actual" = "$expected"
+
+          unzip -o /tmp/qamvio-unified-account.zip -d .
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create Android platform
+        working-directory: flutter_app
+        run: flutter create --platforms=android --org com.qamvio --project-name qamvio_pos .
+
+      - name: Validate Flutter package
+        working-directory: flutter_app
+        run: |
+          flutter clean
+          flutter pub get
+          flutter analyze
+          flutter test
+          flutter build apk --release
+
+      - name: Upload validated APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Unified-Account-APK
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Commit unified account update
+        run: |
+          rm -rf .qamvio-upload
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            flutter_app/lib/core/cloud/cloud_account.dart \
+            flutter_app/lib/core/cloud/cloud_backup_service.dart \
+            flutter_app/lib/core/database/app_database.dart \
+            flutter_app/lib/core/security/crypto_utils.dart \
+            flutter_app/lib/core/security/local_auth_service.dart \
+            flutter_app/lib/features/auth/login_page.dart \
+            flutter_app/lib/features/cloud/cloud_page.dart
+          git add -u .qamvio-upload
+          if git diff --cached --quiet; then
+            echo "No package changes to commit."
+          else
+            git commit -m "Apply unified QAMVIO account and cloud restore"
+            git push origin HEAD:flutter/qamvio-core
+          fi

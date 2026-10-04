@@ -47,6 +47,8 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
   /// background.
   static const autoLockAfter = Duration(minutes: 5);
   DateTime? _pausedAt;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  bool _wasUnlocked = false;
 
   @override
   void initState() {
@@ -97,7 +99,20 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
         final s = controller.strings;
         final auth = LocalAuthService.instance;
 
+        // When the app locks (auto-lock, Logout) close every page that was
+        // opened on top of the dashboard. Otherwise a page such as
+        // "Users / Login" stays on screen with a locked database and signed-out
+        // user, and actions fail with "Admin access required.".
+        final unlocked = auth.unlocked;
+        if (_wasUnlocked && !unlocked) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+          });
+        }
+        _wasUnlocked = unlocked;
+
         return MaterialApp(
+          navigatorKey: _navigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'QAMVIO POS',
           builder: (context, child) => Directionality(

@@ -180,9 +180,7 @@ jobs:
               options: OpenDatabaseOptions(
                 version: 1,
                 onConfigure: (db) async {
-                  await db.execute("PRAGMA cipher = 'sqlcipher'");
-                  await db.execute('PRAGMA legacy = 4');
-                  await db.execute('PRAGMA key = "x\'$keyHex\'"');
+                  await db.execute("PRAGMA key = 'raw:$keyHex'");
                   await db.rawQuery('SELECT count(*) FROM sqlite_master');
                 },
                 onCreate: (db, version) async {
@@ -215,11 +213,13 @@ jobs:
               }
 
               final db = await openEncrypted(goodKey);
-              final cipher = await db.rawQuery('PRAGMA cipher_version');
-              final cipherVersion =
-                  cipher.isEmpty ? '' : cipher.first.values.first?.toString() ?? '';
-              if (cipherVersion.isEmpty) {
-                throw StateError('Encrypted SQLite cipher is unavailable.');
+              final cipher = await db.rawQuery(
+                "SELECT sqlite3mc_config('cipher') AS cipher",
+              );
+              final cipherId =
+                  cipher.isEmpty ? '' : cipher.first['cipher']?.toString() ?? '';
+              if (cipherId.isEmpty || cipherId == '-1') {
+                throw StateError('SQLite3MC encryption is unavailable.');
               }
 
               if (phase == 'write') {
@@ -229,7 +229,7 @@ jobs:
                   conflictAlgorithm: ConflictAlgorithm.replace,
                 );
                 await db.close();
-                done('QAMVIO_WRITE_PASS cipher=$cipherVersion');
+                done('QAMVIO_WRITE_PASS cipher=$cipherId');
                 return;
               }
 
@@ -249,7 +249,7 @@ jobs:
                 if (await f.databaseExists(databaseName)) {
                   await f.deleteDatabase(databaseName);
                 }
-                done('QAMVIO_READ_PASS cipher=$cipherVersion');
+                done('QAMVIO_READ_PASS cipher=$cipherId');
                 return;
               }
 

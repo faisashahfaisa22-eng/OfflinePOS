@@ -42,12 +42,13 @@ Future<Database> openQamvioDatabase({
     options: OpenDatabaseOptions(
       version: version,
       onConfigure: (db) async {
-        await db.execute("PRAGMA cipher = 'sqlcipher'");
-        await db.execute('PRAGMA legacy = 4');
-        await db.execute('PRAGMA key = "x\'$keyHex\'"');
+        // SQLite3MC's browser build uses its default ChaCha20-Poly1305
+        // cipher. Supply QAMVIO's 256-bit DEK as raw key material so no
+        // browser-side passphrase KDF is needed.
+        await db.execute("PRAGMA key = 'raw:$keyHex'");
 
-        // Force a real read immediately. PRAGMA key itself reports success
-        // even for a wrong key; reading sqlite_master validates decryption.
+        // Force a real read immediately. Setting a key itself can appear to
+        // succeed even when it is wrong; reading sqlite_master validates it.
         await db.rawQuery('SELECT count(*) FROM sqlite_master');
         await onConfigure(db);
       },

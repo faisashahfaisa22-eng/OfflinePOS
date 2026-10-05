@@ -220,12 +220,12 @@ jobs:
           cat /tmp/qamvio-web-db-test.log
           rm -f test/web_database_runtime_test.dart
 
-          if grep -q "QAMVIO_WEB_DB_TEST_PASS" /tmp/qamvio-web-db-test.log; then
+          if grep -q "✅ web database is encrypted and persists after lock/reopen" /tmp/qamvio-web-db-test.log; then
             echo "PASS: encrypted SQLite WASM persisted business data after lock/reopen."
             exit 0
           fi
 
-          echo "::error::Encrypted browser database runtime test did not reach its PASS marker (exit $status)."
+          echo "::error::Encrypted browser database runtime test did not report PASS (exit $status)."
           exit "${status:-1}"
 
       - name: Build web release

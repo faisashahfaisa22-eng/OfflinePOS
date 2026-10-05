@@ -199,6 +199,51 @@ jobs:
           timeout 150 flutter test --platform chrome test/web_database_runtime_test.dart
           rm -f test/web_database_runtime_test.dart
 
+      - name: Browser database persistence smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p flutter_app/test_web
+          cat > flutter_app/test_web/web_database_smoke_test.dart <<'DART'
+          @TestOn('browser')
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:qamvio_pos/core/database/app_database.dart';
+
+          void main() {
+            TestWidgetsFlutterBinding.ensureInitialized();
+
+            test('web database opens, writes, locks, reopens and persists', () async {
+              final db = AppDatabase.instance;
+              final key = List<int>.generate(32, (i) => i + 1);
+              final id = 'web-smoke-persistent-product';
+
+              await db.unlock(key);
+              await db.database;
+              await db.saveProduct(
+                id: id,
+                name: 'Web Smoke Product',
+                stock: 7,
+                price: 11,
+                cost: 5,
+              );
+
+              final before = await db.products();
+              expect(before.any((row) => row['id'] == id), isTrue);
+
+              await db.lock();
+              await db.unlock(key);
+              await db.database;
+
+              final after = await db.products();
+              expect(after.any((row) => row['id'] == id), isTrue);
+
+              await db.lock();
+            });
+          }
+          DART
+          cd flutter_app
+          flutter test --platform chrome test_web/web_database_smoke_test.dart
+
       - name: Build web release
         working-directory: flutter_app
         run: flutter build web --release

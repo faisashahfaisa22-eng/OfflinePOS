@@ -10,6 +10,7 @@ dependencies:
   sqflite_sqlcipher: ^3.1.0+1
   sqflite_common: ^2.5.4
   sqflite_common_ffi_web: ^1.2.0
+  sqflite_common_ffi: ^2.4.3
   sqlite3: ^3.7.0
   flutter_secure_storage: ^10.0.0
   path: ^1.9.0
@@ -29,6 +30,7 @@ dependencies:
   pdf: ^3.11.3
   share_plus: ^10.1.4
   web: ^1.1.1
+  idb_shim: ^2.9.10
 dev_dependencies:
   flutter_test:
     sdk: flutter

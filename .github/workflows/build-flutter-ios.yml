@@ -121,7 +121,7 @@ jobs:
           )
           text = re.sub(
               r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;",
-              "IPHONEOS_DEPLOYMENT_TARGET = 14.0;",
+              "IPHONEOS_DEPLOYMENT_TARGET = 15.5;",
               text,
           )
           pbx.write_text(text, encoding="utf-8")
@@ -175,7 +175,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" flutter_app/ios/Runner/Info.plist | grep -Fx "QAMVIO POS"
           /usr/libexec/PlistBuddy -c "Print :BGTaskSchedulerPermittedIdentifiers:0" flutter_app/ios/Runner/Info.plist | grep -Fx "com.offlinepos.accounts.dailyBackup"
           grep -q "PRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.accounts;" flutter_app/ios/Runner.xcodeproj/project.pbxproj
-          grep -q "IPHONEOS_DEPLOYMENT_TARGET = 14.0;" flutter_app/ios/Runner.xcodeproj/project.pbxproj
+          grep -q "IPHONEOS_DEPLOYMENT_TARGET = 15.5;" flutter_app/ios/Runner.xcodeproj/project.pbxproj
           grep -q "keychain-access-groups" flutter_app/ios/Runner/Runner.entitlements
 
       - name: Build unsigned iPhone app

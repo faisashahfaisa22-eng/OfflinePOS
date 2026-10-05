@@ -155,9 +155,8 @@ jobs:
           set -euo pipefail
 
           cat > flutter_app/lib/web_database_smoke_main.dart <<'DART'
-          import 'dart:html' as html;
-
           import 'package:flutter/widgets.dart';
+          import 'package:web/web.dart' as web;
           import 'package:qamvio_pos/core/database/app_database.dart';
 
           Future<void> main() async {
@@ -169,7 +168,7 @@ jobs:
             const id = 'web-smoke-product-v16';
 
             void done(String value) {
-              html.document.body?.text = value;
+              web.document.body?.textContent = value;
             }
 
             try {

@@ -287,22 +287,66 @@ jobs:
           run_phase() {
             phase="$1"
             expected="$2"
-            output="/tmp/qamvio-db-$phase.html"
-            "$chrome"               --headless=new               --no-sandbox               --disable-dev-shm-usage               --disable-gpu               --user-data-dir="$profile"               --virtual-time-budget=30000               --dump-dom               "http://127.0.0.1:8765/?phase=$phase"               >"$output" 2>/tmp/qamvio-chrome-$phase.log
+            log="/tmp/qamvio-chrome-$phase.log"
+            rm -f "$log"
 
-            cat "$output"
-            if ! grep -q "$expected" "$output"; then
-              echo "::error::Expected $expected was not emitted in Chrome phase $phase"
-              echo "----- Chrome stderr ($phase) -----"
-              cat "/tmp/qamvio-chrome-$phase.log" || true
-              echo "----- HTTP server -----"
-              cat /tmp/qamvio-db-http.log || true
-              exit 1
-            fi
-            if grep -q "QAMVIO_DB_FAIL\|QAMVIO_WRONG_KEY_FAIL" "$output"; then
-              echo "::error::Encrypted browser database smoke test failed in phase $phase"
-              exit 1
-            fi
+            "$chrome" \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --disable-gpu \
+              --remote-debugging-port=9222 \
+              --user-data-dir="$profile" \
+              "http://127.0.0.1:8765/?phase=$phase" \
+              >"$log" 2>&1 &
+            chrome_pid=$!
+
+            title=""
+            for _ in $(seq 1 45); do
+              title="$(python3 - <<'PY'
+          import json
+          import urllib.request
+
+          try:
+              with urllib.request.urlopen(
+                  "http://127.0.0.1:9222/json/list", timeout=1
+              ) as response:
+                  pages = json.load(response)
+              page = next(
+                  (item for item in pages if item.get("type") == "page"),
+                  None,
+              )
+              print((page or {}).get("title", ""))
+          except Exception:
+              print("")
+          PY
+              )"
+
+              echo "Chrome phase $phase title: $title"
+              if [[ "$title" == "$expected"* ]]; then
+                kill "$chrome_pid" 2>/dev/null || true
+                wait "$chrome_pid" 2>/dev/null || true
+                return 0
+              fi
+              if [[ "$title" == QAMVIO_DB_FAIL* || "$title" == QAMVIO_WRONG_KEY_FAIL* ]]; then
+                echo "::error::Encrypted browser database smoke test failed in phase $phase: $title"
+                cat "$log" || true
+                kill "$chrome_pid" 2>/dev/null || true
+                wait "$chrome_pid" 2>/dev/null || true
+                return 1
+              fi
+              sleep 1
+            done
+
+            echo "::error::Expected $expected was not emitted in Chrome phase $phase"
+            echo "Last page title: $title"
+            echo "----- Chrome stderr ($phase) -----"
+            cat "$log" || true
+            echo "----- HTTP server -----"
+            cat /tmp/qamvio-db-http.log || true
+            kill "$chrome_pid" 2>/dev/null || true
+            wait "$chrome_pid" 2>/dev/null || true
+            return 1
           }
 
           run_phase write QAMVIO_WRITE_PASS

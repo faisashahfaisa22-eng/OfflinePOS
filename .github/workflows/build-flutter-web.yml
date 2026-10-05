@@ -88,10 +88,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dart run sqflite_common_ffi_web:setup --force
-          curl -fL --retry 3             "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-3.7.0/sqlite3mc.wasm"             -o web/sqlite3mc.wasm
+          curl -fL --retry 3 \
+            "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-3.7.0/sqlite3mc.wasm" \
+            -o web/sqlite3mc.wasm
           echo "7271cf8fdf625b03d41dd43ae1d500cf855755f35ca575372022315b15f5a19e  web/sqlite3mc.wasm" | sha256sum -c -
-          test -s web/sqflite_sw.js
 
       - name: Brand PWA install icons
         shell: bash
@@ -149,46 +149,38 @@ jobs:
         working-directory: flutter_app
         run: flutter test
 
-      - name: Test encrypted SQLite directly in Chrome
+      - name: Test encrypted SQLite persistence in Chrome
         shell: bash
         run: |
           set -euo pipefail
 
           mkdir -p /tmp/qamvio-db-smoke
           cat > flutter_app/tool_web_database_smoke.dart <<'DART'
+          import 'dart:convert';
+
+          import 'package:qamvio_pos/core/database/database_driver.dart' as driver;
+          import 'package:qamvio_pos/core/database/web_encrypted_store.dart';
           import 'package:sqflite_common/sqlite_api.dart';
-          import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
           import 'package:web/web.dart' as web;
 
-          const databaseName = 'qamvio_web_smoke.db';
           const goodKey =
               '0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20';
           const wrongKey =
               'fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0';
 
-          DatabaseFactory factory() => createDatabaseFactoryFfiWeb(
-                options: SqfliteFfiWebOptions(
-                  sqlite3WasmUri: Uri.parse('sqlite3mc.wasm'),
-                  sharedWorkerUri: Uri.parse('sqflite_sw.js'),
-                  indexedDbName: 'qamvio_web_smoke_v16',
-                ),
-              );
-
-          Future<Database> openEncrypted(String keyHex) {
-            return factory().openDatabase(
-              databaseName,
-              options: OpenDatabaseOptions(
-                version: 1,
-                onConfigure: (db) async {
-                  await db.execute("PRAGMA key = 'raw:$keyHex'");
-                  await db.rawQuery('SELECT count(*) FROM sqlite_master');
-                },
-                onCreate: (db, version) async {
-                  await db.execute(
-                    'CREATE TABLE products (id TEXT PRIMARY KEY, name TEXT NOT NULL)',
-                  );
-                },
-              ),
+          Future<Database> openDatabase(String keyHex) {
+            return driver.openQamvioDatabase(
+              keyHex: keyHex,
+              version: 1,
+              onConfigure: (db) async {
+                await db.execute('PRAGMA foreign_keys = ON');
+              },
+              onCreate: (db, version) async {
+                await db.execute(
+                  'CREATE TABLE products (id TEXT PRIMARY KEY, name TEXT NOT NULL)',
+                );
+              },
+              onUpgrade: (db, oldVersion, newVersion) async {},
             );
           }
 
@@ -199,10 +191,46 @@ jobs:
 
           Future<void> main() async {
             final phase = Uri.base.queryParameters['phase'] ?? 'write';
+
             try {
+              if (phase == 'write') {
+                await driver.deleteQamvioDatabase();
+                final db = await openDatabase(goodKey);
+                final cipher = await db.rawQuery(
+                  "SELECT sqlite3mc_config('cipher') AS cipher",
+                );
+                final cipherId =
+                    cipher.isEmpty ? '' : cipher.first['cipher']?.toString() ?? '';
+                if (cipherId.isEmpty || cipherId == '-1') {
+                  throw StateError('SQLite3MC encryption is unavailable.');
+                }
+
+                await db.insert(
+                  'products',
+                  {'id': 'web-smoke-product-v16', 'name': 'Web Smoke Product'},
+                  conflictAlgorithm: ConflictAlgorithm.replace,
+                );
+                await db.close();
+
+                final encrypted = await loadEncryptedDatabaseBytes();
+                if (encrypted == null || encrypted.isEmpty) {
+                  throw StateError('Encrypted browser database was not persisted.');
+                }
+                final header = ascii.decode(
+                  encrypted.take(16).toList(),
+                  allowInvalid: true,
+                );
+                if (header.startsWith('SQLite format 3')) {
+                  throw StateError('Browser database was persisted as plaintext.');
+                }
+
+                done('QAMVIO_WRITE_PASS cipher=$cipherId bytes=${encrypted.length}');
+                return;
+              }
+
               if (phase == 'wrong') {
                 try {
-                  final db = await openEncrypted(wrongKey);
+                  final db = await openDatabase(wrongKey);
                   await db.query('products');
                   await db.close();
                   done('QAMVIO_WRONG_KEY_FAIL');
@@ -212,28 +240,8 @@ jobs:
                 return;
               }
 
-              final db = await openEncrypted(goodKey);
-              final cipher = await db.rawQuery(
-                "SELECT sqlite3mc_config('cipher') AS cipher",
-              );
-              final cipherId =
-                  cipher.isEmpty ? '' : cipher.first['cipher']?.toString() ?? '';
-              if (cipherId.isEmpty || cipherId == '-1') {
-                throw StateError('SQLite3MC encryption is unavailable.');
-              }
-
-              if (phase == 'write') {
-                await db.insert(
-                  'products',
-                  {'id': 'web-smoke-product-v16', 'name': 'Web Smoke Product'},
-                  conflictAlgorithm: ConflictAlgorithm.replace,
-                );
-                await db.close();
-                done('QAMVIO_WRITE_PASS cipher=$cipherId');
-                return;
-              }
-
               if (phase == 'read') {
+                final db = await openDatabase(goodKey);
                 final rows = await db.query(
                   'products',
                   where: 'id=?',
@@ -241,19 +249,16 @@ jobs:
                 );
                 if (rows.length != 1 ||
                     rows.first['name'] != 'Web Smoke Product') {
-                  throw StateError('Persisted encrypted browser data was not found.');
+                  throw StateError(
+                    'Persisted encrypted browser data was not found after restart.',
+                  );
                 }
                 await db.close();
-
-                final f = factory();
-                if (await f.databaseExists(databaseName)) {
-                  await f.deleteDatabase(databaseName);
-                }
-                done('QAMVIO_READ_PASS cipher=$cipherId');
+                await driver.deleteQamvioDatabase();
+                done('QAMVIO_READ_PASS');
                 return;
               }
 
-              await db.close();
               throw StateError('Unknown smoke-test phase: $phase');
             } catch (e) {
               done('QAMVIO_DB_FAIL $e');
@@ -262,11 +267,12 @@ jobs:
           DART
 
           cd flutter_app
-          dart compile js tool_web_database_smoke.dart             -O2             -o /tmp/qamvio-db-smoke/main.dart.js
+          dart compile js tool_web_database_smoke.dart \
+            -O2 \
+            -o /tmp/qamvio-db-smoke/main.dart.js
           rm -f tool_web_database_smoke.dart
 
           cp web/sqlite3mc.wasm /tmp/qamvio-db-smoke/sqlite3mc.wasm
-          cp web/sqflite_sw.js /tmp/qamvio-db-smoke/sqflite_sw.js
           cat > /tmp/qamvio-db-smoke/index.html <<'HTML'
           <!doctype html>
           <html>
@@ -275,7 +281,8 @@ jobs:
           </html>
           HTML
 
-          python3 -m http.server 8765 --directory /tmp/qamvio-db-smoke             >/tmp/qamvio-db-http.log 2>&1 &
+          python3 -m http.server 8765 --directory /tmp/qamvio-db-smoke \
+            >/tmp/qamvio-db-http.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 2
@@ -302,7 +309,7 @@ jobs:
             chrome_pid=$!
 
             title=""
-            for _ in $(seq 1 45); do
+            for _ in $(seq 1 60); do
               title="$(python3 - <<'PY'
           import json
           import urllib.request
@@ -326,6 +333,7 @@ jobs:
               if [[ "$title" == "$expected"* ]]; then
                 kill "$chrome_pid" 2>/dev/null || true
                 wait "$chrome_pid" 2>/dev/null || true
+                sleep 1
                 return 0
               fi
               if [[ "$title" == QAMVIO_DB_FAIL* || "$title" == QAMVIO_WRONG_KEY_FAIL* ]]; then
@@ -353,7 +361,7 @@ jobs:
           run_phase wrong QAMVIO_WRONG_KEY_PASS
           run_phase read QAMVIO_READ_PASS
 
-          echo "PASS: Chrome encrypted SQLite persisted data, rejected a wrong key, and cleaned up safely."
+          echo "PASS: encrypted SQLite bytes persisted across Chrome restarts and rejected a wrong key."
 
       - name: Build web release
         working-directory: flutter_app
@@ -367,12 +375,10 @@ jobs:
           test -f flutter_app/build/web/manifest.json
           test -f flutter_app/build/web/flutter_service_worker.js
           test -s flutter_app/build/web/sqlite3mc.wasm
-          test -s flutter_app/build/web/sqflite_sw.js
           grep -q '"display": "standalone"' flutter_app/build/web/manifest.json
           grep -q '"orientation": "any"' flutter_app/build/web/manifest.json
           grep -q 'QAMVIO POS' flutter_app/build/web/index.html
           grep -q 'sqlite3mc.wasm' flutter_app/build/web/flutter_service_worker.js
-          grep -q 'sqflite_sw.js' flutter_app/build/web/flutter_service_worker.js
 
       - name: Package web build
         shell: bash

@@ -14,7 +14,14 @@ DatabaseFactory get _webFactory => _factory ??= createDatabaseFactoryFfiWeb(
     );
 
 Future<void> deleteQamvioDatabase() async {
-  await _webFactory.deleteDatabase(_databaseName);
+  // On a fresh browser profile there may be no IndexedDB/SQLite database yet.
+  // Some web-worker backends report that as an exception instead of treating
+  // delete as a no-op, so check first. This also keeps failed fresh-restore
+  // rollback safe and idempotent.
+  final exists = await _webFactory.databaseExists(_databaseName);
+  if (exists) {
+    await _webFactory.deleteDatabase(_databaseName);
+  }
 }
 
 /// Opens the browser database through SQLite3 Multiple Ciphers WASM.

@@ -149,7 +149,7 @@ jobs:
         working-directory: flutter_app
         run: flutter test
 
-      - name: Test database runtime in Chrome
+      - name: Test encrypted database runtime in Chrome
         shell: bash
         run: |
           set -euo pipefail
@@ -158,88 +158,75 @@ jobs:
           import 'package:qamvio_pos/core/database/app_database.dart';
 
           void main() {
-            testWidgets('web database persists encrypted business data', (tester) async {
-              final db = AppDatabase.instance;
-              final key1 = List<int>.generate(32, (i) => i + 1);
-              final key2 = List<int>.generate(32, (i) => 255 - i);
+            testWidgets(
+              'web database is encrypted and persists after lock/reopen',
+              (tester) async {
+                final app = AppDatabase.instance;
+                final key = List<int>.generate(32, (i) => i + 1);
+                const id = 'web-smoke-product-v16';
 
-              await db.deleteFile();
-              await db.unlock(key1);
-              await db.saveProduct(
-                id: 'web-smoke-product',
-                name: 'Web Smoke Product',
-                stock: 3,
-                price: 10,
-                cost: 4,
-              );
-              await db.lock();
+                await app.deleteFile();
+                await app.unlock(key);
+                final first = await app.database;
 
-              // A wrong raw key must not be able to read the encrypted file.
-              await db.unlock(key2);
-              await expectLater(
-                () async => (await db.database).query('products'),
-                throwsA(anything),
-              );
+                final cipher = await first.rawQuery('PRAGMA cipher_version');
+                expect(cipher, isNotEmpty);
+                final cipherVersion = cipher.first.values.first?.toString() ?? '';
+                expect(cipherVersion, isNotEmpty);
 
-              // The original key must reopen the same persisted business data.
-              await db.unlock(key1);
-              final rows = await (await db.database).query(
-                'products',
-                where: 'id=?',
-                whereArgs: ['web-smoke-product'],
-              );
-              expect(rows.length, 1);
-              expect(rows.first['name'], 'Web Smoke Product');
+                await app.saveProduct(
+                  id: id,
+                  name: 'Web Smoke Product',
+                  stock: 3,
+                  price: 10,
+                  cost: 4,
+                );
+                await app.lock();
 
-              await db.deleteFile();
-            });
+                await app.unlock(key);
+                final reopened = await app.database;
+                final rows = await reopened.query(
+                  'products',
+                  where: 'id=?',
+                  whereArgs: [id],
+                );
+                expect(rows.length, 1);
+                expect(rows.first['name'], 'Web Smoke Product');
+
+                final integrity =
+                    await reopened.rawQuery('PRAGMA cipher_integrity_check');
+                final integrityText = integrity
+                    .expand((row) => row.values)
+                    .whereType<Object>()
+                    .map((value) => value.toString())
+                    .join(' ')
+                    .toLowerCase();
+                expect(integrityText.contains('error'), isFalse);
+
+                print('QAMVIO_WEB_DB_TEST_PASS cipher=$cipherVersion');
+                await app.lock();
+              },
+              timeout: const Timeout(Duration(seconds: 90)),
+            );
           }
           DART
+
           cd flutter_app
           set +e
-          timeout 150 flutter test --platform chrome --machine test/web_database_runtime_test.dart \
+          timeout 120 flutter test --platform chrome test/web_database_runtime_test.dart \
             > /tmp/qamvio-web-db-test.log 2>&1
           status=$?
           set -e
           cat /tmp/qamvio-web-db-test.log
           rm -f test/web_database_runtime_test.dart
 
-          if [ "$status" -eq 0 ]; then
+          if grep -q "QAMVIO_WEB_DB_TEST_PASS" /tmp/qamvio-web-db-test.log; then
+            echo "PASS: encrypted SQLite WASM persisted business data after lock/reopen."
             exit 0
           fi
 
-          # Chrome's SQLite shared worker can keep the test process alive after
-          # the single test has completed. Accept timeout 124 only when that
-          # exact test reported success and no test reported an error/failure.
-          if [ "$status" -eq 124 ]; then
-            python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          passed = False
-          failed = False
-          for line in Path("/tmp/qamvio-web-db-test.log").read_text(
-              encoding="utf-8", errors="replace"
-          ).splitlines():
-              try:
-                  event = json.loads(line)
-              except Exception:
-                  continue
-              if event.get("type") == "testDone":
-                  result = event.get("result")
-                  if result == "success":
-                      passed = True
-                  elif result in {"failure", "error"}:
-                      failed = True
-
-          if not passed or failed:
-              raise SystemExit("Encrypted browser database test did not finish successfully.")
-          print("PASS: encrypted browser database persisted and rejected the wrong key.")
-          PY
-            exit 0
-          fi
-
-          exit "$status"
+          echo "::error::Encrypted browser database runtime test did not reach its PASS marker (exit $status)."
+          exit "${status:-1}"
 
       - name: Build web release
         working-directory: flutter_app

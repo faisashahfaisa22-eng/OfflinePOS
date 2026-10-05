@@ -93,6 +93,38 @@ jobs:
           echo "5a1cfe40252d05bbd174e66351d3c282f69784c6fd0c2d099bf7135c6e91b4ec  web/sqlite3mc.wasm" | sha256sum -c -
           test -s web/sqflite_sw.js
 
+      - name: Brand PWA install icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          MARKER="flutter_app/web/.qamvio-brand-icons"
+          if [ ! -f "$MARKER" ]; then
+            if command -v magick >/dev/null 2>&1; then
+              IMG="magick"
+            elif command -v convert >/dev/null 2>&1; then
+              IMG="convert"
+            else
+              echo "::error::ImageMagick is required to prepare QAMVIO PWA icons."
+              exit 1
+            fi
+
+            SRC="app/src/main/res/drawable/qamvio_icon.png"
+            test -s "$SRC"
+
+            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "192x192^" -gravity center -extent 192x192 -strip flutter_app/web/icons/Icon-192.png
+            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "512x512^" -gravity center -extent 512x512 -strip flutter_app/web/icons/Icon-512.png
+            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "154x154" -gravity center -extent 192x192 -strip flutter_app/web/icons/Icon-maskable-192.png
+            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "410x410" -gravity center -extent 512x512 -strip flutter_app/web/icons/Icon-maskable-512.png
+            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "64x64^" -gravity center -extent 64x64 -strip flutter_app/web/favicon.png
+            touch "$MARKER"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add flutter_app/web
+            git commit -m "Brand QAMVIO Chrome install icons"
+            git push origin HEAD:release/flutter-web-v16
+          fi
+
       - name: Analyze
         working-directory: flutter_app
         run: flutter analyze

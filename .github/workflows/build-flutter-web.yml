@@ -1,0 +1,495 @@
+name: Build QAMVIO Chrome PWA
+
+on:
+  push:
+    branches:
+      - release/flutter-web-v16
+    paths:
+      - "flutter_app/**"
+      - "app/src/main/res/drawable/qamvio_icon.png"
+      - ".github/workflows/build-flutter-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qamvio-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: release/flutter-web-v16
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate web platform when missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f flutter_app/web/index.html ]; then
+            cd flutter_app
+            flutter create --platforms=web --org com.offlinepos --project-name qamvio_pos .
+            cd ..
+
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          web = Path("flutter_app/web")
+          index = web / "index.html"
+          text = index.read_text(encoding="utf-8")
+          text = text.replace("<title>qamvio_pos</title>", "<title>QAMVIO POS</title>")
+          text = text.replace(
+              '<meta name="description" content="A new Flutter project.">',
+              '<meta name="description" content="QAMVIO POS — installable offline sales, inventory and accounts app for laptops.">',
+          )
+          index.write_text(text, encoding="utf-8")
+
+          manifest = web / "manifest.json"
+          data = json.loads(manifest.read_text(encoding="utf-8"))
+          data.update({
+              "name": "QAMVIO POS",
+              "short_name": "QAMVIO",
+              "description": "Offline sales, inventory and accounts for shops.",
+              "display": "standalone",
+              "background_color": "#071b38",
+              "theme_color": "#075ee8",
+              "start_url": ".",
+              "scope": "./"
+          })
+          manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add flutter_app/web
+            git commit -m "Add QAMVIO Chrome web scaffold"
+            git push origin HEAD:release/flutter-web-v16
+          fi
+
+      - name: Get dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Set up encrypted SQLite WASM
+        working-directory: flutter_app
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 \
+            "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-3.7.0/sqlite3mc.wasm" \
+            -o web/sqlite3mc.wasm
+          echo "7271cf8fdf625b03d41dd43ae1d500cf855755f35ca575372022315b15f5a19e  web/sqlite3mc.wasm" | sha256sum -c -
+
+      - name: Brand PWA install icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          MARKER="flutter_app/web/.qamvio-brand-icons"
+          if [ ! -f "$MARKER" ]; then
+            python3 -m venv /tmp/qamvio-pwa-icons
+            /tmp/qamvio-pwa-icons/bin/python -m pip install --disable-pip-version-check pillow
+            /tmp/qamvio-pwa-icons/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          src = Image.open("app/src/main/res/drawable/qamvio_icon.png").convert("RGBA")
+          brand = (7, 94, 232, 255)
+
+          def flatten_square(size, inner=None):
+              target = inner or size
+              ratio = min(target / src.width, target / src.height)
+              resized = src.resize(
+                  (max(1, round(src.width * ratio)), max(1, round(src.height * ratio))),
+                  Image.Resampling.LANCZOS,
+              )
+              bg = Image.new("RGBA", (size, size), brand)
+              x = (size - resized.width) // 2
+              y = (size - resized.height) // 2
+              bg.alpha_composite(resized, (x, y))
+              return bg.convert("RGB")
+
+          outputs = {
+              "flutter_app/web/icons/Icon-192.png": flatten_square(192),
+              "flutter_app/web/icons/Icon-512.png": flatten_square(512),
+              "flutter_app/web/icons/Icon-maskable-192.png": flatten_square(192, 154),
+              "flutter_app/web/icons/Icon-maskable-512.png": flatten_square(512, 410),
+              "flutter_app/web/favicon.png": flatten_square(64),
+          }
+          for path, image in outputs.items():
+              Path(path).parent.mkdir(parents=True, exist_ok=True)
+              image.save(path, "PNG", optimize=True)
+          PY
+            touch "$MARKER"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add flutter_app/web
+            git commit -m "Brand QAMVIO Chrome install icons"
+            git push origin HEAD:release/flutter-web-v16
+          fi
+
+      - name: Analyze
+        working-directory: flutter_app
+        run: flutter analyze
+
+      - name: Test
+        working-directory: flutter_app
+        run: flutter test
+
+      - name: Test encrypted SQLite persistence in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p /tmp/qamvio-db-smoke
+          cat > flutter_app/tool_web_database_smoke.dart <<'DART'
+          import 'dart:convert';
+
+          import 'package:qamvio_pos/core/database/database_driver.dart' as driver;
+          import 'package:qamvio_pos/core/database/web_encrypted_store.dart';
+          import 'package:sqflite_common/sqlite_api.dart';
+          import 'package:web/web.dart' as web;
+
+          const goodKey =
+              '0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20';
+          const wrongKey =
+              'fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0';
+
+          Future<Database> openDatabase(String keyHex) {
+            return driver.openQamvioDatabase(
+              keyHex: keyHex,
+              version: 1,
+              onConfigure: (db) async {
+                await db.execute('PRAGMA foreign_keys = ON');
+              },
+              onCreate: (db, version) async {
+                await db.execute(
+                  'CREATE TABLE products (id TEXT PRIMARY KEY, name TEXT NOT NULL)',
+                );
+              },
+              onUpgrade: (db, oldVersion, newVersion) async {},
+            );
+          }
+
+          void done(String value) {
+            web.document.title = value;
+            web.document.body?.textContent = value;
+          }
+
+          Future<void> main() async {
+            final phase = Uri.base.queryParameters['phase'] ?? 'write';
+
+            try {
+              if (phase == 'write') {
+                await driver.deleteQamvioDatabase();
+                final db = await openDatabase(goodKey);
+                final cipher = await db.rawQuery(
+                  "SELECT sqlite3mc_config('cipher') AS cipher",
+                );
+                final cipherId =
+                    cipher.isEmpty ? '' : cipher.first['cipher']?.toString() ?? '';
+                if (cipherId.isEmpty || cipherId == '-1') {
+                  throw StateError('SQLite3MC encryption is unavailable.');
+                }
+
+                await db.insert(
+                  'products',
+                  {'id': 'web-smoke-product-v16', 'name': 'Web Smoke Product'},
+                  conflictAlgorithm: ConflictAlgorithm.replace,
+                );
+                await db.close();
+
+                final encrypted = await loadEncryptedDatabaseBytes();
+                if (encrypted == null || encrypted.isEmpty) {
+                  throw StateError('Encrypted browser database was not persisted.');
+                }
+                final header = ascii.decode(
+                  encrypted.take(16).toList(),
+                  allowInvalid: true,
+                );
+                if (header.startsWith('SQLite format 3')) {
+                  throw StateError('Browser database was persisted as plaintext.');
+                }
+
+                done('QAMVIO_WRITE_PASS cipher=$cipherId bytes=${encrypted.length}');
+                return;
+              }
+
+              if (phase == 'wrong') {
+                try {
+                  final db = await openDatabase(wrongKey);
+                  await db.query('products');
+                  await db.close();
+                  done('QAMVIO_WRONG_KEY_FAIL');
+                } catch (_) {
+                  done('QAMVIO_WRONG_KEY_PASS');
+                }
+                return;
+              }
+
+              if (phase == 'read') {
+                final db = await openDatabase(goodKey);
+                final rows = await db.query(
+                  'products',
+                  where: 'id=?',
+                  whereArgs: ['web-smoke-product-v16'],
+                );
+                if (rows.length != 1 ||
+                    rows.first['name'] != 'Web Smoke Product') {
+                  throw StateError(
+                    'Persisted encrypted browser data was not found after restart.',
+                  );
+                }
+                await db.close();
+                await driver.deleteQamvioDatabase();
+                done('QAMVIO_READ_PASS');
+                return;
+              }
+
+              throw StateError('Unknown smoke-test phase: $phase');
+            } catch (e) {
+              done('QAMVIO_DB_FAIL $e');
+            }
+          }
+          DART
+
+          cd flutter_app
+          dart compile js tool_web_database_smoke.dart \
+            -O2 \
+            -o /tmp/qamvio-db-smoke/main.dart.js
+          rm -f tool_web_database_smoke.dart
+
+          cp web/sqlite3mc.wasm /tmp/qamvio-db-smoke/sqlite3mc.wasm
+          cat > /tmp/qamvio-db-smoke/index.html <<'HTML'
+          <!doctype html>
+          <html>
+            <head><meta charset="utf-8"><title>QAMVIO_DB_LOADING</title></head>
+            <body>QAMVIO_DB_LOADING<script defer src="main.dart.js"></script></body>
+          </html>
+          HTML
+
+          python3 -m http.server 8765 --directory /tmp/qamvio-db-smoke \
+            >/tmp/qamvio-db-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 2
+
+          chrome="$(command -v google-chrome || command -v google-chrome-stable)"
+          profile=/tmp/qamvio-chrome-profile
+          rm -rf "$profile"
+
+          run_phase() {
+            phase="$1"
+            expected="$2"
+            log="/tmp/qamvio-chrome-$phase.log"
+            rm -f "$log"
+
+            "$chrome" \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --disable-gpu \
+              --remote-debugging-port=9222 \
+              --user-data-dir="$profile" \
+              "http://127.0.0.1:8765/?phase=$phase" \
+              >"$log" 2>&1 &
+            chrome_pid=$!
+
+            title=""
+            for _ in $(seq 1 60); do
+              title="$(python3 - <<'PY'
+          import json
+          import urllib.request
+
+          try:
+              with urllib.request.urlopen(
+                  "http://127.0.0.1:9222/json/list", timeout=1
+              ) as response:
+                  pages = json.load(response)
+              page = next(
+                  (item for item in pages if item.get("type") == "page"),
+                  None,
+              )
+              print((page or {}).get("title", ""))
+          except Exception:
+              print("")
+          PY
+              )"
+
+              echo "Chrome phase $phase title: $title"
+              if [[ "$title" == "$expected"* ]]; then
+                kill "$chrome_pid" 2>/dev/null || true
+                wait "$chrome_pid" 2>/dev/null || true
+                sleep 1
+                return 0
+              fi
+              if [[ "$title" == QAMVIO_DB_FAIL* || "$title" == QAMVIO_WRONG_KEY_FAIL* ]]; then
+                echo "::error::Encrypted browser database smoke test failed in phase $phase: $title"
+                cat "$log" || true
+                kill "$chrome_pid" 2>/dev/null || true
+                wait "$chrome_pid" 2>/dev/null || true
+                return 1
+              fi
+              sleep 1
+            done
+
+            echo "::error::Expected $expected was not emitted in Chrome phase $phase"
+            echo "Last page title: $title"
+            echo "----- Chrome stderr ($phase) -----"
+            cat "$log" || true
+            echo "----- HTTP server -----"
+            cat /tmp/qamvio-db-http.log || true
+            kill "$chrome_pid" 2>/dev/null || true
+            wait "$chrome_pid" 2>/dev/null || true
+            return 1
+          }
+
+          run_phase write QAMVIO_WRITE_PASS
+          run_phase wrong QAMVIO_WRONG_KEY_PASS
+          run_phase read QAMVIO_READ_PASS
+
+          echo "PASS: encrypted SQLite bytes persisted across Chrome restarts and rejected a wrong key."
+
+      - name: Build web release
+        working-directory: flutter_app
+        run: flutter build web --release --no-web-resources-cdn
+
+      - name: Generate QAMVIO offline service worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json
+
+          root = Path("flutter_app/build/web")
+          files = []
+          digest = sha256()
+
+          for path in sorted(root.rglob("*")):
+              if not path.is_file():
+                  continue
+              rel = path.relative_to(root).as_posix()
+              if rel in {"qamvio_sw.js", "flutter_service_worker.js"}:
+                  continue
+              if rel.endswith(".map"):
+                  continue
+              data = path.read_bytes()
+              digest.update(rel.encode("utf-8"))
+              digest.update(b"\0")
+              digest.update(sha256(data).digest())
+              files.append("./" + rel)
+
+          cache_name = "qamvio-pwa-" + digest.hexdigest()[:16]
+          precache = json.dumps(files, ensure_ascii=False, indent=2)
+
+          worker = f"""const CACHE_NAME = {json.dumps(cache_name)};
+          const PRECACHE = {precache};
+          const INDEX = './index.html';
+
+          self.addEventListener('install', (event) => {{
+            event.waitUntil(
+              caches.open(CACHE_NAME)
+                .then((cache) => cache.addAll(PRECACHE))
+                .then(() => self.skipWaiting())
+            );
+          }});
+
+          self.addEventListener('activate', (event) => {{
+            event.waitUntil(
+              caches.keys()
+                .then((keys) => Promise.all(
+                  keys
+                    .filter((key) => key.startsWith('qamvio-pwa-') && key !== CACHE_NAME)
+                    .map((key) => caches.delete(key))
+                ))
+                .then(() => self.clients.claim())
+            );
+          }});
+
+          self.addEventListener('fetch', (event) => {{
+            const request = event.request;
+            if (request.method !== 'GET') return;
+
+            const url = new URL(request.url);
+            if (url.origin !== self.location.origin) return;
+
+            if (request.mode === 'navigate') {{
+              event.respondWith(
+                fetch(request)
+                  .then((response) => {{
+                    if (response && response.ok) {{
+                      const copy = response.clone();
+                      caches.open(CACHE_NAME).then((cache) => cache.put(INDEX, copy));
+                    }}
+                    return response;
+                  }})
+                  .catch(() => caches.match(INDEX))
+              );
+              return;
+            }}
+
+            event.respondWith(
+              caches.match(request).then((cached) => {{
+                if (cached) return cached;
+                return fetch(request).then((response) => {{
+                  if (response && response.ok) {{
+                    const copy = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+                  }}
+                  return response;
+                }});
+              }})
+            );
+          }});
+          """
+
+          (root / "qamvio_sw.js").write_text(worker, encoding="utf-8")
+          print(f"Generated {cache_name} with {len(files)} precached files.")
+          PY
+          node --check flutter_app/build/web/qamvio_sw.js
+
+      - name: Verify installable web metadata and offline assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f flutter_app/build/web/index.html
+          test -f flutter_app/build/web/manifest.json
+          test -s flutter_app/build/web/sqlite3mc.wasm
+          test -s flutter_app/build/web/qamvio_sw.js
+          grep -q '"display": "standalone"' flutter_app/build/web/manifest.json
+          grep -q '"orientation": "any"' flutter_app/build/web/manifest.json
+          grep -q 'QAMVIO POS' flutter_app/build/web/index.html
+          grep -q 'qamvio_sw.js' flutter_app/build/web/index.html
+          grep -q 'sqlite3mc.wasm' flutter_app/build/web/qamvio_sw.js
+          grep -q 'main.dart.js' flutter_app/build/web/qamvio_sw.js
+          test -d flutter_app/build/web/canvaskit
+
+      - name: Package web build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd flutter_app/build
+          zip -qr "$GITHUB_WORKSPACE/QAMVIO-Chrome-PWA-v16.zip" web
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Chrome-PWA-v16
+          path: QAMVIO-Chrome-PWA-v16.zip
+          if-no-files-found: error
+          retention-days: 14

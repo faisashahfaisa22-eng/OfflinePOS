@@ -1,22 +1,20 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart'
     show SecretBoxAuthenticationError;
-import 'package:path/path.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:sqflite_common/sqlite_api.dart';
+import 'package:sqflite_common/utils/utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 
 import '../database/app_database.dart';
 import '../security/crypto_utils.dart';
 import '../security/local_auth_service.dart';
+import 'pending_backup_store.dart' as pending_store;
 
 class CloudBackupService {
   static final instance = CloudBackupService._();
   CloudBackupService._();
-
-  static const _pendingFile = 'pending_backup.json';
 
   static const _tables = <String>[
     'products',
@@ -96,9 +94,6 @@ class CloudBackupService {
     'migration_state',
   ];
 
-  Future<String> _pendingPath() async =>
-      join(await getDatabasesPath(), _pendingFile);
-
   /// Builds one internally consistent snapshot of the local database.
   ///
   /// A transaction is used for the reads so a sale/purchase cannot be captured
@@ -169,16 +164,7 @@ class CloudBackupService {
     if (!LocalAuthService.instance.unlocked) return;
 
     final env = await encryptedEnvelope();
-    final path = await _pendingPath();
-    final temp = File('$path.tmp');
-
-    await temp.writeAsString(jsonEncode(env), flush: true);
-
-    final target = File(path);
-    if (await target.exists()) {
-      await target.delete();
-    }
-    await temp.rename(path);
+    await pending_store.writePendingBackup(jsonEncode(env));
   }
 
   Future<bool> uploadPendingFile() async {
@@ -186,10 +172,10 @@ class CloudBackupService {
     final user = client.auth.currentUser;
     if (user == null) return false;
 
-    final file = File(await _pendingPath());
-    if (!await file.exists()) return false;
+    final stored = await pending_store.readPendingBackup();
+    if (stored == null || stored.isEmpty) return false;
 
-    final raw = jsonDecode(await file.readAsString());
+    final raw = jsonDecode(stored);
     if (raw is! Map) {
       throw const FormatException('Invalid pending QAMVIO backup file.');
     }
@@ -199,12 +185,8 @@ class CloudBackupService {
 
     await _upload(client, user.id, payload);
 
-    // It is a pending queue item, not a long-term local archive. Once the
-    // server accepted it, remove it so Workmanager does not re-upload stale
-    // data every day.
-    if (await file.exists()) {
-      await file.delete();
-    }
+    // This is a pending queue item, not a long-term local archive.
+    await pending_store.deletePendingBackup();
     return true;
   }
 
@@ -361,7 +343,7 @@ class CloudBackupService {
 
       for (final table in _tables) {
         final expected = (data[table] as List).length;
-        final actual = Sqflite.firstIntValue(
+        final actual = firstIntValue(
               await txn.rawQuery('SELECT COUNT(*) FROM $table'),
             ) ??
             0;

@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:path/path.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:sqflite_common/sqlite_api.dart';
+import 'package:sqflite_common/utils/utils.dart';
 
 import '../security/crypto_utils.dart';
+import 'database_driver.dart' as database_driver;
 
 /// SQLCipher-encrypted database. It can only be opened after the user signs in
 /// (see LocalAuthService), because the key is the user's unwrapped data key.
@@ -32,16 +32,11 @@ class AppDatabase {
     await db?.close();
   }
 
-  /// Deletes the on-disk database. Only used to roll back a failed
+  /// Deletes the local encrypted database. Only used to roll back a failed
   /// fresh-install restore, before any real data exists on the device.
   Future<void> deleteFile() async {
     await lock();
-    final root=await getDatabasesPath();
-    final path=join(root,'qamvio_pos.db');
-    for(final suffix in const ['','-wal','-shm','-journal']) {
-      final f=File('$path$suffix');
-      if(await f.exists()) await f.delete();
-    }
+    await database_driver.deleteQamvioDatabase();
   }
 
   Future<Database> get database async {
@@ -49,16 +44,9 @@ class AppDatabase {
     return _db ??= await _open();
   }
 
-  String get _sqlcipherKey=>"x'${_keyHex!}'";
-
   Future<Database> _open() async {
-    final root = await getDatabasesPath();
-    final path = join(root, 'qamvio_pos.db');
-    await _recoverInterruptedPlainMigration(path);
-    await _encryptLegacyPlainDatabaseIfNeeded(path);
-    return openDatabase(
-      path,
-      password: _sqlcipherKey,
+    return database_driver.openQamvioDatabase(
+      keyHex: _keyHex!,
       version: 7,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async => _createSchema(db),
@@ -71,128 +59,6 @@ class AppDatabase {
         if (oldVersion < 7) await _createV7Tables(db);
       },
     );
-  }
-
-  Future<bool> _isPlainSqlite(String path) async {
-    final f=File(path);
-    if(!await f.exists()) return false;
-    final raf=await f.open();
-    try {
-      final head=await raf.read(16);
-      return String.fromCharCodes(head).startsWith('SQLite format 3');
-    } finally {
-      await raf.close();
-    }
-  }
-
-  Future<void> _verifyEncryptedDatabase(String path) async {
-    final check=await openDatabase(path,password:_sqlcipherKey,readOnly:true);
-    try {
-      final tables=Sqflite.firstIntValue(
-        await check.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table'"),
-      )??0;
-      if(tables==0) {
-        throw StateError('Encrypted database verification found no tables.');
-      }
-      final integrity=await check.rawQuery('PRAGMA integrity_check');
-      final result=integrity.isEmpty ? '' : integrity.first.values.first?.toString()??'';
-      if(result.toLowerCase()!='ok') {
-        throw StateError('Encrypted database integrity check failed: $result');
-      }
-    } finally {
-      await check.close();
-    }
-  }
-
-  Future<void> _deleteSidecars(String base,{bool includeMain=false}) async {
-    final suffixes=includeMain
-      ?const ['','-wal','-shm','-journal']
-      :const ['-wal','-shm','-journal'];
-    for(final suffix in suffixes) {
-      final f=File('$base$suffix');
-      if(await f.exists()) await f.delete();
-    }
-  }
-
-  /// Repairs the only crash-sensitive window in the plaintext -> SQLCipher swap.
-  /// If the app stopped after moving the plaintext DB aside, the next launch
-  /// restores it instead of silently creating a new empty database.
-  Future<void> _recoverInterruptedPlainMigration(String path) async {
-    final backup='$path.plain.bak';
-    final main=File(path);
-    final old=File(backup);
-    if(!await old.exists()) return;
-
-    if(!await main.exists()) {
-      await old.rename(path);
-      return;
-    }
-
-    if(await _isPlainSqlite(path)) {
-      // The normal plaintext database is already back in place.
-      await _deleteSidecars(backup,includeMain:true);
-      return;
-    }
-
-    try {
-      await _verifyEncryptedDatabase(path);
-      // Encrypted replacement is valid; the old plaintext copy can now go.
-      await _deleteSidecars(backup,includeMain:true);
-    } catch(_) {
-      // Replacement is unusable. Restore the untouched plaintext backup.
-      await _deleteSidecars(path,includeMain:true);
-      await old.rename(path);
-    }
-  }
-
-  /// Earlier Flutter builds stored the business data unencrypted. On first
-  /// unlock it is copied into an encrypted file (sqlcipher_export), verified,
-  /// and then swapped into place with a rollback copy kept until final verify.
-  Future<void> _encryptLegacyPlainDatabaseIfNeeded(String path) async {
-    if(!await _isPlainSqlite(path)) return;
-    final tmp='$path.enc';
-    final backup='$path.plain.bak';
-    await _deleteSidecars(tmp,includeMain:true);
-    await _deleteSidecars(backup,includeMain:true);
-
-    final plain=await openDatabase(path);
-    int version;
-    try {
-      version=Sqflite.firstIntValue(await plain.rawQuery('PRAGMA user_version'))??0;
-      final safeTmp=tmp.replaceAll("'","''");
-      await plain.execute("ATTACH DATABASE '$safeTmp' AS encrypted KEY \"$_sqlcipherKey\"");
-      await plain.rawQuery("SELECT sqlcipher_export('encrypted')");
-      await plain.execute('PRAGMA encrypted.user_version = $version');
-      await plain.execute('DETACH DATABASE encrypted');
-      // Make the main file self-contained before it becomes our rollback copy.
-      try {
-        await plain.rawQuery('PRAGMA wal_checkpoint(FULL)');
-      } catch(_) {
-        // Not every journal mode supports/needs a WAL checkpoint.
-      }
-    } finally {
-      await plain.close();
-    }
-
-    // Verify the encrypted copy before touching the original.
-    await _verifyEncryptedDatabase(tmp);
-
-    // Old WAL/SHM data must never be left beside the new encrypted main file.
-    await _deleteSidecars(path);
-
-    final original=File(path);
-    await original.rename(backup);
-    try {
-      await File(tmp).rename(path);
-      // Verify again at the final path before deleting the plaintext rollback.
-      await _verifyEncryptedDatabase(path);
-      await _deleteSidecars(backup,includeMain:true);
-    } catch(e) {
-      await _deleteSidecars(path,includeMain:true);
-      final rollback=File(backup);
-      if(await rollback.exists()) await rollback.rename(path);
-      rethrow;
-    }
   }
 
   Future<void> _createSchema(Database db) async {
@@ -1262,28 +1128,28 @@ class AppDatabase {
           );
         }
       } else if(section=='customers') {
-        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+        final linkedCount=firstIntValue(await txn.rawQuery(
           'SELECT (SELECT COUNT(*) FROM sales WHERE customer_id=?)+'
           '(SELECT COUNT(*) FROM customer_loans WHERE customer_id=?)',
           [id,id],
         ))??0;
         if(linkedCount>0) throw StateError('Customer has linked sales/loans. Delete those records first.');
       } else if(section=='suppliers') {
-        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+        final linkedCount=firstIntValue(await txn.rawQuery(
           'SELECT (SELECT COUNT(*) FROM purchases WHERE supplier_id=?)+'
           '(SELECT COUNT(*) FROM supplier_transactions WHERE supplier_id=?)',
           [id,id],
         ))??0;
         if(linkedCount>0) throw StateError('Supplier has linked purchases/transactions. Delete those records first.');
       } else if(section=='salesmen') {
-        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+        final linkedCount=firstIntValue(await txn.rawQuery(
           'SELECT (SELECT COUNT(*) FROM sales WHERE salesman_id=?)+'
           '(SELECT COUNT(*) FROM salesman_loans WHERE salesman_id=?)',
           [id,id],
         ))??0;
         if(linkedCount>0) throw StateError('Salesman has linked sales/loans. Delete those records first.');
       } else if(section=='products') {
-        final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
+        final linkedCount=firstIntValue(await txn.rawQuery(
           'SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id=?)+'
           '(SELECT COUNT(*) FROM purchase_items WHERE product_id=?)+'
           '(SELECT COUNT(*) FROM stock_adjustments WHERE product_id=?)',
@@ -1431,8 +1297,8 @@ class AppDatabase {
       final rows = await db.rawQuery('SELECT COALESCE(SUM($field),0) value FROM $table');
       return (rows.first['value'] as num?)?.toDouble() ?? 0;
     }
-    final products = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM products')) ?? 0;
-    final customers = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM customers')) ?? 0;
+    final products = firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM products')) ?? 0;
+    final customers = firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM customers')) ?? 0;
     return {
       'sales': await sum('sales', 'total'),
       'expenses': await sum('expenses', 'amount'),

@@ -1,0 +1,196 @@
+name: Build QAMVIO iOS
+
+on:
+  push:
+    branches:
+      - release/flutter-ios-v16
+    paths:
+      - "flutter_app/**"
+      - "app/src/main/res/drawable/qamvio_icon.png"
+      - ".github/workflows/build-flutter-ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: release/flutter-ios-v16
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate iOS platform when missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f flutter_app/ios/Runner.xcodeproj/project.pbxproj ]; then
+            cd flutter_app
+            flutter create --platforms=ios --org com.offlinepos --project-name qamvio_pos .
+            cd ..
+
+            python3 -m pip install --disable-pip-version-check pillow
+
+            python3 - <<'PY'
+          import json
+          import plistlib
+          import re
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path("flutter_app")
+          ios = root / "ios"
+
+          # Public app identity and required iOS background-task configuration.
+          info_path = ios / "Runner" / "Info.plist"
+          with info_path.open("rb") as fh:
+              info = plistlib.load(fh)
+          info["CFBundleDisplayName"] = "QAMVIO POS"
+          info["CFBundleName"] = "QAMVIO"
+          info["UIBackgroundModes"] = ["fetch"]
+          info["BGTaskSchedulerPermittedIdentifiers"] = [
+              "com.offlinepos.accounts.dailyBackup"
+          ]
+          with info_path.open("wb") as fh:
+              plistlib.dump(info, fh, sort_keys=False)
+
+          # flutter_secure_storage uses the iOS Keychain.
+          entitlements = """<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>keychain-access-groups</key>
+            <array/>
+          </dict>
+          </plist>
+          """
+          (ios / "Runner" / "Runner.entitlements").write_text(
+              entitlements, encoding="utf-8"
+          )
+
+          # Workmanager background isolate needs plugin registration because the
+          # backup worker uses Supabase and filesystem/database plugins.
+          app_delegate = """import Flutter
+          import UIKit
+          import workmanager_apple
+
+          @main
+          @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+            override func application(
+              _ application: UIApplication,
+              didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+            ) -> Bool {
+              WorkmanagerPlugin.registerLaunchHandlers()
+              WorkmanagerPlugin.setPluginRegistrantCallback { registry in
+                GeneratedPluginRegistrant.register(with: registry)
+              }
+              return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+            }
+
+            func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+              GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+            }
+          }
+          """
+          (ios / "Runner" / "AppDelegate.swift").write_text(
+              app_delegate, encoding="utf-8"
+          )
+
+          # Bundle id, minimum iOS version, and Keychain entitlements.
+          pbx = ios / "Runner.xcodeproj" / "project.pbxproj"
+          text = pbx.read_text(encoding="utf-8")
+          text = text.replace(
+              "PRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.qamvioPos;",
+              "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;\n"
+              "\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.accounts;",
+          )
+          text = text.replace(
+              "PRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.qamvioPos.RunnerTests;",
+              "PRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.accounts.RunnerTests;",
+          )
+          text = re.sub(
+              r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;",
+              "IPHONEOS_DEPLOYMENT_TARGET = 14.0;",
+              text,
+          )
+          pbx.write_text(text, encoding="utf-8")
+
+          # Reuse the existing QAMVIO icon; flatten any alpha onto the website's
+          # existing brand blue because App Store icons cannot contain alpha.
+          source = Path("app/src/main/res/drawable/qamvio_icon.png")
+          appicon_dir = ios / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
+          contents_path = appicon_dir / "Contents.json"
+          spec = json.loads(contents_path.read_text(encoding="utf-8"))
+          src = Image.open(source).convert("RGBA")
+          bg = Image.new("RGBA", src.size, (7, 94, 232, 255))
+          bg.alpha_composite(src)
+          flat = bg.convert("RGB")
+          for image in spec.get("images", []):
+              filename = image.get("filename")
+              size = image.get("size")
+              scale = image.get("scale")
+              if not filename or not size or not scale:
+                  continue
+              points = float(size.split("x")[0])
+              multiplier = float(scale.rstrip("x"))
+              pixels = int(round(points * multiplier))
+              out = flat.resize((pixels, pixels), Image.Resampling.LANCZOS)
+              out.save(appicon_dir / filename, format="PNG", optimize=True)
+          PY
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add flutter_app/ios
+            git commit -m "Add iOS platform scaffold for QAMVIO POS"
+            git push origin HEAD:release/flutter-ios-v16
+          fi
+
+      - name: Get dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: flutter_app
+        run: flutter analyze
+
+      - name: Test
+        working-directory: flutter_app
+        run: flutter test
+
+      - name: Verify iOS configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" flutter_app/ios/Runner/Info.plist | grep -Fx "QAMVIO POS"
+          /usr/libexec/PlistBuddy -c "Print :BGTaskSchedulerPermittedIdentifiers:0" flutter_app/ios/Runner/Info.plist | grep -Fx "com.offlinepos.accounts.dailyBackup"
+          grep -q "PRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.accounts;" flutter_app/ios/Runner.xcodeproj/project.pbxproj
+          grep -q "IPHONEOS_DEPLOYMENT_TARGET = 14.0;" flutter_app/ios/Runner.xcodeproj/project.pbxproj
+          grep -q "keychain-access-groups" flutter_app/ios/Runner/Runner.entitlements
+
+      - name: Build unsigned iPhone app
+        working-directory: flutter_app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned build for verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          ditto -c -k --sequesterRsrc --keepParent             flutter_app/build/ios/iphoneos/Runner.app             QAMVIO-iOS-v16-unsigned.zip
+
+      - name: Upload unsigned iOS verification artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-iOS-v16-unsigned
+          path: QAMVIO-iOS-v16-unsigned.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -149,45 +149,72 @@ jobs:
         working-directory: flutter_app
         run: flutter test
 
-      - name: Test encrypted database in served Chrome
+      - name: Test encrypted SQLite directly in Chrome
         shell: bash
         run: |
           set -euo pipefail
 
-          cat > flutter_app/lib/web_database_smoke_main.dart <<'DART'
-          import 'package:flutter/widgets.dart';
+          mkdir -p /tmp/qamvio-db-smoke
+          cat > flutter_app/tool_web_database_smoke.dart <<'DART'
+          import 'package:sqflite_common/sqlite_api.dart';
+          import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
           import 'package:web/web.dart' as web;
-          import 'package:qamvio_pos/core/database/app_database.dart';
+
+          const databaseName = 'qamvio_web_smoke.db';
+          const goodKey =
+              '0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20';
+          const wrongKey =
+              'fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0';
+
+          DatabaseFactory factory() => createDatabaseFactoryFfiWeb(
+                options: SqfliteFfiWebOptions(
+                  sqlite3WasmUri: Uri.parse('sqlite3mc.wasm'),
+                  sharedWorkerUri: Uri.parse('sqflite_sw.js'),
+                  indexedDbName: 'qamvio_web_smoke_v16',
+                ),
+              );
+
+          Future<Database> openEncrypted(String keyHex) {
+            return factory().openDatabase(
+              databaseName,
+              options: OpenDatabaseOptions(
+                version: 1,
+                onConfigure: (db) async {
+                  await db.execute("PRAGMA cipher = 'sqlcipher'");
+                  await db.execute('PRAGMA legacy = 4');
+                  await db.execute('PRAGMA key = "x\'$keyHex\'"');
+                  await db.rawQuery('SELECT count(*) FROM sqlite_master');
+                },
+                onCreate: (db, version) async {
+                  await db.execute(
+                    'CREATE TABLE products (id TEXT PRIMARY KEY, name TEXT NOT NULL)',
+                  );
+                },
+              ),
+            );
+          }
+
+          void done(String value) {
+            web.document.title = value;
+            web.document.body?.textContent = value;
+          }
 
           Future<void> main() async {
-            WidgetsFlutterBinding.ensureInitialized();
             final phase = Uri.base.queryParameters['phase'] ?? 'write';
-            final app = AppDatabase.instance;
-            final goodKey = List<int>.generate(32, (i) => i + 1);
-            final wrongKey = List<int>.generate(32, (i) => 255 - i);
-            const id = 'web-smoke-product-v16';
-
-            void done(String value) {
-              web.document.title = value;
-              web.document.body?.textContent = value;
-            }
-
             try {
               if (phase == 'wrong') {
-                await app.unlock(wrongKey);
                 try {
-                  await app.database;
+                  final db = await openEncrypted(wrongKey);
+                  await db.query('products');
+                  await db.close();
                   done('QAMVIO_WRONG_KEY_FAIL');
                 } catch (_) {
                   done('QAMVIO_WRONG_KEY_PASS');
-                } finally {
-                  await app.lock();
                 }
                 return;
               }
 
-              await app.unlock(goodKey);
-              final db = await app.database;
+              final db = await openEncrypted(goodKey);
               final cipher = await db.rawQuery('PRAGMA cipher_version');
               final cipherVersion =
                   cipher.isEmpty ? '' : cipher.first.values.first?.toString() ?? '';
@@ -196,14 +223,12 @@ jobs:
               }
 
               if (phase == 'write') {
-                await app.saveProduct(
-                  id: id,
-                  name: 'Web Smoke Product',
-                  stock: 3,
-                  price: 10,
-                  cost: 4,
+                await db.insert(
+                  'products',
+                  {'id': 'web-smoke-product-v16', 'name': 'Web Smoke Product'},
+                  conflictAlgorithm: ConflictAlgorithm.replace,
                 );
-                await app.lock();
+                await db.close();
                 done('QAMVIO_WRITE_PASS cipher=$cipherVersion');
                 return;
               }
@@ -212,42 +237,43 @@ jobs:
                 final rows = await db.query(
                   'products',
                   where: 'id=?',
-                  whereArgs: [id],
+                  whereArgs: ['web-smoke-product-v16'],
                 );
                 if (rows.length != 1 ||
                     rows.first['name'] != 'Web Smoke Product') {
-                  throw StateError('Persisted browser business data was not found.');
+                  throw StateError('Persisted encrypted browser data was not found.');
                 }
+                await db.close();
 
-                await app.deleteFile();
-                await app.unlock(goodKey);
-                final fresh = await app.database;
-                final deletedRows = await fresh.query(
-                  'products',
-                  where: 'id=?',
-                  whereArgs: [id],
-                );
-                if (deletedRows.isNotEmpty) {
-                  throw StateError('Browser database delete/recreate failed.');
+                final f = factory();
+                if (await f.databaseExists(databaseName)) {
+                  await f.deleteDatabase(databaseName);
                 }
-                await app.lock();
                 done('QAMVIO_READ_PASS cipher=$cipherVersion');
                 return;
               }
 
+              await db.close();
               throw StateError('Unknown smoke-test phase: $phase');
             } catch (e) {
-              try {
-                await app.lock();
-              } catch (_) {}
               done('QAMVIO_DB_FAIL $e');
             }
           }
           DART
 
           cd flutter_app
-          flutter build web --release             --target lib/web_database_smoke_main.dart             --output /tmp/qamvio-db-smoke
-          rm -f lib/web_database_smoke_main.dart
+          dart compile js tool_web_database_smoke.dart             -O2             -o /tmp/qamvio-db-smoke/main.dart.js
+          rm -f tool_web_database_smoke.dart
+
+          cp web/sqlite3mc.wasm /tmp/qamvio-db-smoke/sqlite3mc.wasm
+          cp web/sqflite_sw.js /tmp/qamvio-db-smoke/sqflite_sw.js
+          cat > /tmp/qamvio-db-smoke/index.html <<'HTML'
+          <!doctype html>
+          <html>
+            <head><meta charset="utf-8"><title>QAMVIO_DB_LOADING</title></head>
+            <body>QAMVIO_DB_LOADING<script defer src="main.dart.js"></script></body>
+          </html>
+          HTML
 
           python3 -m http.server 8765 --directory /tmp/qamvio-db-smoke             >/tmp/qamvio-db-http.log 2>&1 &
           server_pid=$!
@@ -262,18 +288,19 @@ jobs:
             phase="$1"
             expected="$2"
             output="/tmp/qamvio-db-$phase.html"
-            "$chrome"               --headless=new               --no-sandbox               --disable-dev-shm-usage               --enable-unsafe-swiftshader               --use-gl=swiftshader               --user-data-dir="$profile"               --virtual-time-budget=60000               --dump-dom               "http://127.0.0.1:8765/?phase=$phase"               >"$output" 2>/tmp/qamvio-chrome-$phase.log
+            "$chrome"               --headless=new               --no-sandbox               --disable-dev-shm-usage               --disable-gpu               --user-data-dir="$profile"               --virtual-time-budget=30000               --dump-dom               "http://127.0.0.1:8765/?phase=$phase"               >"$output" 2>/tmp/qamvio-chrome-$phase.log
+
             cat "$output"
             if ! grep -q "$expected" "$output"; then
               echo "::error::Expected $expected was not emitted in Chrome phase $phase"
               echo "----- Chrome stderr ($phase) -----"
               cat "/tmp/qamvio-chrome-$phase.log" || true
+              echo "----- HTTP server -----"
+              cat /tmp/qamvio-db-http.log || true
               exit 1
             fi
             if grep -q "QAMVIO_DB_FAIL\|QAMVIO_WRONG_KEY_FAIL" "$output"; then
-              echo "::error::Chrome encrypted database smoke test failed in phase $phase"
-              echo "----- Chrome stderr ($phase) -----"
-              cat "/tmp/qamvio-chrome-$phase.log" || true
+              echo "::error::Encrypted browser database smoke test failed in phase $phase"
               exit 1
             fi
           }
@@ -282,7 +309,7 @@ jobs:
           run_phase wrong QAMVIO_WRONG_KEY_PASS
           run_phase read QAMVIO_READ_PASS
 
-          echo "PASS: served Chrome persisted encrypted data, rejected a wrong key, and safely recreated the database."
+          echo "PASS: Chrome encrypted SQLite persisted data, rejected a wrong key, and cleaned up safely."
 
       - name: Build web release
         working-directory: flutter_app

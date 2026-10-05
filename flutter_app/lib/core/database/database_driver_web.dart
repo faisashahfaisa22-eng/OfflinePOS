@@ -15,7 +15,6 @@ import 'package:sqflite_common_ffi_web/src/sqflite_ffi_impl_web.dart'
     show SqfliteFfiHandlerWeb;
 import 'package:sqflite_common_ffi_web/src/web/load_sqlite_web.dart'
     show
-        SqfliteFfiWebContextExt,
         SqfliteFfiWebContextImpl,
         sqfliteFfiWebLoadSqlite3Wasm;
 import 'package:sqlite3/wasm.dart' show InMemoryFileSystem;
@@ -45,10 +44,10 @@ Future<DatabaseFactory> _createEncryptedMemoryFactory() async {
   // persist the already-encrypted file bytes separately in IndexedDB.
   final fs = InMemoryFileSystem(name: 'qamvio-encrypted-memory');
   final seed = SqfliteFfiWebContextImpl(options: options, fs: fs);
-  final context = await sqfliteFfiWebLoadSqlite3Wasm(
+  final context = (await sqfliteFfiWebLoadSqlite3Wasm(
     options,
     context: seed,
-  );
+  )) as SqfliteFfiWebContextImpl;
 
   ffi_impl.sqfliteFfiHandler =
       _EncryptedSqfliteFfiHandlerWeb(context, fs.name);

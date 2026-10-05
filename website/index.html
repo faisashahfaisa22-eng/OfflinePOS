@@ -1,18 +1,16 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>QAMVIO POS | Offline Android POS, Inventory & Accounts</title>
-  <meta name="description" content="QAMVIO POS is an offline Android POS and business management app for sales, inventory, customers, suppliers, expenses, loans, cash book and reports.">
+  <meta name="description" content="QAMVIO POS is a free offline Android POS and business management app for sales, inventory, customers, suppliers, expenses, loans, cash book and reports.">
   <link rel="canonical" href="https://qamvio.com/">
 
   <meta name="application-name" content="QAMVIO POS">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <meta name="theme-color" content="#075ee8">
-  <link rel="alternate" hreflang="en" href="https://qamvio.com/">
-  <link rel="alternate" hreflang="x-default" href="https://qamvio.com/">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="en_US">
@@ -58,17 +56,21 @@
         "publisher": {
           "@id": "https://qamvio.com/#organization"
         },
-        "inLanguage": "en"
+        "inLanguage": ["en", "ps", "fa", "ur"]
       },
       {
         "@type": "SoftwareApplication",
         "@id": "https://qamvio.com/#qamvio-pos-app",
         "name": "QAMVIO POS",
         "alternateName": "QAMVIO",
-        "description": "Offline Android point-of-sale and business management application for sales, inventory, customers, suppliers, accounts, expenses, loans, cash book, reports, backup and restore.",
+        "description": "Free offline Android point-of-sale and business management application for sales, inventory, customers, suppliers, accounts, expenses, loans, cash book, reports, backup and restore.",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Android",
-        "softwareVersion": "1.0.0",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
         "url": "https://qamvio.com/",
         "downloadUrl": "https://github.com/faisashahfaisa22-eng/OfflinePOS/releases/latest/download/QAMVIO-POS-v15-Flutter-Final.apk",
         "image": "https://qamvio.com/qamvio-preview.png",
@@ -85,36 +87,6 @@
           "Backup and restore",
           "English, Pashto, Dari and Urdu"
         ]
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://qamvio.com/#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "What is QAMVIO POS?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "QAMVIO POS is an Android point-of-sale and business management app for sales, inventory, customers, suppliers, accounts, expenses, loans, cash book, reports, backup and restore."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Can QAMVIO POS be used for inventory management?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Yes. QAMVIO POS includes products, purchases, current stock, stock adjustments, stock ledger, reorder information and stock value reporting."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Which languages does QAMVIO POS support?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "QAMVIO POS supports English, Pashto, Dari and Urdu."
-            }
-          }
-        ]
       }
     ]
   }
@@ -125,10 +97,16 @@
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
+      overflow-x: hidden;
       font-family: Inter, Arial, sans-serif;
       background: #f6f9ff;
       color: #0f2342;
     }
+    html[dir="rtl"] body {
+      font-family: Tahoma, "Noto Sans Arabic", Arial, sans-serif;
+    }
+    img { max-width: 100%; }
+    a, button, select { -webkit-tap-highlight-color: transparent; }
     header {
       background: linear-gradient(135deg, #071b38, #075ee8);
       color: #fff;
@@ -138,16 +116,58 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 16px;
       max-width: 1150px;
       margin: auto;
     }
-    .brand { font-size: 24px; font-weight: 900; }
+    .brand {
+      font-size: 24px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
     .brand span { color: #4db2ff; }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .navlinks {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 14px;
+    }
     .navlinks a {
       color: #fff;
       text-decoration: none;
-      margin-left: 18px;
       font-size: 14px;
+      white-space: nowrap;
+    }
+    .language-control {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 8px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 10px;
+    }
+    .language-control label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .language-control select {
+      max-width: 118px;
+      border: 0;
+      border-radius: 7px;
+      padding: 7px 8px;
+      background: #fff;
+      color: #0f2342;
+      font: inherit;
+      font-size: 13px;
     }
     .hero {
       max-width: 1150px;
@@ -165,7 +185,7 @@
       letter-spacing: .03em;
     }
     .hero h1 {
-      font-size: 52px;
+      font-size: clamp(36px, 5vw, 52px);
       line-height: 1.05;
       margin: 0 0 16px;
     }
@@ -173,6 +193,24 @@
       font-size: 18px;
       line-height: 1.7;
       color: #50627c;
+    }
+    .free-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0 4px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #e9f8ef;
+      color: #17653a !important;
+      font-size: 15px !important;
+      font-weight: 800;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
     }
     .btn {
       display: inline-block;
@@ -182,7 +220,7 @@
       padding: 14px 22px;
       border-radius: 12px;
       font-weight: 800;
-      margin: 10px 10px 0 0;
+      text-align: center;
     }
     .btn.alt { background: #e9f1ff; color: #1258c7; }
     .hero img {
@@ -211,10 +249,11 @@
     }
     .features {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 16px;
     }
     .card {
+      min-width: 0;
       background: #fff;
       border: 1px solid #e0e8f4;
       border-radius: 16px;
@@ -228,6 +267,65 @@
       color: #64748b;
       line-height: 1.6;
     }
+    .trust-grid,
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .trust-card,
+    .step-card {
+      background: #fff;
+      border: 1px solid #e0e8f4;
+      border-radius: 18px;
+      padding: 24px;
+    }
+    .trust-card strong,
+    .step-card strong {
+      display: block;
+      margin: 9px 0 6px;
+      font-size: 18px;
+    }
+    .trust-card p,
+    .step-card p {
+      margin: 0;
+      color: #64748b;
+      line-height: 1.65;
+    }
+    .step-number {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #1267ef;
+      color: #fff;
+      font-weight: 900;
+    }
+    .screenshots {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .screenshot-card {
+      margin: 0;
+      background: #fff;
+      border: 1px solid #e0e8f4;
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: 0 8px 25px #173c7110;
+    }
+    .screenshot-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+    }
+    .screenshot-card figcaption {
+      padding: 10px 4px 2px;
+      color: #64748b;
+      font-size: 14px;
+    }
     .content {
       background: #fff;
       border: 1px solid #e0e8f4;
@@ -236,7 +334,10 @@
       line-height: 1.8;
       color: #43546c;
     }
-    .content h2, .content h3 { color: #0f2342; text-align: left; }
+    .content h2, .content h3 {
+      color: #0f2342;
+      text-align: start;
+    }
     .content h2 { font-size: 30px; }
     .content a { color: #1267ef; font-weight: 700; }
     .faq details {
@@ -248,36 +349,95 @@
     }
     .faq summary { cursor: pointer; font-weight: 800; }
     .faq p { color: #64748b; line-height: 1.7; }
-    .cta {
-      margin: 40px auto 0;
-      background: linear-gradient(135deg, #08244b, #1267ef);
-      color: #fff;
-      border-radius: 24px;
-      padding: 38px;
-      text-align: center;
+    .install-box {
+      max-width: 760px;
+      margin: 24px 0 0;
+      text-align: start;
+      background: #fff;
+      border: 1px solid #e0e8f4;
+      border-radius: 18px;
+      padding: 20px 24px;
+      box-shadow: 0 8px 25px #173c7110;
     }
-    .cta p { color: #dbeafe; }
-    .download-btn { background: #fff; color: #1258c7; }
+    .install-box h3 { margin: 0 0 12px; }
+    .install-box ol {
+      margin: 0;
+      padding-inline-start: 22px;
+      color: #43546c;
+    }
+    .install-box li {
+      margin: 8px 0;
+      line-height: 1.55;
+    }
+    .support-line { margin-bottom: 0; }
+    .support-line a { color: #1267ef; font-weight: 800; }
     footer {
       text-align: center;
       padding: 35px 6%;
       color: #64748b;
     }
-    .legal { margin-top: 10px; }
-    .legal a {
+    footer p { overflow-wrap: anywhere; }
+    .socials {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px 18px;
+      margin: 14px 0;
+    }
+    .socials a,
+    footer a {
       color: #3b6fb6;
-      margin: 0 8px;
+      font-weight: 700;
       text-decoration: none;
     }
-    @media (max-width: 800px) {
-      .hero { grid-template-columns: 1fr; padding-top: 45px; }
-      .hero h1 { font-size: 40px; }
-      .features { grid-template-columns: repeat(2, 1fr); }
-      .navlinks { display: none; }
+    .legal {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 16px;
+      margin-top: 12px;
     }
-    @media (max-width: 480px) {
-      .features { grid-template-columns: 1fr; }
+    html[dir="rtl"] .navlinks { justify-content: flex-start; }
+    html[dir="rtl"] .install-box,
+    html[dir="rtl"] .content,
+    html[dir="rtl"] .card,
+    html[dir="rtl"] .trust-card,
+    html[dir="rtl"] .step-card,
+    html[dir="rtl"] .screenshot-card { text-align: right; }
+    @media (max-width: 900px) {
+      .navlinks { display: none; }
+      .hero { grid-template-columns: 1fr; padding-top: 45px; }
+      .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .trust-grid,
+      .steps-grid { grid-template-columns: 1fr; }
+      .screenshots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 600px) {
+      header { padding-inline: 4%; }
+      nav { gap: 10px; }
+      .brand { font-size: 21px; }
+      .language-control label { display: none; }
+      .language-control { padding: 4px; }
+      .language-control select { max-width: 108px; }
+      .hero,
+      .section { padding-inline: 18px; }
+      .hero { padding-top: 40px; gap: 28px; }
       .hero h1 { font-size: 35px; }
+      .hero p { font-size: 16px; }
+      .hero-actions { display: grid; grid-template-columns: 1fr; }
+      .btn { width: 100%; }
+      .features,
+      .screenshots { grid-template-columns: 1fr; }
+      .section h2 { font-size: 29px; }
+      .content { padding: 24px 18px; }
+      .install-box { padding: 18px; }
+    }
+    @media (max-width: 380px) {
+      .brand { font-size: 19px; }
+      .language-control select { max-width: 96px; font-size: 12px; }
+      .hero,
+      .section { padding-inline: 14px; }
+      .hero h1 { font-size: 32px; }
     }
   </style>
 </head>
@@ -286,15 +446,24 @@
 <header>
   <nav aria-label="Main navigation">
     <div class="brand">QAMVIO <span>POS</span></div>
-    <div class="navlinks">
-      <a href="#features">Features</a>
-      <a href="#offline-pos">Offline POS</a>
-      <a href="#faq">FAQ</a>
-      <a href="#download">Download</a>
-      <a href="mailto:info@qamvio.com">Contact</a>
-      <a href="https://www.youtube.com/@Qamvio" target="_blank" rel="noopener noreferrer">YouTube</a>
-      <a href="https://www.facebook.com/share/19Y35Wp28g/" target="_blank" rel="noopener noreferrer">Facebook</a>
-      <a href="https://www.instagram.com/qamvio/" target="_blank" rel="noopener noreferrer">Instagram</a>
+    <div class="nav-actions">
+      <div class="navlinks">
+        <a href="#features" data-i18n="navFeatures">Features</a>
+        <a href="#trust" data-i18n="navSecurity">Data protection</a>
+        <a href="#screenshots" data-i18n="navScreens">Screenshots</a>
+        <a href="#install" data-i18n="navInstall">Install</a>
+        <a href="#faq" data-i18n="navFaq">FAQ</a>
+        <a href="mailto:info@qamvio.com" data-i18n="navContact">Contact</a>
+      </div>
+      <div class="language-control">
+        <label for="languageSwitcher" data-i18n="languageLabel">Language</label>
+        <select id="languageSwitcher" aria-label="Language">
+          <option value="en">English</option>
+          <option value="ps">پښتو</option>
+          <option value="fa">دری</option>
+          <option value="ur">اردو</option>
+        </select>
+      </div>
     </div>
   </nav>
 </header>
@@ -302,157 +471,423 @@
 <main>
   <section class="hero">
     <div>
-      <div class="tagline">OFFLINE ANDROID POS & BUSINESS MANAGEMENT</div>
-      <h1>Offline Android POS, Inventory & Business Accounts</h1>
-      <p>
-        QAMVIO POS helps businesses manage sales, invoices, products, stock, customers,
-        suppliers, expenses, loans, cash book, daily closing and reports from one practical Android app.
-      </p>
-      <a class="btn" href="https://github.com/faisashahfaisa22-eng/OfflinePOS/releases/latest/download/QAMVIO-POS-v15-Flutter-Final.apk">
-        Download QAMVIO POS
-      </a>
-      <a class="btn alt" href="#features">Explore Features</a>
-      <p class="small">QAMVIO POS v1.0.0 • Android</p>
-      <p class="small">Official website: QAMVIO.com</p>
+      <div class="tagline" data-i18n="tagline">OFFLINE ANDROID POS &amp; BUSINESS MANAGEMENT</div>
+      <h1 data-i18n="heroTitle">Offline Android POS, Inventory &amp; Business Accounts</h1>
+      <p data-i18n="heroDesc">QAMVIO POS helps shops manage sales, invoices, stock, customers, suppliers, expenses and daily records from one practical Android app.</p>
+      <p class="free-note"><span aria-hidden="true">✓</span><span data-i18n="freeUse">Free to use. Your core shop work stays available even without internet.</span></p>
+      <div class="hero-actions">
+        <a class="btn" href="https://github.com/faisashahfaisa22-eng/OfflinePOS/releases/latest/download/QAMVIO-POS-v15-Flutter-Final.apk" data-i18n="downloadApk">Download for Android (APK)</a>
+        <a class="btn alt" href="#features" data-i18n="exploreFeatures">Explore features</a>
+      </div>
+      <p class="small" data-i18n="versionLabel">Version v1.0.0 • Android APK</p>
+      <div class="install-box" id="install">
+        <h3 data-i18n="installTitle">How to install</h3>
+        <ol>
+          <li data-i18n="install1">Download the APK file.</li>
+          <li data-i18n="install2">Open the downloaded APK on your phone.</li>
+          <li data-i18n="install3">If Android asks, allow “Install unknown apps” / “Install from this source” for the app you used to open the APK.</li>
+          <li data-i18n="install4">Finish the installation, then open QAMVIO.</li>
+        </ol>
+        <!-- TODO WhatsApp: add a support link only after an official QAMVIO WhatsApp number is provided. -->
+        <p class="support-line"><span data-i18n="supportLabel">Business &amp; support:</span> <a href="mailto:info@qamvio.com">info@qamvio.com</a></p>
+      </div>
     </div>
 
     <img
       src="qamvio-preview.png"
       alt="QAMVIO POS Android dashboard for sales inventory and business accounts"
+      data-i18n-alt="heroAlt"
       decoding="async"
       fetchpriority="high"
     >
   </section>
 
   <section class="section" id="features">
-    <h2>Sales, inventory and accounts in one POS app</h2>
-    <p class="sub">
-      QAMVIO POS combines daily point-of-sale work with stock control and business accounting.
-      It is designed for businesses that need clear records without switching between multiple apps.
-    </p>
+    <h2 data-i18n="featuresTitle">Sales, stock and accounts in one POS app</h2>
+    <p class="sub" data-i18n="featuresSub">Built for day-to-day shop work: record sales, follow stock, and keep customer and supplier balances together.</p>
 
     <div class="features">
       <div class="card">
-        <div class="ico">🛒</div>
-        <h3>Sales & Invoices</h3>
-        <p>Create sales invoices, record received cash, track due and recovery amounts, discounts and invoice history.</p>
+        <div class="ico" aria-hidden="true">🛒</div>
+        <h3 data-i18n="salesTitle">Sales &amp; Invoices</h3>
+        <p data-i18n="salesText">Create sales invoices, record received cash, track due and recovery amounts, discounts and invoice history.</p>
       </div>
       <div class="card">
-        <div class="ico">📦</div>
-        <h3>Inventory & Stock</h3>
-        <p>Manage products, purchases, stock adjustments, stock ledger, reorder levels and current stock value.</p>
+        <div class="ico" aria-hidden="true">📦</div>
+        <h3 data-i18n="stockTitle">Inventory &amp; Stock</h3>
+        <p data-i18n="stockText">Manage products, purchases, stock adjustments, stock ledger, reorder levels and current stock value.</p>
       </div>
       <div class="card">
-        <div class="ico">👥</div>
-        <h3>Customers & Suppliers</h3>
-        <p>Maintain customer and supplier balances, payments, receipts, statements and transaction history.</p>
+        <div class="ico" aria-hidden="true">👥</div>
+        <h3 data-i18n="customersTitle">Customers &amp; Suppliers</h3>
+        <p data-i18n="customersText">Maintain customer and supplier balances, payments, receipts, statements and transaction history.</p>
       </div>
       <div class="card">
-        <div class="ico">💰</div>
-        <h3>Cash Book & Expenses</h3>
-        <p>Track cash in, cash out, business expenses, running balance, owner or partner money and daily closing.</p>
+        <div class="ico" aria-hidden="true">💰</div>
+        <h3 data-i18n="cashTitle">Cash Book &amp; Expenses</h3>
+        <p data-i18n="cashText">Track cash in, cash out, business expenses, running balance and daily closing.</p>
       </div>
       <div class="card">
-        <div class="ico">📊</div>
-        <h3>Business Reports</h3>
-        <p>Review sales, profit and loss, stock, expenses, customer dues, supplier payables and product activity.</p>
+        <div class="ico" aria-hidden="true">📊</div>
+        <h3 data-i18n="reportsTitle">Business Reports</h3>
+        <p data-i18n="reportsText">Review sales, profit and loss, stock, expenses, customer dues and supplier payables.</p>
       </div>
       <div class="card">
-        <div class="ico">🤝</div>
-        <h3>Loans & Statements</h3>
-        <p>Record customer and salesman loans, recoveries and detailed running statements.</p>
+        <div class="ico" aria-hidden="true">🤝</div>
+        <h3 data-i18n="loansTitle">Loans &amp; Statements</h3>
+        <p data-i18n="loansText">Record customer and salesman loans, recoveries and detailed running statements.</p>
       </div>
       <div class="card">
-        <div class="ico">⛽</div>
-        <h3>Fuel & Oil Pump</h3>
-        <p>Manage tanks, nozzles, fuel deliveries and meter-sale shifts alongside the main POS records.</p>
+        <div class="ico" aria-hidden="true">⛽</div>
+        <h3 data-i18n="fuelTitle">Fuel &amp; Oil Pump</h3>
+        <p data-i18n="fuelText">Manage tanks, nozzles, fuel deliveries and meter-sale shifts alongside the main POS records.</p>
       </div>
       <div class="card">
-        <div class="ico">🌐</div>
-        <h3>4 Languages</h3>
-        <p>Use QAMVIO POS in English, پښتو, دری and اردو for multilingual business teams.</p>
+        <div class="ico" aria-hidden="true">🌐</div>
+        <h3 data-i18n="languagesTitle">4 Languages</h3>
+        <p data-i18n="languagesText">Use QAMVIO POS in English, Pashto, Dari and Urdu.</p>
       </div>
     </div>
   </section>
 
+  <section class="section" id="trust">
+    <h2 data-i18n="trustTitle">Your data is yours</h2>
+    <p class="sub" data-i18n="trustSub">QAMVIO is designed so your shop can keep working locally. Cloud backup is optional.</p>
+    <div class="trust-grid">
+      <div class="trust-card">
+        <div class="ico" aria-hidden="true">🔐</div>
+        <strong data-i18n="trustPhoneTitle">Encrypted on your phone</strong>
+        <p data-i18n="trustPhoneText">Business data is stored in an SQLCipher-encrypted local database on the device.</p>
+      </div>
+      <div class="trust-card">
+        <div class="ico" aria-hidden="true">📴</div>
+        <strong data-i18n="trustOfflineTitle">Works without internet</strong>
+        <p data-i18n="trustOfflineText">Local sign-in and day-to-day POS records work offline.</p>
+      </div>
+      <div class="trust-card">
+        <div class="ico" aria-hidden="true">☁️</div>
+        <strong data-i18n="trustCloudTitle">Optional encrypted cloud backup</strong>
+        <p data-i18n="trustCloudText">When cloud backup is used, QAMVIO encrypts it on the device before upload. The backup server receives encrypted data and cannot read your plain business records.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="start">
+    <h2 data-i18n="startTitle">3 steps to start</h2>
+    <p class="sub" data-i18n="startSub">Get from download to your first sale with a simple local setup.</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <strong data-i18n="startInstallTitle">Install</strong>
+        <p data-i18n="startInstallText">Download the APK and install it on your Android phone.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <strong data-i18n="startAccountTitle">Create account</strong>
+        <p data-i18n="startAccountText">Create your local QAMVIO account and keep your recovery information safe.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <strong data-i18n="startSaleTitle">Make your first sale</strong>
+        <p data-i18n="startSaleText">Add your products or stock, then record your first sale.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="screenshots">
+    <h2 data-i18n="screensTitle">See QAMVIO POS</h2>
+    <p class="sub" data-i18n="screensSub">Current interface preview from the project.</p>
+    <div class="screenshots">
+      <figure class="screenshot-card">
+        <img
+          src="qamvio-preview.png"
+          loading="lazy"
+          decoding="async"
+          alt="QAMVIO POS dashboard preview"
+          data-i18n-alt="screenAlt"
+        >
+        <figcaption data-i18n="screenCaption">QAMVIO POS dashboard preview</figcaption>
+      </figure>
+      <!-- TODO screenshot 2: add a real app screenshot from the repository when available. -->
+      <!-- TODO screenshot 3: add a real app screenshot from the repository when available. -->
+      <!-- TODO screenshot 4: add a real app screenshot from the repository when available. -->
+      <!-- TODO screenshot 5: add a real app screenshot from the repository when available. -->
+      <!-- TODO screenshot 6: add a real app screenshot from the repository when available. -->
+    </div>
+  </section>
+
+  <!-- TODO video: embed a specific QAMVIO YouTube video here when an actual video URL (not only the channel URL) is available on the site. -->
+
   <section class="section" id="offline-pos">
     <div class="content">
-      <h2>Offline POS software for Android</h2>
+      <h2 data-i18n="offlineTitle">Built for offline shop work</h2>
+      <p data-i18n="offlineText">Sales, inventory and account records are managed on the Android device, so day-to-day work does not depend on a constant internet connection.</p>
+      <h3 data-i18n="connectedTitle">Connected stock and accounts</h3>
+      <p data-i18n="connectedText">Sales can affect customer or salesman balances, while purchases and supplier transactions connect with supplier balances. Stock changes through opening quantity, purchases, sales and adjustments.</p>
       <p>
-        QAMVIO POS is built around an offline-first workflow for day-to-day business operations.
-        Sales, inventory and account records can be managed on the Android device, while backup and restore
-        tools help protect important business data.
-      </p>
-      <p>
-        The app brings together functions that small and growing businesses commonly need:
-        point of sale, product and stock management, purchase records, customer and supplier accounts,
-        expenses, loans, cash movement, daily closing and business reports.
-      </p>
-      <h3>Inventory management with stock history</h3>
-      <p>
-        Products can be tracked through opening stock, purchases, sales and adjustments.
-        QAMVIO also includes a stock ledger so businesses can review how quantities changed over time.
-        Read more on our <a href="inventory-management.html">inventory management page</a>.
-      </p>
-      <h3>POS records that connect with accounts</h3>
-      <p>
-        Sales are connected to customer or salesman balances, while purchases and supplier transactions
-        contribute to supplier balances. This gives the POS, stock and account records a shared business flow.
-        Learn more about <a href="offline-pos.html">QAMVIO offline POS software</a>.
+        <a href="inventory-management.html" data-i18n="inventoryDetails">Inventory management details</a>
+        ·
+        <a href="offline-pos.html" data-i18n="offlineDetails">Offline POS details</a>
       </p>
     </div>
   </section>
 
   <section class="section faq" id="faq">
-    <h2>QAMVIO POS FAQ</h2>
-    <p class="sub">Common questions about QAMVIO POS, inventory and Android business management.</p>
+    <h2 data-i18n="faqTitle">QAMVIO POS FAQ</h2>
+    <p class="sub" data-i18n="faqSub">Common questions about QAMVIO POS, inventory and Android business management.</p>
 
     <details>
-      <summary>What is QAMVIO POS?</summary>
-      <p>QAMVIO POS is an Android point-of-sale and business management app for sales, inventory, customers, suppliers, accounts, expenses, loans, cash book, reports, backup and restore.</p>
+      <summary data-i18n="faq1q">What is QAMVIO POS?</summary>
+      <p data-i18n="faq1a">QAMVIO POS is an Android point-of-sale and business management app for sales, inventory, customers, suppliers, accounts, expenses, loans, cash book, reports, backup and restore.</p>
     </details>
     <details>
-      <summary>Can QAMVIO POS manage inventory?</summary>
-      <p>Yes. It includes products, purchases, current stock, stock adjustments, stock ledger, reorder information and stock value reporting.</p>
+      <summary data-i18n="faq2q">Can QAMVIO POS manage inventory?</summary>
+      <p data-i18n="faq2a">Yes. It includes products, purchases, current stock, stock adjustments, stock ledger, reorder information and stock value reporting.</p>
     </details>
     <details>
-      <summary>Does QAMVIO POS include customer and supplier accounts?</summary>
-      <p>Yes. Customer and supplier balances, payments, receipts and detailed statements are part of the business workflow.</p>
+      <summary data-i18n="faq3q">Does QAMVIO POS include customer and supplier accounts?</summary>
+      <p data-i18n="faq3a">Yes. Customer and supplier balances, payments, receipts and detailed statements are part of the business workflow.</p>
     </details>
     <details>
-      <summary>Which languages are supported?</summary>
-      <p>QAMVIO POS supports English, Pashto, Dari and Urdu.</p>
+      <summary data-i18n="faq4q">Which languages are supported?</summary>
+      <p data-i18n="faq4a">QAMVIO POS supports English, Pashto, Dari and Urdu.</p>
     </details>
 
-    <div class="cta" id="download">
-      <h2 style="margin:0">Download QAMVIO POS for Android</h2>
-      <p>Point of sale • Inventory • Accounts • Reports</p>
-      <a class="btn download-btn" href="https://github.com/faisashahfaisa22-eng/OfflinePOS/releases/latest/download/QAMVIO-POS-v15-Flutter-Final.apk">
-        📱 Download Android APK
-      </a>
-      <a class="btn download-btn" href="https://github.com/faisashahfaisa22-eng/OfflinePOS/releases/download/v1.0.0/QAMVIO-v16.0.0-build16.aab">
-        📦 Download Play Store AAB
-      </a>
-      <p class="small" style="color:#cbd5e1 !important;">Android APK: v1.0.0 • Play Store AAB: v16.0.0 (build 16)</p>
-      <p class="small" style="color:#cbd5e1 !important;">The AAB is for Google Play publishing and is not directly installable on Android devices.</p>
-      <p style="margin-top:18px;">Business & support: <a href="mailto:info@qamvio.com" style="color:#fff;font-weight:800;">info@qamvio.com</a></p>
-    </div>
   </section>
 </main>
 
 <footer>
-  <b>QAMVIO</b> — Offline POS & Business Management
-  <p>📧 <a href="mailto:info@qamvio.com" style="color:#3b6fb6;font-weight:700;text-decoration:none;">info@qamvio.com</a></p>
-  <p>▶️ <a href="https://www.youtube.com/@Qamvio" target="_blank" rel="noopener noreferrer" style="color:#3b6fb6;font-weight:700;text-decoration:none;">YouTube: @Qamvio</a></p>
-  <p>📘 <a href="https://www.facebook.com/share/19Y35Wp28g/" target="_blank" rel="noopener noreferrer" style="color:#3b6fb6;font-weight:700;text-decoration:none;">Facebook: QAMVIO</a></p>
-  <p>📸 <a href="https://www.instagram.com/qamvio/" target="_blank" rel="noopener noreferrer" style="color:#3b6fb6;font-weight:700;text-decoration:none;">Instagram: @qamvio</a></p>
-  <div class="legal">
-    <a href="offline-pos.html">Offline POS</a>
-    <a href="inventory-management.html">Inventory Management</a>
-    <a href="privacy.html">Privacy Policy</a>
-    <a href="terms.html">Terms of Use</a>
+  <b>QAMVIO</b> — <span data-i18n="footerTagline">Offline POS &amp; Business Management</span>
+  <p>📧 <a href="mailto:info@qamvio.com">info@qamvio.com</a></p>
+  <div class="socials">
+    <a href="https://www.youtube.com/@Qamvio" target="_blank" rel="noopener noreferrer">▶️ YouTube: @Qamvio</a>
+    <a href="https://www.facebook.com/share/19Y35Wp28g/" target="_blank" rel="noopener noreferrer">📘 Facebook: QAMVIO</a>
+    <a href="https://www.instagram.com/qamvio/" target="_blank" rel="noopener noreferrer">📸 Instagram: @qamvio</a>
   </div>
-  <p>© 2026 QAMVIO. All rights reserved.</p>
+  <div class="legal">
+    <a href="offline-pos.html" data-i18n="footerOffline">Offline POS</a>
+    <a href="inventory-management.html" data-i18n="footerInventory">Inventory Management</a>
+    <a href="privacy.html" data-i18n="footerPrivacy">Privacy Policy</a>
+    <a href="terms.html" data-i18n="footerTerms">Terms of Use</a>
+  </div>
+  <p>© 2026 QAMVIO. <span data-i18n="copyright">All rights reserved.</span></p>
 </footer>
+
+<script>
+  (function () {
+    'use strict';
+
+    var messages = {
+      en: {
+        languageLabel: 'Language',
+        navFeatures: 'Features', navSecurity: 'Data protection', navScreens: 'Screenshots', navInstall: 'Install', navFaq: 'FAQ', navContact: 'Contact',
+        tagline: 'OFFLINE ANDROID POS & BUSINESS MANAGEMENT',
+        heroTitle: 'Offline Android POS, Inventory & Business Accounts',
+        heroDesc: 'QAMVIO POS helps shops manage sales, invoices, stock, customers, suppliers, expenses and daily records from one practical Android app.',
+        freeUse: 'Free to use. Your core shop work stays available even without internet.',
+        downloadApk: 'Download for Android (APK)', exploreFeatures: 'Explore features', versionLabel: 'Version v1.0.0 • Android APK',
+        heroAlt: 'QAMVIO POS Android dashboard for sales inventory and business accounts',
+        featuresTitle: 'Sales, stock and accounts in one POS app',
+        featuresSub: 'Built for day-to-day shop work: record sales, follow stock, and keep customer and supplier balances together.',
+        salesTitle: 'Sales & Invoices', salesText: 'Create sales invoices, record received cash, track due and recovery amounts, discounts and invoice history.',
+        stockTitle: 'Inventory & Stock', stockText: 'Manage products, purchases, stock adjustments, stock ledger, reorder levels and current stock value.',
+        customersTitle: 'Customers & Suppliers', customersText: 'Maintain customer and supplier balances, payments, receipts, statements and transaction history.',
+        cashTitle: 'Cash Book & Expenses', cashText: 'Track cash in, cash out, business expenses, running balance and daily closing.',
+        reportsTitle: 'Business Reports', reportsText: 'Review sales, profit and loss, stock, expenses, customer dues and supplier payables.',
+        loansTitle: 'Loans & Statements', loansText: 'Record customer and salesman loans, recoveries and detailed running statements.',
+        fuelTitle: 'Fuel & Oil Pump', fuelText: 'Manage tanks, nozzles, fuel deliveries and meter-sale shifts alongside the main POS records.',
+        languagesTitle: '4 Languages', languagesText: 'Use QAMVIO POS in English, Pashto, Dari and Urdu.',
+        trustTitle: 'Your data is yours', trustSub: 'QAMVIO is designed so your shop can keep working locally. Cloud backup is optional.',
+        trustPhoneTitle: 'Encrypted on your phone', trustPhoneText: 'Business data is stored in an SQLCipher-encrypted local database on the device.',
+        trustOfflineTitle: 'Works without internet', trustOfflineText: 'Local sign-in and day-to-day POS records work offline.',
+        trustCloudTitle: 'Optional encrypted cloud backup', trustCloudText: 'When cloud backup is used, QAMVIO encrypts it on the device before upload. The backup server receives encrypted data and cannot read your plain business records.',
+        startTitle: '3 steps to start', startSub: 'Get from download to your first sale with a simple local setup.',
+        startInstallTitle: 'Install', startInstallText: 'Download the APK and install it on your Android phone.',
+        startAccountTitle: 'Create account', startAccountText: 'Create your local QAMVIO account and keep your recovery information safe.',
+        startSaleTitle: 'Make your first sale', startSaleText: 'Add your products or stock, then record your first sale.',
+        screensTitle: 'See QAMVIO POS', screensSub: 'Current interface preview from the project.', screenAlt: 'QAMVIO POS dashboard preview', screenCaption: 'QAMVIO POS dashboard preview',
+        offlineTitle: 'Built for offline shop work', offlineText: 'Sales, inventory and account records are managed on the Android device, so day-to-day work does not depend on a constant internet connection.',
+        connectedTitle: 'Connected stock and accounts', connectedText: 'Sales can affect customer or salesman balances, while purchases and supplier transactions connect with supplier balances. Stock changes through opening quantity, purchases, sales and adjustments.',
+        inventoryDetails: 'Inventory management details', offlineDetails: 'Offline POS details',
+        faqTitle: 'QAMVIO POS FAQ', faqSub: 'Common questions about QAMVIO POS, inventory and Android business management.',
+        faq1q: 'What is QAMVIO POS?', faq1a: 'QAMVIO POS is an Android point-of-sale and business management app for sales, inventory, customers, suppliers, accounts, expenses, loans, cash book, reports, backup and restore.',
+        faq2q: 'Can QAMVIO POS manage inventory?', faq2a: 'Yes. It includes products, purchases, current stock, stock adjustments, stock ledger, reorder information and stock value reporting.',
+        faq3q: 'Does QAMVIO POS include customer and supplier accounts?', faq3a: 'Yes. Customer and supplier balances, payments, receipts and detailed statements are part of the business workflow.',
+        faq4q: 'Which languages are supported?', faq4a: 'QAMVIO POS supports English, Pashto, Dari and Urdu.',
+        downloadTitle: 'Download QAMVIO POS for Android', downloadSub: 'Free to use • POS • Inventory • Accounts • Reports',
+        installTitle: 'How to install', install1: 'Download the APK file.', install2: 'Open the downloaded APK on your phone.', install3: 'If Android asks, allow “Install unknown apps” / “Install from this source” for the app you used to open the APK.', install4: 'Finish the installation, then open QAMVIO.',
+        supportLabel: 'Business & support:', footerTagline: 'Offline POS & Business Management', footerOffline: 'Offline POS', footerInventory: 'Inventory Management', footerPrivacy: 'Privacy Policy', footerTerms: 'Terms of Use', copyright: 'All rights reserved.'
+      },
+      ps: {
+        languageLabel: 'ژبه',
+        navFeatures: 'ځانګړنې', navSecurity: 'د معلوماتو خوندیتوب', navScreens: 'انځورونه', navInstall: 'نصب', navFaq: 'پوښتنې', navContact: 'اړیکه',
+        tagline: 'د ANDROID لپاره آفلاین POS او د کاروبار مدیریت',
+        heroTitle: 'د Android لپاره آفلاین POS، سټاک او د کاروبار حسابونه',
+        heroDesc: 'QAMVIO POS دوکاندارانو سره مرسته کوي چې خرڅلاو، بلونه، سټاک، مشتریان، عرضه کوونکي، لګښتونه او ورځني حسابونه په یوه عملي Android اپ کې اداره کړي.',
+        freeUse: 'کارول یې وړیا دي. د دوکان اساسي کارونه مو له انټرنېټ پرته هم روان وي.',
+        downloadApk: 'د Android لپاره ډاونلوډ (APK)', exploreFeatures: 'ځانګړنې وګورئ', versionLabel: 'نسخه v1.0.0 • Android APK',
+        heroAlt: 'د QAMVIO POS د خرڅلاو، سټاک او کاروباري حسابونو Android ډشبورډ',
+        featuresTitle: 'خرڅلاو، سټاک او حسابونه په یوه POS اپ کې',
+        featuresSub: 'د دوکان د ورځني کار لپاره جوړ شوی: خرڅلاو ثبت کړئ، سټاک تعقیب کړئ او د مشتریانو او عرضه کوونکو حسابونه یو ځای وساتئ.',
+        salesTitle: 'خرڅلاو او بلونه', salesText: 'د خرڅلاو بلونه جوړ کړئ، ترلاسه شوې پیسې ثبت کړئ، پاتې او وصول شوې پیسې، تخفیف او د بلونو تاریخ تعقیب کړئ.',
+        stockTitle: 'سټاک او توکي', stockText: 'توکي، خریدونه، د سټاک اصلاحات، سټاک لیجر، د بیا فرمایش کچه او د موجود سټاک ارزښت اداره کړئ.',
+        customersTitle: 'مشتریان او عرضه کوونکي', customersText: 'د مشتریانو او عرضه کوونکو بیلانسونه، ورکړې، رسیدونه، سټېټمنټونه او د معاملاتو تاریخ وساتئ.',
+        cashTitle: 'نغدي کتاب او لګښتونه', cashText: 'داخلې او وتلې پیسې، د کاروبار لګښتونه، روان بیلانس او ورځنی تړل ثبت کړئ.',
+        reportsTitle: 'د کاروبار راپورونه', reportsText: 'خرڅلاو، ګټه او تاوان، سټاک، لګښتونه، د مشتریانو پاتې او د عرضه کوونکو حسابونه وګورئ.',
+        loansTitle: 'پورونه او سټېټمنټونه', loansText: 'د مشتریانو او سیلزمن پورونه، وصولۍ او مفصل روان حسابونه ثبت کړئ.',
+        fuelTitle: 'د تېلو او پمپ مدیریت', fuelText: 'ټانکونه، نوزلونه، د تېلو رسونې او د مېټر د خرڅلاو شفټونه د اصلي POS ثبتونو سره یو ځای اداره کړئ.',
+        languagesTitle: '۴ ژبې', languagesText: 'QAMVIO POS په English، پښتو، دری او اردو کې وکاروئ.',
+        trustTitle: 'ستاسو معلومات ستاسو دي', trustSub: 'QAMVIO داسې جوړ شوی چې دوکان مو په محلي ډول کار ته دوام ورکړي. Cloud backup اختیاري دی.',
+        trustPhoneTitle: 'په موبایل کې کوډ شوي معلومات', trustPhoneText: 'د کاروبار معلومات په موبایل کې د SQLCipher په کوډ شوې محلي ډیټابیس کې ساتل کېږي.',
+        trustOfflineTitle: 'له انټرنېټ پرته کار کوي', trustOfflineText: 'محلي ننوتل او د POS ورځني ثبتونه آفلاین کار کوي.',
+        trustCloudTitle: 'اختیاري کوډ شوی Cloud backup', trustCloudText: 'که Cloud backup وکاروئ، QAMVIO یې له پورته کولو مخکې په موبایل کې کوډوي. Backup سرور ته کوډ شوي معلومات ځي او ستاسو ښکاره سوداګریز ثبتونه نه شي لوستلای.',
+        startTitle: 'په ۳ ګامونو کې پیل', startSub: 'له ډاونلوډ څخه تر لومړي خرڅلاو پورې په ساده محلي ترتیب پیل وکړئ.',
+        startInstallTitle: 'نصب', startInstallText: 'APK ډاونلوډ کړئ او په خپل Android موبایل کې یې نصب کړئ.',
+        startAccountTitle: 'حساب جوړ کړئ', startAccountText: 'خپل محلي QAMVIO حساب جوړ کړئ او د ریکاوري معلومات خوندي وساتئ.',
+        startSaleTitle: 'لومړی خرڅلاو ثبت کړئ', startSaleText: 'خپل توکي یا سټاک اضافه کړئ، بیا لومړی خرڅلاو ثبت کړئ.',
+        screensTitle: 'QAMVIO POS وګورئ', screensSub: 'د پروژې د اوسني انترفېس انځور.', screenAlt: 'د QAMVIO POS ډشبورډ انځور', screenCaption: 'د QAMVIO POS ډشبورډ انځور',
+        offlineTitle: 'د آفلاین دوکاني کار لپاره جوړ شوی', offlineText: 'د خرڅلاو، سټاک او حسابونو ثبتونه په Android موبایل کې اداره کېږي، نو ورځنی کار مو په دوامداره انټرنېټ پورې تړلی نه دی.',
+        connectedTitle: 'سټاک او حسابونه سره نښتي دي', connectedText: 'خرڅلاو د مشتری یا سیلزمن پر بیلانس اغېز کولی شي، او خریدونه او د عرضه کوونکو معاملې د عرضه کوونکي له حساب سره تړل کېږي. سټاک د پرانیستې اندازې، خریدونو، خرڅلاو او اصلاحاتو له لارې بدلېږي.',
+        inventoryDetails: 'د سټاک د مدیریت معلومات', offlineDetails: 'د آفلاین POS معلومات',
+        faqTitle: 'د QAMVIO POS پوښتنې', faqSub: 'د QAMVIO POS، سټاک او Android کاروباري مدیریت په اړه عامې پوښتنې.',
+        faq1q: 'QAMVIO POS څه شی دی؟', faq1a: 'QAMVIO POS د Android لپاره د خرڅلاو او کاروبار مدیریت اپ دی چې خرڅلاو، سټاک، مشتریان، عرضه کوونکي، حسابونه، لګښتونه، پورونه، نغدي کتاب، راپورونه، backup او restore پکې شامل دي.',
+        faq2q: 'QAMVIO POS سټاک اداره کولی شي؟', faq2a: 'هو. توکي، خریدونه، موجود سټاک، د سټاک اصلاحات، سټاک لیجر، د بیا فرمایش معلومات او د سټاک ارزښت راپورونه لري.',
+        faq3q: 'د مشتریانو او عرضه کوونکو حسابونه لري؟', faq3a: 'هو. بیلانسونه، ورکړې، رسیدونه او مفصل سټېټمنټونه د کاروباري جریان برخه ده.',
+        faq4q: 'کومې ژبې پکې شته؟', faq4a: 'QAMVIO POS د English، پښتو، دری او اردو ملاتړ کوي.',
+        downloadTitle: 'د Android لپاره QAMVIO POS ډاونلوډ کړئ', downloadSub: 'وړیا کارول • POS • سټاک • حسابونه • راپورونه',
+        installTitle: 'څنګه یې نصب کړئ', install1: 'د APK فایل ډاونلوډ کړئ.', install2: 'ډاونلوډ شوی APK په خپل موبایل کې خلاص کړئ.', install3: 'که Android اجازه وغواړي، د هغه اپ لپاره “Install unknown apps / Install from this source” فعال کړئ چې APK مو پرې پرانیستی.', install4: 'نصب بشپړ کړئ، بیا QAMVIO خلاص کړئ.',
+        supportLabel: 'کاروباري اړیکه او مرسته:', footerTagline: 'آفلاین POS او د کاروبار مدیریت', footerOffline: 'آفلاین POS', footerInventory: 'د سټاک مدیریت', footerPrivacy: 'د محرمیت تګلاره', footerTerms: 'د کارولو شرطونه', copyright: 'ټول حقونه خوندي دي.'
+      },
+      fa: {
+        languageLabel: 'زبان',
+        navFeatures: 'ویژگی‌ها', navSecurity: 'امنیت داده‌ها', navScreens: 'تصاویر', navInstall: 'نصب', navFaq: 'پرسش‌ها', navContact: 'تماس',
+        tagline: 'POS آفلاین ANDROID و مدیریت کسب‌وکار',
+        heroTitle: 'POS آفلاین، موجودی و حساب‌های کسب‌وکار برای Android',
+        heroDesc: 'QAMVIO POS به دکانداران کمک می‌کند فروش، فاکتورها، موجودی، مشتریان، تأمین‌کنندگان، مصارف و ثبت‌های روزانه را در یک برنامه عملی Android مدیریت کنند.',
+        freeUse: 'استفاده از آن رایگان است. کارهای اصلی دکان بدون اینترنت هم در دسترس می‌ماند.',
+        downloadApk: 'دانلود برای Android (APK)', exploreFeatures: 'ویژگی‌ها را ببینید', versionLabel: 'نسخه v1.0.0 • Android APK',
+        heroAlt: 'داشبورد Android برنامه QAMVIO POS برای فروش، موجودی و حساب‌های کسب‌وکار',
+        featuresTitle: 'فروش، موجودی و حساب‌ها در یک برنامه POS',
+        featuresSub: 'برای کار روزمره دکان ساخته شده است: فروش را ثبت کنید، موجودی را دنبال کنید و حساب مشتریان و تأمین‌کنندگان را یک‌جا نگه دارید.',
+        salesTitle: 'فروش و فاکتورها', salesText: 'فاکتور فروش بسازید، پول دریافت‌شده را ثبت کنید و مانده، وصولی، تخفیف و تاریخچه فاکتورها را دنبال کنید.',
+        stockTitle: 'موجودی و کالاها', stockText: 'کالاها، خریدها، تعدیلات موجودی، دفتر موجودی، حد سفارش دوباره و ارزش موجودی فعلی را مدیریت کنید.',
+        customersTitle: 'مشتریان و تأمین‌کنندگان', customersText: 'مانده حساب، پرداخت‌ها، رسیدها، صورت‌حساب‌ها و تاریخچه معاملات مشتریان و تأمین‌کنندگان را نگه دارید.',
+        cashTitle: 'دفتر نقد و مصارف', cashText: 'ورودی و خروجی نقد، مصارف کسب‌وکار، مانده جاری و بستن روزانه را ثبت کنید.',
+        reportsTitle: 'گزارش‌های کسب‌وکار', reportsText: 'فروش، سود و زیان، موجودی، مصارف، بدهی مشتریان و حساب تأمین‌کنندگان را مرور کنید.',
+        loansTitle: 'قرض‌ها و صورت‌حساب‌ها', loansText: 'قرض مشتریان و فروشندگان، وصولی‌ها و صورت‌حساب‌های تفصیلی را ثبت کنید.',
+        fuelTitle: 'مدیریت تیل و پمپ', fuelText: 'تانک‌ها، نازل‌ها، تحویل تیل و شیفت‌های فروش متری را همراه با ثبت‌های اصلی POS مدیریت کنید.',
+        languagesTitle: '۴ زبان', languagesText: 'QAMVIO POS را به English، پښتو، دری و اردو استفاده کنید.',
+        trustTitle: 'داده‌های شما متعلق به شماست', trustSub: 'QAMVIO طوری طراحی شده که دکان شما به‌صورت محلی به کار ادامه دهد. Cloud backup اختیاری است.',
+        trustPhoneTitle: 'رمزگذاری‌شده روی تلفن', trustPhoneText: 'داده‌های کسب‌وکار در یک دیتابیس محلی رمزگذاری‌شده با SQLCipher روی دستگاه نگهداری می‌شود.',
+        trustOfflineTitle: 'بدون اینترنت کار می‌کند', trustOfflineText: 'ورود محلی و ثبت‌های روزانه POS به‌صورت آفلاین کار می‌کنند.',
+        trustCloudTitle: 'Cloud backup رمزگذاری‌شده و اختیاری', trustCloudText: 'اگر Cloud backup استفاده شود، QAMVIO پیش از آپلود آن را روی دستگاه رمزگذاری می‌کند. سرور Backup داده رمزگذاری‌شده را دریافت می‌کند و نمی‌تواند ثبت‌های خوانای کسب‌وکار شما را بخواند.',
+        startTitle: 'شروع در ۳ قدم', startSub: 'با یک تنظیم ساده محلی، از دانلود تا نخستین فروش پیش بروید.',
+        startInstallTitle: 'نصب', startInstallText: 'APK را دانلود و روی تلفن Android خود نصب کنید.',
+        startAccountTitle: 'حساب بسازید', startAccountText: 'حساب محلی QAMVIO خود را بسازید و معلومات بازیابی را محفوظ نگه دارید.',
+        startSaleTitle: 'نخستین فروش را ثبت کنید', startSaleText: 'کالاها یا موجودی خود را اضافه کنید و سپس نخستین فروش را ثبت کنید.',
+        screensTitle: 'QAMVIO POS را ببینید', screensSub: 'نمای فعلی رابط کاربری از پروژه.', screenAlt: 'نمای داشبورد QAMVIO POS', screenCaption: 'نمای داشبورد QAMVIO POS',
+        offlineTitle: 'برای کار آفلاین دکان ساخته شده', offlineText: 'ثبت‌های فروش، موجودی و حساب‌ها روی دستگاه Android مدیریت می‌شوند، بنابراین کار روزانه به اینترنت دایمی وابسته نیست.',
+        connectedTitle: 'موجودی و حساب‌ها به هم مرتبط‌اند', connectedText: 'فروش می‌تواند روی مانده مشتری یا فروشنده اثر بگذارد، و خریدها و معاملات تأمین‌کننده با حساب تأمین‌کننده مرتبط می‌شوند. موجودی از مقدار آغازین، خریدها، فروش و تعدیلات تغییر می‌کند.',
+        inventoryDetails: 'جزئیات مدیریت موجودی', offlineDetails: 'جزئیات POS آفلاین',
+        faqTitle: 'پرسش‌های QAMVIO POS', faqSub: 'پرسش‌های معمول درباره QAMVIO POS، موجودی و مدیریت کسب‌وکار در Android.',
+        faq1q: 'QAMVIO POS چیست؟', faq1a: 'QAMVIO POS یک برنامه فروش و مدیریت کسب‌وکار برای Android است که فروش، موجودی، مشتریان، تأمین‌کنندگان، حساب‌ها، مصارف، قرض‌ها، دفتر نقد، گزارش‌ها، backup و restore را شامل می‌شود.',
+        faq2q: 'آیا QAMVIO POS موجودی را مدیریت می‌کند؟', faq2a: 'بله. کالاها، خریدها، موجودی فعلی، تعدیلات موجودی، دفتر موجودی، معلومات سفارش دوباره و گزارش ارزش موجودی را شامل می‌شود.',
+        faq3q: 'آیا حساب مشتری و تأمین‌کننده دارد؟', faq3a: 'بله. مانده حساب، پرداخت‌ها، رسیدها و صورت‌حساب‌های تفصیلی بخشی از جریان کاری کسب‌وکار است.',
+        faq4q: 'کدام زبان‌ها پشتیبانی می‌شوند؟', faq4a: 'QAMVIO POS از English، پښتو، دری و اردو پشتیبانی می‌کند.',
+        downloadTitle: 'QAMVIO POS را برای Android دانلود کنید', downloadSub: 'استفاده رایگان • POS • موجودی • حساب‌ها • گزارش‌ها',
+        installTitle: 'روش نصب', install1: 'فایل APK را دانلود کنید.', install2: 'APK دانلودشده را روی تلفن باز کنید.', install3: 'اگر Android اجازه خواست، برای برنامه‌ای که APK را با آن باز کرده‌اید “Install unknown apps / Install from this source” را اجازه دهید.', install4: 'نصب را تکمیل کنید و سپس QAMVIO را باز کنید.',
+        supportLabel: 'تماس و پشتیبانی:', footerTagline: 'POS آفلاین و مدیریت کسب‌وکار', footerOffline: 'POS آفلاین', footerInventory: 'مدیریت موجودی', footerPrivacy: 'سیاست حریم خصوصی', footerTerms: 'شرایط استفاده', copyright: 'همه حقوق محفوظ است.'
+      },
+      ur: {
+        languageLabel: 'زبان',
+        navFeatures: 'خصوصیات', navSecurity: 'ڈیٹا کا تحفظ', navScreens: 'تصاویر', navInstall: 'انسٹال', navFaq: 'سوالات', navContact: 'رابطہ',
+        tagline: 'ANDROID کے لیے آف لائن POS اور کاروباری نظم',
+        heroTitle: 'Android کے لیے آف لائن POS، اسٹاک اور کاروباری حسابات',
+        heroDesc: 'QAMVIO POS دکانداروں کو فروخت، انوائس، اسٹاک، گاہک، سپلائر، اخراجات اور روزانہ ریکارڈ ایک عملی Android ایپ میں سنبھالنے میں مدد دیتا ہے۔',
+        freeUse: 'استعمال بالکل مفت ہے۔ دکان کا بنیادی کام انٹرنیٹ کے بغیر بھی جاری رہتا ہے۔',
+        downloadApk: 'Android کے لیے ڈاؤن لوڈ (APK)', exploreFeatures: 'خصوصیات دیکھیں', versionLabel: 'ورژن v1.0.0 • Android APK',
+        heroAlt: 'فروخت، اسٹاک اور کاروباری حسابات کے لیے QAMVIO POS Android ڈیش بورڈ',
+        featuresTitle: 'فروخت، اسٹاک اور حسابات ایک POS ایپ میں',
+        featuresSub: 'روزمرہ دکان کے کام کے لیے: فروخت درج کریں، اسٹاک پر نظر رکھیں اور گاہک و سپلائر کے حسابات ایک جگہ رکھیں۔',
+        salesTitle: 'فروخت اور انوائس', salesText: 'فروخت کی انوائس بنائیں، وصول شدہ رقم درج کریں، بقایا و وصولی، ڈسکاؤنٹ اور انوائس کی تاریخ دیکھیں۔',
+        stockTitle: 'انوینٹری اور اسٹاک', stockText: 'مصنوعات، خریداری، اسٹاک ایڈجسٹمنٹ، اسٹاک لیجر، دوبارہ آرڈر کی حد اور موجودہ اسٹاک کی قدر سنبھالیں۔',
+        customersTitle: 'گاہک اور سپلائر', customersText: 'گاہک اور سپلائر کے بیلنس، ادائیگیاں، رسیدیں، اسٹیٹمنٹس اور لین دین کی تاریخ رکھیں۔',
+        cashTitle: 'کیش بک اور اخراجات', cashText: 'کیش اِن، کیش آؤٹ، کاروباری اخراجات، چلتا بیلنس اور روزانہ بندش درج کریں۔',
+        reportsTitle: 'کاروباری رپورٹس', reportsText: 'فروخت، نفع و نقصان، اسٹاک، اخراجات، گاہک کے بقایاجات اور سپلائر کی ادائیگیاں دیکھیں۔',
+        loansTitle: 'قرض اور اسٹیٹمنٹس', loansText: 'گاہک اور سیلز مین کے قرض، وصولیاں اور تفصیلی چلتے اسٹیٹمنٹس درج کریں۔',
+        fuelTitle: 'فیول اور پمپ', fuelText: 'ٹینک، نوزل، فیول ڈیلیوری اور میٹر سیل شفٹس کو مرکزی POS ریکارڈ کے ساتھ سنبھالیں۔',
+        languagesTitle: '۴ زبانیں', languagesText: 'QAMVIO POS کو English، پښتو، دری اور اردو میں استعمال کریں۔',
+        trustTitle: 'آپ کا ڈیٹا آپ کا ہے', trustSub: 'QAMVIO اس طرح بنایا گیا ہے کہ آپ کی دکان مقامی طور پر کام جاری رکھ سکے۔ Cloud backup اختیاری ہے۔',
+        trustPhoneTitle: 'فون پر انکرپٹڈ', trustPhoneText: 'کاروباری ڈیٹا ڈیوائس پر SQLCipher انکرپٹڈ مقامی ڈیٹابیس میں محفوظ ہوتا ہے۔',
+        trustOfflineTitle: 'انٹرنیٹ کے بغیر کام', trustOfflineText: 'مقامی لاگ اِن اور روزمرہ POS ریکارڈ آف لائن کام کرتے ہیں۔',
+        trustCloudTitle: 'اختیاری انکرپٹڈ Cloud backup', trustCloudText: 'Cloud backup استعمال کرنے پر QAMVIO اپلوڈ سے پہلے اسے ڈیوائس پر انکرپٹ کرتا ہے۔ Backup سرور کو انکرپٹڈ ڈیٹا ملتا ہے اور وہ آپ کے سادہ کاروباری ریکارڈ نہیں پڑھ سکتا۔',
+        startTitle: '۳ قدم میں آغاز', startSub: 'سادہ مقامی سیٹ اپ کے ساتھ ڈاؤن لوڈ سے پہلی فروخت تک جائیں۔',
+        startInstallTitle: 'انسٹال کریں', startInstallText: 'APK ڈاؤن لوڈ کریں اور اپنے Android فون پر انسٹال کریں۔',
+        startAccountTitle: 'اکاؤنٹ بنائیں', startAccountText: 'اپنا مقامی QAMVIO اکاؤنٹ بنائیں اور ریکوری معلومات محفوظ رکھیں۔',
+        startSaleTitle: 'پہلی فروخت کریں', startSaleText: 'اپنی مصنوعات یا اسٹاک شامل کریں، پھر پہلی فروخت درج کریں۔',
+        screensTitle: 'QAMVIO POS دیکھیں', screensSub: 'پروجیکٹ کا موجودہ انٹرفیس پری ویو۔', screenAlt: 'QAMVIO POS ڈیش بورڈ پری ویو', screenCaption: 'QAMVIO POS ڈیش بورڈ پری ویو',
+        offlineTitle: 'آف لائن دکان کے کام کے لیے', offlineText: 'فروخت، اسٹاک اور حسابات کے ریکارڈ Android ڈیوائس پر سنبھالے جاتے ہیں، اس لیے روزمرہ کام مسلسل انٹرنیٹ پر منحصر نہیں۔',
+        connectedTitle: 'اسٹاک اور حسابات باہم مربوط', connectedText: 'فروخت گاہک یا سیلز مین کے بیلنس پر اثر ڈال سکتی ہے، جبکہ خریداری اور سپلائر لین دین سپلائر کے حساب سے جڑتے ہیں۔ اسٹاک اوپننگ مقدار، خریداری، فروخت اور ایڈجسٹمنٹ سے بدلتا ہے۔',
+        inventoryDetails: 'انوینٹری مینجمنٹ کی تفصیل', offlineDetails: 'آف لائن POS کی تفصیل',
+        faqTitle: 'QAMVIO POS سوالات', faqSub: 'QAMVIO POS، انوینٹری اور Android کاروباری نظم کے بارے میں عام سوالات۔',
+        faq1q: 'QAMVIO POS کیا ہے؟', faq1a: 'QAMVIO POS Android کے لیے فروخت اور کاروباری نظم کی ایپ ہے جس میں فروخت، انوینٹری، گاہک، سپلائر، حسابات، اخراجات، قرض، کیش بک، رپورٹس، backup اور restore شامل ہیں۔',
+        faq2q: 'کیا QAMVIO POS اسٹاک سنبھالتا ہے؟', faq2a: 'جی ہاں۔ اس میں مصنوعات، خریداری، موجودہ اسٹاک، اسٹاک ایڈجسٹمنٹ، اسٹاک لیجر، دوبارہ آرڈر کی معلومات اور اسٹاک ویلیو رپورٹس شامل ہیں۔',
+        faq3q: 'کیا گاہک اور سپلائر کے حسابات شامل ہیں؟', faq3a: 'جی ہاں۔ بیلنس، ادائیگیاں، رسیدیں اور تفصیلی اسٹیٹمنٹس کاروباری ورک فلو کا حصہ ہیں۔',
+        faq4q: 'کون سی زبانیں دستیاب ہیں؟', faq4a: 'QAMVIO POS English، پښتو، دری اور اردو کی حمایت کرتا ہے۔',
+        downloadTitle: 'Android کے لیے QAMVIO POS ڈاؤن لوڈ کریں', downloadSub: 'مفت استعمال • POS • اسٹاک • حسابات • رپورٹس',
+        installTitle: 'انسٹال کرنے کا طریقہ', install1: 'APK فائل ڈاؤن لوڈ کریں۔', install2: 'ڈاؤن لوڈ شدہ APK اپنے فون پر کھولیں۔', install3: 'اگر Android اجازت مانگے تو جس ایپ سے APK کھولا ہے اس کے لیے “Install unknown apps / Install from this source” کی اجازت دیں۔', install4: 'انسٹالیشن مکمل کریں، پھر QAMVIO کھولیں۔',
+        supportLabel: 'کاروباری رابطہ اور مدد:', footerTagline: 'آف لائن POS اور کاروباری نظم', footerOffline: 'آف لائن POS', footerInventory: 'انوینٹری مینجمنٹ', footerPrivacy: 'پرائیویسی پالیسی', footerTerms: 'استعمال کی شرائط', copyright: 'تمام حقوق محفوظ ہیں۔'
+      }
+    };
+
+    var rtlLanguages = { ps: true, fa: true, ur: true };
+    var switcher = document.getElementById('languageSwitcher');
+
+    function setLanguage(lang, remember) {
+      if (!messages[lang]) lang = 'en';
+      var dictionary = messages[lang];
+      document.documentElement.lang = lang;
+      document.documentElement.dir = rtlLanguages[lang] ? 'rtl' : 'ltr';
+
+      document.querySelectorAll('[data-i18n]').forEach(function (element) {
+        var key = element.getAttribute('data-i18n');
+        if (Object.prototype.hasOwnProperty.call(dictionary, key)) {
+          element.textContent = dictionary[key];
+        }
+      });
+
+      document.querySelectorAll('[data-i18n-alt]').forEach(function (element) {
+        var key = element.getAttribute('data-i18n-alt');
+        if (Object.prototype.hasOwnProperty.call(dictionary, key)) {
+          element.setAttribute('alt', dictionary[key]);
+        }
+      });
+
+      if (switcher) switcher.value = lang;
+      if (remember) {
+        try {
+          window.localStorage.setItem('qamvio-language', lang);
+        } catch (error) {
+          // Storage can be unavailable in private/restricted browser modes.
+        }
+      }
+    }
+
+    var initialLanguage = 'en';
+    try {
+      var savedLanguage = window.localStorage.getItem('qamvio-language');
+      if (savedLanguage && messages[savedLanguage]) initialLanguage = savedLanguage;
+    } catch (error) {
+      // Keep English when storage is unavailable.
+    }
+
+    setLanguage(initialLanguage, false);
+    if (switcher) {
+      switcher.addEventListener('change', function () {
+        setLanguage(switcher.value, true);
+      });
+    }
+  }());
+</script>
 </body>
 </html>

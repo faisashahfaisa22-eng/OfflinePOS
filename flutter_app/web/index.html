@@ -43,5 +43,14 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('qamvio_sw.js').catch(function (error) {
+          console.warn('QAMVIO offline worker registration failed:', error);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

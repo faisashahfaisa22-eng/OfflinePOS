@@ -134,6 +134,9 @@
       font-family: "Noto Naskh Arabic", "Noto Sans Arabic", Tahoma, Arial, sans-serif;
     }
     a, button, select { font: inherit; }
+    h1, h2, h3, p, summary, figcaption, .tagline, .price-note {
+      overflow-wrap: anywhere;
+    }
     header {
       background: linear-gradient(135deg, #071b38, #075ee8);
       color: #fff;
@@ -159,6 +162,11 @@
       align-items: center;
       gap: 14px;
       min-width: 0;
+      max-width: 100%;
+    }
+    .nav-right label {
+      min-width: 0;
+      max-width: 100%;
     }
     .navlinks {
       display: flex;
@@ -182,6 +190,7 @@
       color: #0f2342;
       background: #fff;
       cursor: pointer;
+      width: 100%;
     }
     .hero {
       max-width: 1150px;
@@ -219,6 +228,8 @@
       background: #eaf7f1;
       color: #12633f;
       font-weight: 900;
+      max-width: 100%;
+      white-space: normal;
     }
     .btn {
       display: inline-block;
@@ -421,7 +432,8 @@
     }
     @media (max-width: 480px) {
       header { padding: 14px 16px; }
-      nav { gap: 10px; }
+      nav { gap: 10px; flex-wrap: wrap; }
+      .nav-right { margin-inline-start: auto; }
       .brand { font-size: 20px; }
       .language-picker {
         min-width: 108px;

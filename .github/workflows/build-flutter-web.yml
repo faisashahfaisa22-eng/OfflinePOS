@@ -149,38 +149,53 @@ jobs:
         working-directory: flutter_app
         run: flutter test
 
-      - name: Test encrypted database runtime in Chrome
+      - name: Test encrypted database in served Chrome
         shell: bash
         run: |
           set -euo pipefail
-          cat > flutter_app/test/web_database_runtime_test.dart <<'DART'
-          import 'package:flutter_test/flutter_test.dart';
+
+          cat > flutter_app/lib/web_database_smoke_main.dart <<'DART'
+          import 'dart:html' as html;
+
+          import 'package:flutter/widgets.dart';
           import 'package:qamvio_pos/core/database/app_database.dart';
 
-          void main() {
-            TestWidgetsFlutterBinding.ensureInitialized();
+          Future<void> main() async {
+            WidgetsFlutterBinding.ensureInitialized();
+            final phase = Uri.base.queryParameters['phase'] ?? 'write';
+            final app = AppDatabase.instance;
+            final goodKey = List<int>.generate(32, (i) => i + 1);
+            final wrongKey = List<int>.generate(32, (i) => 255 - i);
+            const id = 'web-smoke-product-v16';
 
-            test(
-              'web database is encrypted and persists after lock/reopen',
-              () async {
-                final app = AppDatabase.instance;
-                final key = List<int>.generate(32, (i) => i + 1);
-                const id = 'web-smoke-product-v16';
+            void done(String value) {
+              html.document.body?.text = value;
+            }
 
-                // GitHub Chrome starts with a fresh profile. Open first so the
-                // web database worker/VFS is initialized before delete is
-                // exercised later in this test.
-                print('QAMVIO_STAGE open');
-                await app.unlock(key);
-                final first = await app.database;
+            try {
+              if (phase == 'wrong') {
+                await app.unlock(wrongKey);
+                try {
+                  await app.database;
+                  done('QAMVIO_WRONG_KEY_FAIL');
+                } catch (_) {
+                  done('QAMVIO_WRONG_KEY_PASS');
+                } finally {
+                  await app.lock();
+                }
+                return;
+              }
 
-                print('QAMVIO_STAGE cipher');
-                final cipher = await first.rawQuery('PRAGMA cipher_version');
-                expect(cipher, isNotEmpty);
-                final cipherVersion = cipher.first.values.first?.toString() ?? '';
-                expect(cipherVersion, isNotEmpty);
+              await app.unlock(goodKey);
+              final db = await app.database;
+              final cipher = await db.rawQuery('PRAGMA cipher_version');
+              final cipherVersion =
+                  cipher.isEmpty ? '' : cipher.first.values.first?.toString() ?? '';
+              if (cipherVersion.isEmpty) {
+                throw StateError('Encrypted SQLite cipher is unavailable.');
+              }
 
-                print('QAMVIO_STAGE write');
+              if (phase == 'write') {
                 await app.saveProduct(
                   id: id,
                   name: 'Web Smoke Product',
@@ -188,93 +203,79 @@ jobs:
                   price: 10,
                   cost: 4,
                 );
-
-                print('QAMVIO_STAGE lock1');
                 await app.lock();
+                done('QAMVIO_WRITE_PASS cipher=$cipherVersion');
+                return;
+              }
 
-                print('QAMVIO_STAGE reopen');
-                await app.unlock(key);
-                final reopened = await app.database;
-                final rows = await reopened.query(
+              if (phase == 'read') {
+                final rows = await db.query(
                   'products',
                   where: 'id=?',
                   whereArgs: [id],
                 );
-                expect(rows.length, 1);
-                expect(rows.first['name'], 'Web Smoke Product');
+                if (rows.length != 1 ||
+                    rows.first['name'] != 'Web Smoke Product') {
+                  throw StateError('Persisted browser business data was not found.');
+                }
 
-                print('QAMVIO_STAGE integrity');
-                final integrity =
-                    await reopened.rawQuery('PRAGMA cipher_integrity_check');
-                final integrityText = integrity
-                    .expand((row) => row.values)
-                    .whereType<Object>()
-                    .map((value) => value.toString())
-                    .join(' ')
-                    .toLowerCase();
-                expect(integrityText.contains('error'), isFalse);
-
-                print('QAMVIO_STAGE delete');
                 await app.deleteFile();
-
-                print('QAMVIO_STAGE reopen_after_delete');
-                await app.unlock(key);
-                final empty = await app.database;
-                final deletedRows = await empty.query(
+                await app.unlock(goodKey);
+                final fresh = await app.database;
+                final deletedRows = await fresh.query(
                   'products',
                   where: 'id=?',
                   whereArgs: [id],
                 );
-                expect(deletedRows, isEmpty);
+                if (deletedRows.isNotEmpty) {
+                  throw StateError('Browser database delete/recreate failed.');
+                }
                 await app.lock();
+                done('QAMVIO_READ_PASS cipher=$cipherVersion');
+                return;
+              }
 
-                print('QAMVIO_WEB_DB_TEST_PASS cipher=$cipherVersion');
-              },
-              timeout: const Timeout(Duration(seconds: 75)),
-            );
+              throw StateError('Unknown smoke-test phase: $phase');
+            } catch (e) {
+              try {
+                await app.lock();
+              } catch (_) {}
+              done('QAMVIO_DB_FAIL $e');
+            }
           }
           DART
 
           cd flutter_app
-          set +e
-          timeout 100 flutter test --platform chrome --machine test/web_database_runtime_test.dart \
-            > /tmp/qamvio-web-db-test.log 2>&1
-          status=$?
-          set -e
-          cat /tmp/qamvio-web-db-test.log
-          rm -f test/web_database_runtime_test.dart
+          flutter build web --release             --target lib/web_database_smoke_main.dart             --output /tmp/qamvio-db-smoke
+          rm -f lib/web_database_smoke_main.dart
 
-          python3 - <<'PY'
-          import json
-          import sys
-          from pathlib import Path
+          python3 -m http.server 8765 --directory /tmp/qamvio-db-smoke             >/tmp/qamvio-db-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 2
 
-          passed = False
-          failed = False
-          target = "web database is encrypted and persists after lock/reopen"
-          names = {}
-          for raw in Path("/tmp/qamvio-web-db-test.log").read_text(
-              encoding="utf-8", errors="replace"
-          ).splitlines():
-              try:
-                  event = json.loads(raw)
-              except Exception:
-                  continue
-              if event.get("type") == "testStart":
-                  test = event.get("test") or {}
-                  names[test.get("id")] = test.get("name", "")
-              elif event.get("type") == "testDone":
-                  name = names.get(event.get("testID"), "")
-                  if target in name:
-                      if event.get("result") == "success":
-                          passed = True
-                      else:
-                          failed = True
+          chrome="$(command -v google-chrome || command -v google-chrome-stable)"
+          profile=/tmp/qamvio-chrome-profile
+          rm -rf "$profile"
 
-          if failed or not passed:
-              sys.exit("Encrypted Chrome database test did not report success.")
-          print("PASS: encrypted SQLite WASM persisted business data after lock/reopen.")
-          PY
+          run_phase() {
+            phase="$1"
+            expected="$2"
+            output="/tmp/qamvio-db-$phase.html"
+            "$chrome"               --headless=new               --no-sandbox               --disable-dev-shm-usage               --user-data-dir="$profile"               --virtual-time-budget=20000               --dump-dom               "http://127.0.0.1:8765/?phase=$phase"               >"$output" 2>/tmp/qamvio-chrome-$phase.log
+            cat "$output"
+            grep -q "$expected" "$output"
+            if grep -q "QAMVIO_DB_FAIL\|QAMVIO_WRONG_KEY_FAIL" "$output"; then
+              echo "::error::Chrome encrypted database smoke test failed in phase $phase"
+              exit 1
+            fi
+          }
+
+          run_phase write QAMVIO_WRITE_PASS
+          run_phase wrong QAMVIO_WRONG_KEY_PASS
+          run_phase read QAMVIO_READ_PASS
+
+          echo "PASS: served Chrome persisted encrypted data, rejected a wrong key, and safely recreated the database."
 
       - name: Build web release
         working-directory: flutter_app

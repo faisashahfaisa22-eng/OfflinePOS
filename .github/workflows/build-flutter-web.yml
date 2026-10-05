@@ -365,7 +365,103 @@ jobs:
 
       - name: Build web release
         working-directory: flutter_app
-        run: flutter build web --release
+        run: flutter build web --release --no-web-resources-cdn
+
+      - name: Generate QAMVIO offline service worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json
+
+          root = Path("flutter_app/build/web")
+          files = []
+          digest = sha256()
+
+          for path in sorted(root.rglob("*")):
+              if not path.is_file():
+                  continue
+              rel = path.relative_to(root).as_posix()
+              if rel in {"qamvio_sw.js", "flutter_service_worker.js"}:
+                  continue
+              if rel.endswith(".map"):
+                  continue
+              data = path.read_bytes()
+              digest.update(rel.encode("utf-8"))
+              digest.update(b"\0")
+              digest.update(sha256(data).digest())
+              files.append("./" + rel)
+
+          cache_name = "qamvio-pwa-" + digest.hexdigest()[:16]
+          precache = json.dumps(files, ensure_ascii=False, indent=2)
+
+          worker = f"""const CACHE_NAME = {json.dumps(cache_name)};
+          const PRECACHE = {precache};
+          const INDEX = './index.html';
+
+          self.addEventListener('install', (event) => {{
+            event.waitUntil(
+              caches.open(CACHE_NAME)
+                .then((cache) => cache.addAll(PRECACHE))
+                .then(() => self.skipWaiting())
+            );
+          }});
+
+          self.addEventListener('activate', (event) => {{
+            event.waitUntil(
+              caches.keys()
+                .then((keys) => Promise.all(
+                  keys
+                    .filter((key) => key.startsWith('qamvio-pwa-') && key !== CACHE_NAME)
+                    .map((key) => caches.delete(key))
+                ))
+                .then(() => self.clients.claim())
+            );
+          }});
+
+          self.addEventListener('fetch', (event) => {{
+            const request = event.request;
+            if (request.method !== 'GET') return;
+
+            const url = new URL(request.url);
+            if (url.origin !== self.location.origin) return;
+
+            if (request.mode === 'navigate') {{
+              event.respondWith(
+                fetch(request)
+                  .then((response) => {{
+                    if (response && response.ok) {{
+                      const copy = response.clone();
+                      caches.open(CACHE_NAME).then((cache) => cache.put(INDEX, copy));
+                    }}
+                    return response;
+                  }})
+                  .catch(() => caches.match(INDEX))
+              );
+              return;
+            }}
+
+            event.respondWith(
+              caches.match(request).then((cached) => {{
+                if (cached) return cached;
+                return fetch(request).then((response) => {{
+                  if (response && response.ok) {{
+                    const copy = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+                  }}
+                  return response;
+                }});
+              }})
+            );
+          }});
+          """
+
+          (root / "qamvio_sw.js").write_text(worker, encoding="utf-8")
+          print(f"Generated {cache_name} with {len(files)} precached files.")
+          PY
+          node --check flutter_app/build/web/qamvio_sw.js
 
       - name: Verify installable web metadata and offline assets
         shell: bash
@@ -373,12 +469,15 @@ jobs:
           set -euo pipefail
           test -f flutter_app/build/web/index.html
           test -f flutter_app/build/web/manifest.json
-          test -f flutter_app/build/web/flutter_service_worker.js
           test -s flutter_app/build/web/sqlite3mc.wasm
+          test -s flutter_app/build/web/qamvio_sw.js
           grep -q '"display": "standalone"' flutter_app/build/web/manifest.json
           grep -q '"orientation": "any"' flutter_app/build/web/manifest.json
           grep -q 'QAMVIO POS' flutter_app/build/web/index.html
-          grep -q 'sqlite3mc.wasm' flutter_app/build/web/flutter_service_worker.js
+          grep -q 'qamvio_sw.js' flutter_app/build/web/index.html
+          grep -q 'sqlite3mc.wasm' flutter_app/build/web/qamvio_sw.js
+          grep -q 'main.dart.js' flutter_app/build/web/qamvio_sw.js
+          test -d flutter_app/build/web/canvaskit
 
       - name: Package web build
         shell: bash

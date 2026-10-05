@@ -187,14 +187,20 @@ jobs:
         working-directory: flutter_app
         run: flutter build web --release
 
-      - name: Verify installable web metadata
+      - name: Verify installable web metadata and offline assets
         shell: bash
         run: |
           set -euo pipefail
           test -f flutter_app/build/web/index.html
           test -f flutter_app/build/web/manifest.json
+          test -f flutter_app/build/web/flutter_service_worker.js
+          test -s flutter_app/build/web/sqlite3mc.wasm
+          test -s flutter_app/build/web/sqflite_sw.js
           grep -q '"display": "standalone"' flutter_app/build/web/manifest.json
+          grep -q '"orientation": "any"' flutter_app/build/web/manifest.json
           grep -q 'QAMVIO POS' flutter_app/build/web/index.html
+          grep -q 'sqlite3mc.wasm' flutter_app/build/web/flutter_service_worker.js
+          grep -q 'sqflite_sw.js' flutter_app/build/web/flutter_service_worker.js
 
       - name: Package web build
         shell: bash

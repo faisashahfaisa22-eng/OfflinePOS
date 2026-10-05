@@ -167,9 +167,9 @@ jobs:
                 final key = List<int>.generate(32, (i) => i + 1);
                 const id = 'web-smoke-product-v16';
 
-                print('QAMVIO_STAGE delete');
-                await app.deleteFile();
-
+                // GitHub Chrome starts with a fresh profile. Open first so the
+                // web database worker/VFS is initialized before delete is
+                // exercised later in this test.
                 print('QAMVIO_STAGE open');
                 await app.unlock(key);
                 final first = await app.database;
@@ -214,8 +214,20 @@ jobs:
                     .toLowerCase();
                 expect(integrityText.contains('error'), isFalse);
 
-                print('QAMVIO_STAGE lock2');
+                print('QAMVIO_STAGE delete');
+                await app.deleteFile();
+
+                print('QAMVIO_STAGE reopen_after_delete');
+                await app.unlock(key);
+                final empty = await app.database;
+                final deletedRows = await empty.query(
+                  'products',
+                  where: 'id=?',
+                  whereArgs: [id],
+                );
+                expect(deletedRows, isEmpty);
                 await app.lock();
+
                 print('QAMVIO_WEB_DB_TEST_PASS cipher=$cipherVersion');
               },
               timeout: const Timeout(Duration(seconds: 75)),

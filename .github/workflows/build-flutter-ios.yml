@@ -39,9 +39,10 @@ jobs:
             flutter create --platforms=ios --org com.offlinepos --project-name qamvio_pos .
             cd ..
 
-            python3 -m pip install --disable-pip-version-check pillow
+            python3 -m venv /tmp/qamvio-ios-venv
+            /tmp/qamvio-ios-venv/bin/python -m pip install --disable-pip-version-check pillow
 
-            python3 - <<'PY'
+            /tmp/qamvio-ios-venv/bin/python - <<'PY'
           import json
           import plistlib
           import re

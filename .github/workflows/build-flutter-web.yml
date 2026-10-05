@@ -196,53 +196,50 @@ jobs:
           }
           DART
           cd flutter_app
-          timeout 150 flutter test --platform chrome test/web_database_runtime_test.dart
+          set +e
+          timeout 150 flutter test --platform chrome --machine test/web_database_runtime_test.dart \
+            > /tmp/qamvio-web-db-test.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/qamvio-web-db-test.log
           rm -f test/web_database_runtime_test.dart
 
-      - name: Browser database persistence smoke test
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p flutter_app/test_web
-          cat > flutter_app/test_web/web_database_smoke_test.dart <<'DART'
-          @TestOn('browser')
-          import 'package:flutter_test/flutter_test.dart';
-          import 'package:qamvio_pos/core/database/app_database.dart';
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
 
-          void main() {
-            TestWidgetsFlutterBinding.ensureInitialized();
+          # Chrome's SQLite shared worker can keep the test process alive after
+          # the single test has completed. Accept timeout 124 only when that
+          # exact test reported success and no test reported an error/failure.
+          if [ "$status" -eq 124 ]; then
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
 
-            test('web database opens, writes, locks, reopens and persists', () async {
-              final db = AppDatabase.instance;
-              final key = List<int>.generate(32, (i) => i + 1);
-              final id = 'web-smoke-persistent-product';
+          passed = False
+          failed = False
+          for line in Path("/tmp/qamvio-web-db-test.log").read_text(
+              encoding="utf-8", errors="replace"
+          ).splitlines():
+              try:
+                  event = json.loads(line)
+              except Exception:
+                  continue
+              if event.get("type") == "testDone":
+                  result = event.get("result")
+                  if result == "success":
+                      passed = True
+                  elif result in {"failure", "error"}:
+                      failed = True
 
-              await db.unlock(key);
-              await db.database;
-              await db.saveProduct(
-                id: id,
-                name: 'Web Smoke Product',
-                stock: 7,
-                price: 11,
-                cost: 5,
-              );
+          if not passed or failed:
+              raise SystemExit("Encrypted browser database test did not finish successfully.")
+          print("PASS: encrypted browser database persisted and rejected the wrong key.")
+          PY
+            exit 0
+          fi
 
-              final before = await db.products();
-              expect(before.any((row) => row['id'] == id), isTrue);
-
-              await db.lock();
-              await db.unlock(key);
-              await db.database;
-
-              final after = await db.products();
-              expect(after.any((row) => row['id'] == id), isTrue);
-
-              await db.lock();
-            });
-          }
-          DART
-          cd flutter_app
-          flutter test --platform chrome test_web/web_database_smoke_test.dart
+          exit "$status"
 
       - name: Build web release
         working-directory: flutter_app

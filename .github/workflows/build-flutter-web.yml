@@ -124,7 +124,7 @@ jobs:
           }
           DART
           cd flutter_app
-          flutter test --platform chrome test/web_database_runtime_test.dart
+          timeout 150 flutter test --platform chrome test/web_database_runtime_test.dart
           rm -f test/web_database_runtime_test.dart
 
       - name: Build web release

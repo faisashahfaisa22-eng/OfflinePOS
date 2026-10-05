@@ -6,7 +6,7 @@
   "background_color": "#071b38",
   "theme_color": "#075ee8",
   "description": "Offline sales, inventory and accounts for shops.",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "prefer_related_applications": false,
   "icons": [
     {

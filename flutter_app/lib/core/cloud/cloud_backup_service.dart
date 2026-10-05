@@ -4,11 +4,13 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart'
     show SecretBoxAuthenticationError;
 import 'package:sqflite_common/sqlite_api.dart';
+import 'package:sqflite_common/utils/utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 
 import '../database/app_database.dart';
 import '../security/crypto_utils.dart';
 import '../security/local_auth_service.dart';
+import 'pending_backup_store.dart' as pending_store;
 
 class CloudBackupService {
   static final instance = CloudBackupService._();
@@ -341,7 +343,7 @@ class CloudBackupService {
 
       for (final table in _tables) {
         final expected = (data[table] as List).length;
-        final actual = Sqflite.firstIntValue(
+        final actual = firstIntValue(
               await txn.rawQuery('SELECT COUNT(*) FROM $table'),
             ) ??
             0;

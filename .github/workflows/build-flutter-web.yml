@@ -262,7 +262,7 @@ jobs:
             phase="$1"
             expected="$2"
             output="/tmp/qamvio-db-$phase.html"
-            "$chrome"               --headless=new               --no-sandbox               --disable-dev-shm-usage               --user-data-dir="$profile"               --virtual-time-budget=20000               --dump-dom               "http://127.0.0.1:8765/?phase=$phase"               >"$output" 2>/tmp/qamvio-chrome-$phase.log
+            "$chrome"               --headless=new               --no-sandbox               --disable-dev-shm-usage               --enable-unsafe-swiftshader               --use-gl=swiftshader               --user-data-dir="$profile"               --virtual-time-budget=60000               --dump-dom               "http://127.0.0.1:8765/?phase=$phase"               >"$output" 2>/tmp/qamvio-chrome-$phase.log
             cat "$output"
             if ! grep -q "$expected" "$output"; then
               echo "::error::Expected $expected was not emitted in Chrome phase $phase"

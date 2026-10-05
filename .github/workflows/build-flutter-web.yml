@@ -91,6 +91,42 @@ jobs:
         working-directory: flutter_app
         run: flutter test
 
+      - name: Test database runtime in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > flutter_app/test/web_database_runtime_test.dart <<'DART'
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:qamvio_pos/core/database/app_database.dart';
+
+          void main() {
+            testWidgets('web database can create and query business data', (tester) async {
+              final db = AppDatabase.instance;
+              await db.unlock(List<int>.generate(32, (i) => i + 1));
+              await db.deleteFile();
+              await db.unlock(List<int>.generate(32, (i) => i + 1));
+              await db.saveProduct(
+                id: 'web-smoke-product',
+                name: 'Web Smoke Product',
+                stock: 3,
+                price: 10,
+                cost: 4,
+              );
+              final rows = await (await db.database).query(
+                'products',
+                where: 'id=?',
+                whereArgs: ['web-smoke-product'],
+              );
+              expect(rows.length, 1);
+              expect(rows.first['name'], 'Web Smoke Product');
+              await db.lock();
+            });
+          }
+          DART
+          cd flutter_app
+          flutter test --platform chrome test/web_database_runtime_test.dart
+          rm -f test/web_database_runtime_test.dart
+
       - name: Build web release
         working-directory: flutter_app
         run: flutter build web --release

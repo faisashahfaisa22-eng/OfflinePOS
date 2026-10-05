@@ -99,23 +99,39 @@ jobs:
           set -euo pipefail
           MARKER="flutter_app/web/.qamvio-brand-icons"
           if [ ! -f "$MARKER" ]; then
-            if command -v magick >/dev/null 2>&1; then
-              IMG="magick"
-            elif command -v convert >/dev/null 2>&1; then
-              IMG="convert"
-            else
-              echo "::error::ImageMagick is required to prepare QAMVIO PWA icons."
-              exit 1
-            fi
+            python3 -m venv /tmp/qamvio-pwa-icons
+            /tmp/qamvio-pwa-icons/bin/python -m pip install --disable-pip-version-check pillow
+            /tmp/qamvio-pwa-icons/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
 
-            SRC="app/src/main/res/drawable/qamvio_icon.png"
-            test -s "$SRC"
+          src = Image.open("app/src/main/res/drawable/qamvio_icon.png").convert("RGBA")
+          brand = (7, 94, 232, 255)
 
-            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "192x192^" -gravity center -extent 192x192 -strip flutter_app/web/icons/Icon-192.png
-            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "512x512^" -gravity center -extent 512x512 -strip flutter_app/web/icons/Icon-512.png
-            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "154x154" -gravity center -extent 192x192 -strip flutter_app/web/icons/Icon-maskable-192.png
-            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "410x410" -gravity center -extent 512x512 -strip flutter_app/web/icons/Icon-maskable-512.png
-            $IMG "$SRC" -background "#075ee8" -alpha remove -alpha off -resize "64x64^" -gravity center -extent 64x64 -strip flutter_app/web/favicon.png
+          def flatten_square(size, inner=None):
+              target = inner or size
+              ratio = min(target / src.width, target / src.height)
+              resized = src.resize(
+                  (max(1, round(src.width * ratio)), max(1, round(src.height * ratio))),
+                  Image.Resampling.LANCZOS,
+              )
+              bg = Image.new("RGBA", (size, size), brand)
+              x = (size - resized.width) // 2
+              y = (size - resized.height) // 2
+              bg.alpha_composite(resized, (x, y))
+              return bg.convert("RGB")
+
+          outputs = {
+              "flutter_app/web/icons/Icon-192.png": flatten_square(192),
+              "flutter_app/web/icons/Icon-512.png": flatten_square(512),
+              "flutter_app/web/icons/Icon-maskable-192.png": flatten_square(192, 154),
+              "flutter_app/web/icons/Icon-maskable-512.png": flatten_square(512, 410),
+              "flutter_app/web/favicon.png": flatten_square(64),
+          }
+          for path, image in outputs.items():
+              Path(path).parent.mkdir(parents=True, exist_ok=True)
+              image.save(path, "PNG", optimize=True)
+          PY
             touch "$MARKER"
 
             git config user.name "github-actions[bot]"

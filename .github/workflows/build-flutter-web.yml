@@ -1,0 +1,120 @@
+name: Build QAMVIO Chrome PWA
+
+on:
+  push:
+    branches:
+      - release/flutter-web-v16
+    paths:
+      - "flutter_app/**"
+      - "app/src/main/res/drawable/qamvio_icon.png"
+      - ".github/workflows/build-flutter-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qamvio-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: release/flutter-web-v16
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate web platform when missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f flutter_app/web/index.html ]; then
+            cd flutter_app
+            flutter create --platforms=web --org com.offlinepos --project-name qamvio_pos .
+            cd ..
+
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          web = Path("flutter_app/web")
+          index = web / "index.html"
+          text = index.read_text(encoding="utf-8")
+          text = text.replace("<title>qamvio_pos</title>", "<title>QAMVIO POS</title>")
+          text = text.replace(
+              '<meta name="description" content="A new Flutter project.">',
+              '<meta name="description" content="QAMVIO POS — installable offline sales, inventory and accounts app for laptops.">',
+          )
+          index.write_text(text, encoding="utf-8")
+
+          manifest = web / "manifest.json"
+          data = json.loads(manifest.read_text(encoding="utf-8"))
+          data.update({
+              "name": "QAMVIO POS",
+              "short_name": "QAMVIO",
+              "description": "Offline sales, inventory and accounts for shops.",
+              "display": "standalone",
+              "background_color": "#071b38",
+              "theme_color": "#075ee8",
+              "start_url": ".",
+              "scope": "./"
+          })
+          manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add flutter_app/web
+            git commit -m "Add QAMVIO Chrome web scaffold"
+            git push origin HEAD:release/flutter-web-v16
+          fi
+
+      - name: Get dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: flutter_app
+        run: flutter analyze
+
+      - name: Test
+        working-directory: flutter_app
+        run: flutter test
+
+      - name: Build web release
+        working-directory: flutter_app
+        run: flutter build web --release
+
+      - name: Verify installable web metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f flutter_app/build/web/index.html
+          test -f flutter_app/build/web/manifest.json
+          grep -q '"display": "standalone"' flutter_app/build/web/manifest.json
+          grep -q 'QAMVIO POS' flutter_app/build/web/index.html
+
+      - name: Package web build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd flutter_app/build
+          zip -qr "$GITHUB_WORKSPACE/QAMVIO-Chrome-PWA-v16.zip" web
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Chrome-PWA-v16
+          path: QAMVIO-Chrome-PWA-v16.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -30,7 +30,7 @@ dependencies:
   pdf: ^3.11.3
   share_plus: ^10.1.4
   web: ^1.1.1
-  idb_shim: ^2.9.10
+  idb_shim: ^2.9.9
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -83,6 +83,16 @@ jobs:
         working-directory: flutter_app
         run: flutter pub get
 
+      - name: Set up encrypted SQLite WASM
+        working-directory: flutter_app
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart run sqflite_common_ffi_web:setup --force
+          curl -fL --retry 3             "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-2.9.4/sqlite3mc.wasm"             -o web/sqlite3mc.wasm
+          echo "5a1cfe40252d05bbd174e66351d3c282f69784c6fd0c2d099bf7135c6e91b4ec  web/sqlite3mc.wasm" | sha256sum -c -
+          test -s web/sqflite_sw.js
+
       - name: Analyze
         working-directory: flutter_app
         run: flutter analyze
@@ -100,11 +110,13 @@ jobs:
           import 'package:qamvio_pos/core/database/app_database.dart';
 
           void main() {
-            testWidgets('web database can create and query business data', (tester) async {
+            testWidgets('web database persists encrypted business data', (tester) async {
               final db = AppDatabase.instance;
-              await db.unlock(List<int>.generate(32, (i) => i + 1));
+              final key1 = List<int>.generate(32, (i) => i + 1);
+              final key2 = List<int>.generate(32, (i) => 255 - i);
+
               await db.deleteFile();
-              await db.unlock(List<int>.generate(32, (i) => i + 1));
+              await db.unlock(key1);
               await db.saveProduct(
                 id: 'web-smoke-product',
                 name: 'Web Smoke Product',
@@ -112,6 +124,17 @@ jobs:
                 price: 10,
                 cost: 4,
               );
+              await db.lock();
+
+              // A wrong raw key must not be able to read the encrypted file.
+              await db.unlock(key2);
+              await expectLater(
+                () async => (await db.database).query('products'),
+                throwsA(anything),
+              );
+
+              // The original key must reopen the same persisted business data.
+              await db.unlock(key1);
               final rows = await (await db.database).query(
                 'products',
                 where: 'id=?',
@@ -119,7 +142,8 @@ jobs:
               );
               expect(rows.length, 1);
               expect(rows.first['name'], 'Web Smoke Product');
-              await db.lock();
+
+              await db.deleteFile();
             });
           }
           DART

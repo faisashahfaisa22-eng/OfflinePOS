@@ -254,6 +254,17 @@
       box-shadow: 0 24px 65px #163d7a2e;
     }
     .small { font-size: 12px !important; color: #789 !important; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     .section {
       max-width: 1150px;
       margin: auto;
@@ -472,7 +483,7 @@
         <a href="https://www.instagram.com/qamvio/" target="_blank" rel="noopener noreferrer">Instagram</a>
       </div>
       <label>
-        <span class="small" style="position:absolute;left:-9999px;" data-i18n="languageLabel">Language</span>
+        <span class="sr-only" data-i18n="languageLabel">Language</span>
         <select id="languagePicker" class="language-picker" aria-label="Language">
           <option value="en">English</option>
           <option value="ps">پښتو</option>

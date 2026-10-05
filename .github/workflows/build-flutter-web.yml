@@ -89,8 +89,8 @@ jobs:
         run: |
           set -euo pipefail
           dart run sqflite_common_ffi_web:setup --force
-          curl -fL --retry 3             "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-2.9.4/sqlite3mc.wasm"             -o web/sqlite3mc.wasm
-          echo "5a1cfe40252d05bbd174e66351d3c282f69784c6fd0c2d099bf7135c6e91b4ec  web/sqlite3mc.wasm" | sha256sum -c -
+          curl -fL --retry 3             "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-3.7.0/sqlite3mc.wasm"             -o web/sqlite3mc.wasm
+          echo "7271cf8fdf625b03d41dd43ae1d500cf855755f35ca575372022315b15f5a19e  web/sqlite3mc.wasm" | sha256sum -c -
           test -s web/sqflite_sw.js
 
       - name: Brand PWA install icons
@@ -168,6 +168,7 @@ jobs:
             const id = 'web-smoke-product-v16';
 
             void done(String value) {
+              web.document.title = value;
               web.document.body?.textContent = value;
             }
 
@@ -263,9 +264,16 @@ jobs:
             output="/tmp/qamvio-db-$phase.html"
             "$chrome"               --headless=new               --no-sandbox               --disable-dev-shm-usage               --user-data-dir="$profile"               --virtual-time-budget=20000               --dump-dom               "http://127.0.0.1:8765/?phase=$phase"               >"$output" 2>/tmp/qamvio-chrome-$phase.log
             cat "$output"
-            grep -q "$expected" "$output"
+            if ! grep -q "$expected" "$output"; then
+              echo "::error::Expected $expected was not emitted in Chrome phase $phase"
+              echo "----- Chrome stderr ($phase) -----"
+              cat "/tmp/qamvio-chrome-$phase.log" || true
+              exit 1
+            fi
             if grep -q "QAMVIO_DB_FAIL\|QAMVIO_WRONG_KEY_FAIL" "$output"; then
               echo "::error::Chrome encrypted database smoke test failed in phase $phase"
+              echo "----- Chrome stderr ($phase) -----"
+              cat "/tmp/qamvio-chrome-$phase.log" || true
               exit 1
             fi
           }

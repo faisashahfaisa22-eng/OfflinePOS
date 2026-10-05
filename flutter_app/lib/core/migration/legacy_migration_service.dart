@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:sqflite_common/sqlite_api.dart';
+import 'package:sqflite_common/utils/utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../cloud/cloud_backup_service.dart';
@@ -146,7 +147,7 @@ class LegacyMigrationService {
       'stock_adjustments','fuel_tanks','fuel_nozzles','fuel_shifts','fuel_closings'
     ];
     for(final table in tables) {
-      final count=Sqflite.firstIntValue(
+      final count=firstIntValue(
         await db.rawQuery('SELECT COUNT(*) FROM '+table),
       )??0;
       if(count>0) return true;
@@ -1031,7 +1032,7 @@ class LegacyMigrationService {
         }
 
         for(final entry in inserted.entries) {
-          final actual=Sqflite.firstIntValue(
+          final actual=firstIntValue(
             await txn.rawQuery('SELECT COUNT(*) FROM '+entry.key),
           )??0;
           if(actual!=entry.value) {

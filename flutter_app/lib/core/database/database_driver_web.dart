@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:sqflite_common/sqlite_api.dart';
+import 'package:sqlite3/common.dart' show CommonDatabase, OpenMode;
 import 'package:sqflite_common_ffi/src/sqflite_ffi_impl.dart' as ffi_impl;
 import 'package:sqflite_common_ffi/src/sqflite_import.dart'
     show FfiMethodCall, buildDatabaseFactory;
@@ -13,7 +14,10 @@ import 'package:sqflite_common_ffi_web/src/database_factory_web.dart'
 import 'package:sqflite_common_ffi_web/src/sqflite_ffi_impl_web.dart'
     show SqfliteFfiHandlerWeb;
 import 'package:sqflite_common_ffi_web/src/web/load_sqlite_web.dart'
-    show SqfliteFfiWebContextImpl, sqfliteFfiWebLoadSqlite3Wasm;
+    show
+        SqfliteFfiWebContextExt,
+        SqfliteFfiWebContextImpl,
+        sqfliteFfiWebLoadSqlite3Wasm;
 import 'package:sqlite3/wasm.dart' show InMemoryFileSystem;
 
 import 'web_encrypted_store.dart';
@@ -46,7 +50,8 @@ Future<DatabaseFactory> _createEncryptedMemoryFactory() async {
     context: seed,
   );
 
-  ffi_impl.sqfliteFfiHandler = SqfliteFfiHandlerWeb(context);
+  ffi_impl.sqfliteFfiHandler =
+      _EncryptedSqfliteFfiHandlerWeb(context, fs.name);
 
   final factory = buildDatabaseFactory(
     tag: 'qamvio_encrypted_web',
@@ -61,6 +66,37 @@ Future<DatabaseFactory> _createEncryptedMemoryFactory() async {
   _factory = factory;
   return factory;
 }
+
+class _EncryptedSqfliteFfiHandlerWeb extends SqfliteFfiHandlerWeb {
+  _EncryptedSqfliteFfiHandlerWeb(this._context, this._baseVfsName)
+      : super(_context);
+
+  final SqfliteFfiWebContextImpl _context;
+  final String _baseVfsName;
+
+  @override
+  Future<CommonDatabase> openPlatform(Map argumentsMap) async {
+    final sqlite = _context.wasmSqlite3;
+    if (sqlite == null) {
+      throw StateError('QAMVIO encrypted SQLite WASM is not initialized.');
+    }
+
+    final path = argumentsMap['path'] as String;
+    final readOnly = (argumentsMap['readOnly'] as bool?) ?? false;
+    final mode = readOnly ? OpenMode.readOnly : OpenMode.readWriteCreate;
+
+    // sqlite3mc exposes encryption for custom VFSes through a wrapper whose
+    // name is "multipleciphers-<base vfs>". Opening the raw Dart VFS bypasses
+    // that wrapper and makes PRAGMA key fail with "Encryption is not supported
+    // by the VFS".
+    return sqlite.open(
+      path,
+      mode: mode,
+      vfs: 'multipleciphers-$_baseVfsName',
+    );
+  }
+}
+
 
 Future<void> _ensureRestored() {
   return _restoreFuture ??= () async {

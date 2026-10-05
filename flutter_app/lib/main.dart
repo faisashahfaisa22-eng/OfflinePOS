@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
@@ -25,8 +26,13 @@ Future<void> main() async {
       url: CloudConfig.supabaseUrl,
       publishableKey: CloudConfig.supabaseAnonKey,
     );
-    await Workmanager().initialize(cloudBackupDispatcher);
-    await scheduleDailyCloudBackup();
+    // Chrome/PWA does not rely on a browser background worker for backups.
+    // Manual encrypted cloud backup remains available; native platforms keep
+    // the scheduled Workmanager upload path.
+    if (!kIsWeb) {
+      await Workmanager().initialize(cloudBackupDispatcher);
+      await scheduleDailyCloudBackup();
+    }
   } catch (e, st) {
     debugPrint('Startup cloud init failed: $e\n$st');
   }

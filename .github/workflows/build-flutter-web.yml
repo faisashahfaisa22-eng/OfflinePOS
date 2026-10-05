@@ -158,22 +158,29 @@ jobs:
           import 'package:qamvio_pos/core/database/app_database.dart';
 
           void main() {
-            testWidgets(
+            TestWidgetsFlutterBinding.ensureInitialized();
+
+            test(
               'web database is encrypted and persists after lock/reopen',
-              (tester) async {
+              () async {
                 final app = AppDatabase.instance;
                 final key = List<int>.generate(32, (i) => i + 1);
                 const id = 'web-smoke-product-v16';
 
+                print('QAMVIO_STAGE delete');
                 await app.deleteFile();
+
+                print('QAMVIO_STAGE open');
                 await app.unlock(key);
                 final first = await app.database;
 
+                print('QAMVIO_STAGE cipher');
                 final cipher = await first.rawQuery('PRAGMA cipher_version');
                 expect(cipher, isNotEmpty);
                 final cipherVersion = cipher.first.values.first?.toString() ?? '';
                 expect(cipherVersion, isNotEmpty);
 
+                print('QAMVIO_STAGE write');
                 await app.saveProduct(
                   id: id,
                   name: 'Web Smoke Product',
@@ -181,8 +188,11 @@ jobs:
                   price: 10,
                   cost: 4,
                 );
+
+                print('QAMVIO_STAGE lock1');
                 await app.lock();
 
+                print('QAMVIO_STAGE reopen');
                 await app.unlock(key);
                 final reopened = await app.database;
                 final rows = await reopened.query(
@@ -193,6 +203,7 @@ jobs:
                 expect(rows.length, 1);
                 expect(rows.first['name'], 'Web Smoke Product');
 
+                print('QAMVIO_STAGE integrity');
                 final integrity =
                     await reopened.rawQuery('PRAGMA cipher_integrity_check');
                 final integrityText = integrity
@@ -203,30 +214,55 @@ jobs:
                     .toLowerCase();
                 expect(integrityText.contains('error'), isFalse);
 
-                print('QAMVIO_WEB_DB_TEST_PASS cipher=$cipherVersion');
+                print('QAMVIO_STAGE lock2');
                 await app.lock();
+                print('QAMVIO_WEB_DB_TEST_PASS cipher=$cipherVersion');
               },
-              timeout: const Timeout(Duration(seconds: 90)),
+              timeout: const Timeout(Duration(seconds: 75)),
             );
           }
           DART
 
           cd flutter_app
           set +e
-          timeout 120 flutter test --platform chrome test/web_database_runtime_test.dart \
+          timeout 100 flutter test --platform chrome --machine test/web_database_runtime_test.dart \
             > /tmp/qamvio-web-db-test.log 2>&1
           status=$?
           set -e
           cat /tmp/qamvio-web-db-test.log
           rm -f test/web_database_runtime_test.dart
 
-          if grep -q "✅ web database is encrypted and persists after lock/reopen" /tmp/qamvio-web-db-test.log; then
-            echo "PASS: encrypted SQLite WASM persisted business data after lock/reopen."
-            exit 0
-          fi
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
 
-          echo "::error::Encrypted browser database runtime test did not report PASS (exit $status)."
-          exit "${status:-1}"
+          passed = False
+          failed = False
+          target = "web database is encrypted and persists after lock/reopen"
+          names = {}
+          for raw in Path("/tmp/qamvio-web-db-test.log").read_text(
+              encoding="utf-8", errors="replace"
+          ).splitlines():
+              try:
+                  event = json.loads(raw)
+              except Exception:
+                  continue
+              if event.get("type") == "testStart":
+                  test = event.get("test") or {}
+                  names[test.get("id")] = test.get("name", "")
+              elif event.get("type") == "testDone":
+                  name = names.get(event.get("testID"), "")
+                  if target in name:
+                      if event.get("result") == "success":
+                          passed = True
+                      else:
+                          failed = True
+
+          if failed or not passed:
+              sys.exit("Encrypted Chrome database test did not report success.")
+          print("PASS: encrypted SQLite WASM persisted business data after lock/reopen.")
+          PY
 
       - name: Build web release
         working-directory: flutter_app

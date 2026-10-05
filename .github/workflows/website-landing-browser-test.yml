@@ -86,7 +86,12 @@ jobs:
                       assert page.locator("h1").inner_text() == heading
                       assert page.evaluate("localStorage.getItem('qamvio-language')") == lang
                       overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
-                      assert not overflow, f"Horizontal overflow at {width}px / {lang}"
+                      if overflow:
+                          offenders = page.locator("body *").evaluate_all("""(els) => els.map((el) => {
+                            const r = el.getBoundingClientRect();
+                            return {tag: el.tagName, cls: el.className || "", text: (el.textContent || "").trim().slice(0, 80), left: r.left, right: r.right, width: r.width};
+                          }).filter(x => x.left < -0.5 || x.right > window.innerWidth + 0.5).slice(0, 12)""")
+                          raise AssertionError(f"Horizontal overflow at {width}px / {lang}: {offenders}")
 
                   page.select_option("#languagePicker", "ps")
                   page.reload(wait_until="networkidle")

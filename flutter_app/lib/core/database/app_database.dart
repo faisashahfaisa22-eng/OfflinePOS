@@ -5,6 +5,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
 import '../security/crypto_utils.dart';
+import 'sarafi_repository.dart';
 
 /// SQLCipher-encrypted database. It can only be opened after the user signs in
 /// (see LocalAuthService), because the key is the user's unwrapped data key.
@@ -59,7 +60,7 @@ class AppDatabase {
     return openDatabase(
       path,
       password: _sqlcipherKey,
-      version: 7,
+      version: 8,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async => _createSchema(db),
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -69,6 +70,7 @@ class AppDatabase {
         if (oldVersion < 5) await _createV5Tables(db);
         if (oldVersion < 6) await _createV6Tables(db);
         if (oldVersion < 7) await _createV7Tables(db);
+        if (oldVersion < 8) await SarafiSchema.create(db);
       },
     );
   }
@@ -216,6 +218,7 @@ class AppDatabase {
     await db.execute('CREATE TABLE sync_queue(id INTEGER PRIMARY KEY AUTOINCREMENT,entity_type TEXT NOT NULL,entity_id TEXT NOT NULL,operation TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE legacy_archives(id INTEGER PRIMARY KEY AUTOINCREMENT,source TEXT NOT NULL,source_updated_at TEXT,archived_at TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL)');
     await db.execute('CREATE TABLE migration_state(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT NOT NULL)');
+    await SarafiSchema.create(db);
     await _createV6Tables(db);
   }
 
@@ -1169,6 +1172,8 @@ class AppDatabase {
       'customers':'customers',
       'suppliers':'suppliers',
       'products':'products',
+      'sarafiExchange':'fx_exchanges',
+      'sarafiMovement':'fx_cash',
     };
     final table=map[section];
     if(table==null) throw ArgumentError.value(section,'section','Unsupported v15 section.');
@@ -1261,6 +1266,19 @@ class AppDatabase {
             [_nDb(row['qty']),now,tank],
           );
         }
+      } else if(section=='sarafiExchange') {
+        final cash=await txn.query('fx_cash',where:'ref_id=?',whereArgs:[id]);
+        final ledger=await txn.query('fx_ledger',where:'ref_id=?',whereArgs:[id]);
+        linked['fx_cash']=cash;
+        linked['fx_ledger']=ledger;
+        await txn.delete('fx_cash',where:'ref_id=?',whereArgs:[id]);
+        await txn.delete('fx_ledger',where:'ref_id=?',whereArgs:[id]);
+      } else if(section=='sarafiMovement') {
+        final ref=row['ref_id']?.toString()??'';
+        if(ref.isEmpty) throw StateError('Sarafi movement reference is missing.');
+        final ledger=await txn.query('fx_ledger',where:'ref_id=?',whereArgs:[ref]);
+        linked['fx_ledger']=ledger;
+        await txn.delete('fx_ledger',where:'ref_id=?',whereArgs:[ref]);
       } else if(section=='customers') {
         final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
           'SELECT (SELECT COUNT(*) FROM sales WHERE customer_id=?)+'
@@ -1292,10 +1310,17 @@ class AppDatabase {
         if(linkedCount>0) throw StateError('Product has linked stock history. Delete those records first.');
       }
 
+      var recycleLabel=row['name']?.toString()??row['invoice_no']?.toString()??id;
+      if(section=='sarafiExchange') {
+        recycleLabel='Sarafi exchange ${row['business_date']??''}: ${row['from_currency']??''} → ${row['to_currency']??''}';
+      } else if(section=='sarafiMovement') {
+        recycleLabel='Sarafi ${row['kind']??'movement'} ${row['currency']??''} ${row['amount']??''}';
+      }
+
       await txn.insert('recycle_bin',{
         'id':'recycle_${DateTime.now().microsecondsSinceEpoch}_$id',
         'section':section,
-        'label':row['name']?.toString()??row['invoice_no']?.toString()??id,
+        'label':recycleLabel,
         'record_json':jsonEncode(row),
         'linked_records_json':jsonEncode(linked),
         'deleted_at':now,
@@ -1396,6 +1421,17 @@ class AppDatabase {
             'UPDATE fuel_tanks SET current_stock=current_stock+?,updated_at=?,sync_state=0 WHERE id=?',
             [_nDb(row['qty']),now,tank],
           );
+        }
+      } else if(section=='sarafiExchange') {
+        for(final raw in (linked['fx_cash'] as List? ?? const [])) {
+          await txn.insert('fx_cash',Map<String,Object?>.from(raw as Map));
+        }
+        for(final raw in (linked['fx_ledger'] as List? ?? const [])) {
+          await txn.insert('fx_ledger',Map<String,Object?>.from(raw as Map));
+        }
+      } else if(section=='sarafiMovement') {
+        for(final raw in (linked['fx_ledger'] as List? ?? const [])) {
+          await txn.insert('fx_ledger',Map<String,Object?>.from(raw as Map));
         }
       }
 

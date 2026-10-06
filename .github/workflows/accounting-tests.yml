@@ -1,9 +1,37 @@
 name: Accounting tests (emulator)
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [ release/flutter-play-v16 ]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/accounting-tests.yml"
 permissions:
   contents: read
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Create Flutter platform files
+        run: flutter create --platforms=android --org com.qamvio --project-name qamvio_pos .
+      - name: Get packages
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Unit tests
+        run: flutter test test
+      - name: Build debug APK
+        run: flutter build apk --debug
+
   accounting:
     runs-on: ubuntu-latest
     timeout-minutes: 40

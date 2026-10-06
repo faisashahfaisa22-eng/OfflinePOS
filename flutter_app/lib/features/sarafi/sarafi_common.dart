@@ -3,10 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/database/sarafi_repository.dart';
+import '../../core/localization/language_controller.dart';
 
 final NumberFormat _fmt=NumberFormat('#,##0.00');
 
 String fxFmt(num value)=>_fmt.format(value);
+
+/// Lightweight Sarafi translation helper that follows the app-wide language.
+/// English and Pashto are supplied for every Sarafi label; Dari/Urdu can be
+/// supplied where available and otherwise fall back to English.
+String fxTr(String english,String pashto,{String? dari,String? urdu}) {
+  switch(LanguageController.instance.language.name) {
+    case 'pashto': return pashto;
+    case 'dari': return dari??english;
+    case 'urdu': return urdu??english;
+    default: return english;
+  }
+}
 
 double? fxParse(String text) {
   final t=text.trim().replaceAll(',','');
@@ -33,7 +46,7 @@ Future<bool> fxConfirm(BuildContext context,String title,String message,{String 
       title:Text(title),
       content:Text(message),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text('Cancel')),
+        TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(fxTr('Cancel','لغوه',dari:'لغو',urdu:'منسوخ'))),
         FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(action)),
       ],
     ),

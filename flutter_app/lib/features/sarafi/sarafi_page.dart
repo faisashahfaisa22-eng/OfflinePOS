@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import 'sarafi_accounts_tab.dart';
+import 'sarafi_common.dart';
 import 'sarafi_exchange_tab.dart';
 import 'sarafi_hawala_tab.dart';
 import 'sarafi_rates_tab.dart';
@@ -30,15 +31,15 @@ class _SarafiPageState extends State<SarafiPage> {
     length:5,
     child:Scaffold(
       appBar:AppBar(
-        title:Text('Sarafi'),
+        title:Text(fxTr('Sarafi','صرافي',dari:'صرافی',urdu:'صرافی')),
         bottom:TabBar(
           isScrollable:true,
           tabs:[
-            Tab(text:'Exchange'),
-            Tab(text:'Hawala'),
-            Tab(text:'Accounts'),
-            Tab(text:'Rates'),
-            Tab(text:'Daily Report'),
+            Tab(text:fxTr('Exchange','تبادله',dari:'تبدیل ارز',urdu:'تبادلہ')),
+            Tab(text:fxTr('Hawala','حواله',dari:'حواله',urdu:'حوالہ')),
+            Tab(text:fxTr('Accounts','حسابونه',dari:'حساب‌ها',urdu:'اکاؤنٹس')),
+            Tab(text:fxTr('Rates','نرخونه',dari:'نرخ‌ها',urdu:'ریٹس')),
+            Tab(text:fxTr('Daily Report','ورځنی راپور',dari:'گزارش روزانه',urdu:'روزانہ رپورٹ')),
           ],
         ),
       ),

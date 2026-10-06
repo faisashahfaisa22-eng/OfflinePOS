@@ -19,6 +19,7 @@ import '../products/products_page.dart';
 import '../purchases/purchases_page.dart';
 import '../reports/reports_page.dart';
 import '../sales/sales_page.dart';
+import '../sarafi/sarafi_page.dart';
 import '../salesmen/salesmen_page.dart';
 import '../users/users_page.dart';
 import '../v15/admin_pages.dart';
@@ -959,6 +960,12 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
         widget: const UsersPage(),
       ),
       (
+        page: AppPage.sarafi,
+        label: widget.strings.t('sarafi'),
+        icon: Icons.currency_exchange_rounded,
+        widget: const SarafiPage(),
+      ),
+      (
         page: AppPage.backup,
         label: 'Backup / Restore',
         icon: Icons.cloud_sync_rounded,
@@ -1006,6 +1013,10 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
           AppPage.capital,
           AppPage.dailyClosing,
         ],
+      ),
+      (
+        title: widget.strings.t('sarafi').toUpperCase(),
+        pages: [AppPage.sarafi],
       ),
       (
         title: 'REPORTS',

@@ -48,6 +48,48 @@ jobs:
           cp "$AAB" /tmp/QAMVIO-v16.0.0-build16.aab
           gh release upload v1.0.0 /tmp/QAMVIO-v16.0.0-build16.aab --clobber --repo "$GITHUB_REPOSITORY"
 
+      - name: Publish tested laptop PWA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARTIFACT_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=QAMVIO-Chrome-PWA-v16&per_page=100" --jq '.artifacts | map(select(.expired == false)) | sort_by(.created_at) | last | .id // empty')"
+          test -n "$ARTIFACT_ID"
+
+          rm -rf /tmp/qamvio-pwa-outer /tmp/qamvio-pwa-stage /tmp/qamvio-pwa-artifact.zip
+          mkdir -p /tmp/qamvio-pwa-outer /tmp/qamvio-pwa-stage
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > /tmp/qamvio-pwa-artifact.zip
+          unzip -q /tmp/qamvio-pwa-artifact.zip -d /tmp/qamvio-pwa-outer
+
+          INNER_ZIP="$(find /tmp/qamvio-pwa-outer -maxdepth 2 -type f -name 'QAMVIO-Chrome-PWA-v16.zip' -print -quit)"
+          test -s "$INNER_ZIP"
+          unzip -q "$INNER_ZIP" -d /tmp/qamvio-pwa-stage
+
+          test -f /tmp/qamvio-pwa-stage/web/index.html
+          test -f /tmp/qamvio-pwa-stage/web/main.dart.js
+          test -f /tmp/qamvio-pwa-stage/web/manifest.json
+          test -f /tmp/qamvio-pwa-stage/web/qamvio_sw.js
+          test -s /tmp/qamvio-pwa-stage/web/sqlite3mc.wasm
+
+          rm -rf website/app
+          mkdir -p website/app
+          cp -a /tmp/qamvio-pwa-stage/web/. website/app/
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("website/app/index.html")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace('<base href="/">', '<base href="/app/">')
+          if '<base href="/app/">' not in text:
+              raise SystemExit("QAMVIO laptop base href was not updated to /app/")
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -q '<base href="/app/">' website/app/index.html
+          grep -q 'qamvio_sw.js' website/app/index.html
+
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 

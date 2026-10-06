@@ -60,22 +60,22 @@ class _SarafiAccountsTabState extends State<SarafiAccountsTab> {
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
-        title:Text(kind=='client'?'New customer account':'New partner sarafi'),
+        title:Text(kind=='client'?fxTr('New customer account','نوی د مشتري حساب'):fxTr('New partner sarafi','نوی شریک صراف')),
         content:SingleChildScrollView(
           child:Column(
             mainAxisSize:MainAxisSize.min,
             children:[
-              TextField(controller:name,decoration:InputDecoration(labelText:'Name')),
+              TextField(controller:name,decoration:InputDecoration(labelText:fxTr('Name','نوم'))),
               SizedBox(height:10),
-              TextField(controller:phone,keyboardType:TextInputType.phone,decoration:InputDecoration(labelText:'Phone')),
+              TextField(controller:phone,keyboardType:TextInputType.phone,decoration:InputDecoration(labelText:fxTr('Phone','موبایل'))),
               SizedBox(height:10),
-              TextField(controller:city,decoration:InputDecoration(labelText:'City')),
+              TextField(controller:city,decoration:InputDecoration(labelText:fxTr('City','ښار'))),
             ],
           ),
         ),
         actions:[
-          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text('Cancel')),
-          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text('Save')),
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(fxTr('Cancel','لغوه'))),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(fxTr('Save','ثبت'))),
         ],
       ),
     );
@@ -102,16 +102,16 @@ class _SarafiAccountsTabState extends State<SarafiAccountsTab> {
 
   String balanceText(String id) {
     final b=balances[id];
-    if(b==null||b.isEmpty) return 'No balance';
+    if(b==null||b.isEmpty) return fxTr('No balance','بیلانس نشته');
     final parts=<String>[];
     b.forEach((cur,v) {
       if(v>0) {
-        parts.add(kind=='client'?'We hold ${fxFmt(v)} $cur':'We owe ${fxFmt(v)} $cur');
+        parts.add(kind=='client'?'${fxTr('We hold','موږ سره شته')} ${fxFmt(v)} $cur':'${fxTr('We owe','موږ پوروړي یو')} ${fxFmt(v)} $cur');
       } else if(v<0) {
-        parts.add('Owes us ${fxFmt(-v)} $cur');
+        parts.add('${fxTr('Owes us','موږ ته پوروړی دی')} ${fxFmt(-v)} $cur');
       }
     });
-    return parts.isEmpty?'No balance':parts.join('\n');
+    return parts.isEmpty?fxTr('No balance','بیلانس نشته'):parts.join('\n');
   }
 
   @override
@@ -122,18 +122,18 @@ class _SarafiAccountsTabState extends State<SarafiAccountsTab> {
         ?FloatingActionButton.extended(
             onPressed:addParty,
             icon:Icon(Icons.person_add_alt_1_rounded),
-            label:Text(kind=='client'?'Customer':'Partner'),
+            label:Text(kind=='client'?fxTr('Customer','مشتري'):fxTr('Partner','شریک')),
           )
         :null,
       body:ListView(
         padding:QamvioUi.pagePadding,
         children:[
-          Text('Accounts',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
+          Text(fxTr('Accounts','حسابونه'),style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
           SizedBox(height:10),
           SegmentedButton<String>(
             segments:[
-              ButtonSegment(value:'client',label:Text('Customers'),icon:Icon(Icons.groups_rounded)),
-              ButtonSegment(value:'partner',label:Text('Partners'),icon:Icon(Icons.handshake_rounded)),
+              ButtonSegment(value:'client',label:Text(fxTr('Customers','مشتریان')),icon:Icon(Icons.groups_rounded)),
+              ButtonSegment(value:'partner',label:Text(fxTr('Partners','شریک صرافان')),icon:Icon(Icons.handshake_rounded)),
             ],
             selected:{kind},
             onSelectionChanged:(s) {
@@ -144,13 +144,13 @@ class _SarafiAccountsTabState extends State<SarafiAccountsTab> {
           SizedBox(height:6),
           Text(
             kind=='client'
-              ?'Customers who keep money with you in one or more currencies.'
-              :'Other sarafs you send hawala to or receive hawala from. Settle your balance with them here.',
+              ?fxTr('Customers who keep money with you in one or more currencies.','هغه مشتریان چې په یو یا څو اسعارو کې پیسې درسره ساتي.')
+              :fxTr('Other sarafs you send hawala to or receive hawala from. Settle your balance with them here.','هغه صرافان چې حوالې ورته لېږئ یا ترې اخلئ؛ حساب یې دلته تصفیه کړئ.'),
             style:TextStyle(fontSize:12),
           ),
           SizedBox(height:10),
           if(parties.isEmpty)
-            Padding(padding:EdgeInsets.all(24),child:Center(child:Text('Nothing here yet.'))),
+            Padding(padding:EdgeInsets.all(24),child:Center(child:Text(fxTr('Nothing here yet.','تر اوسه څه نشته.')))),
           for(final p in parties)
             Card(
               child:ListTile(
@@ -222,8 +222,8 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
     final amount=TextEditingController();
     final note=TextEditingController();
     final title=isClient
-      ?(incoming?'Deposit (customer gives you money)':'Withdraw (you give customer money)')
-      :(incoming?'Partner pays you':'You pay partner');
+      ?(incoming?fxTr('Deposit (customer gives you money)','جمع (مشتري تاسې ته پیسې درکوي)'):fxTr('Withdraw (you give customer money)','ایستل (تاسې مشتري ته پیسې ورکوئ)'))
+      :(incoming?fxTr('Partner pays you','شریک تاسې ته پیسې درکوي'):fxTr('You pay partner','تاسې شریک ته پیسې ورکوئ'));
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
@@ -234,7 +234,7 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
             children:[
               DropdownButtonFormField<String>(
                 initialValue:currency,
-                decoration:InputDecoration(labelText:'Currency'),
+                decoration:InputDecoration(labelText:fxTr('Currency','اسعار')),
                 items:[for(final c in codes) DropdownMenuItem(value:c,child:Text(c))],
                 onChanged:(v)=>currency=v??currency,
               ),
@@ -242,16 +242,16 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
               TextField(
                 controller:amount,
                 keyboardType:TextInputType.numberWithOptions(decimal:true),
-                decoration:InputDecoration(labelText:'Amount'),
+                decoration:InputDecoration(labelText:fxTr('Amount','مبلغ')),
               ),
               SizedBox(height:10),
-              TextField(controller:note,decoration:InputDecoration(labelText:'Note')),
+              TextField(controller:note,decoration:InputDecoration(labelText:fxTr('Note','یادښت'))),
             ],
           ),
         ),
         actions:[
-          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text('Cancel')),
-          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text('Save')),
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(fxTr('Cancel','لغوه'))),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(fxTr('Save','ثبت'))),
         ],
       ),
     );
@@ -265,9 +265,9 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
       if(a>have+0.000001) {
         final go=await fxConfirm(
           context,
-          'More than the balance',
-          'The customer has ${fxFmt(have)} $currency with you. This withdrawal makes the customer owe you ${fxFmt(a-have)} $currency. Continue?',
-          action:'Continue',
+          fxTr('More than the balance','له بیلانس څخه زیات'),
+          fxTr('The customer has ${fxFmt(have)} $currency with you. This withdrawal makes the customer owe you ${fxFmt(a-have)} $currency. Continue?','مشتري له تاسې سره ${fxFmt(have)} $currency لري. په دې ایستلو سره مشتري ${fxFmt(a-have)} $currency درباندې پوروړی کېږي. دوام ورکړو؟'),
+          action:fxTr('Continue','دوام'),
         );
         if(!go) return;
       }
@@ -294,14 +294,14 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
     final ref=row['ref_id']?.toString()??'';
     final kind=row['kind'].toString();
     if(kind.startsWith('hawala')||kind=='exchange') {
-      fxSnack(context,'Cancel the hawala from the Hawala tab instead.');
+      fxSnack(context,fxTr('Cancel the hawala from the Hawala tab instead.','حواله د حوالو له برخې څخه لغوه کړئ.'));
       return;
     }
     final ok=await fxConfirm(
       context,
-      'Delete this entry?',
-      'The entry and its cash movement are removed.',
-      action:'Delete',
+      fxTr('Delete this entry?','دا ثبت ړنګ شي؟'),
+      fxTr('The entry and its cash movement are removed.','ثبت او د هغه نغدي حرکت به ړنګ شي.'),
+      action:fxTr('Delete','ړنګول'),
     );
     if(!ok) return;
     try {
@@ -315,12 +315,12 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
 
   String kindLabel(String k) {
     switch(k) {
-      case 'deposit': return 'Deposit';
-      case 'withdraw': return 'Withdrawal';
-      case 'settle_in': return 'Partner paid us';
-      case 'settle_out': return 'We paid partner';
-      case 'hawala_out': return 'Hawala sent';
-      case 'hawala_in': return 'Hawala paid out';
+      case 'deposit': return fxTr('Deposit','جمع');
+      case 'withdraw': return fxTr('Withdrawal','ایستل');
+      case 'settle_in': return fxTr('Partner paid us','شریک موږ ته راکړل');
+      case 'settle_out': return fxTr('We paid partner','موږ شریک ته ورکړل');
+      case 'hawala_out': return fxTr('Hawala sent','حواله ولېږل شوه');
+      case 'hawala_in': return fxTr('Hawala paid out','حواله ورکړل شوه');
       default: return k;
     }
   }
@@ -340,16 +340,16 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
                   child:Column(
                     crossAxisAlignment:CrossAxisAlignment.start,
                     children:[
-                      Text('Balance',style:TextStyle(fontWeight:FontWeight.w800)),
+                      Text(fxTr('Balance','بیلانس'),style:TextStyle(fontWeight:FontWeight.w800)),
                       SizedBox(height:6),
                       if(balances.values.every((v)=>v.abs()<0.000001))
-                        Text('No balance'),
+                        Text(fxTr('No balance','بیلانس نشته')),
                       for(final e in balances.entries)
                         if(e.value.abs()>=0.000001)
                           Text(
                             e.value>0
-                              ?'${isClient?'We hold':'We owe'} ${fxFmt(e.value)} ${e.key}'
-                              :'Owes us ${fxFmt(-e.value)} ${e.key}',
+                              ?'${isClient?fxTr('We hold','موږ سره شته'):fxTr('We owe','موږ پوروړي یو')} ${fxFmt(e.value)} ${e.key}'
+                              :'${fxTr('Owes us','موږ ته پوروړی دی')} ${fxFmt(-e.value)} ${e.key}',
                             style:TextStyle(fontSize:18,fontWeight:FontWeight.w900),
                           ),
                     ],
@@ -364,7 +364,7 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
                       child:FilledButton.icon(
                         onPressed:()=>move(true),
                         icon:Icon(Icons.south_west_rounded),
-                        label:Text(isClient?'Deposit':'They pay us'),
+                        label:Text(isClient?fxTr('Deposit','جمع'):fxTr('They pay us','هغوی موږ ته راکوي')),
                       ),
                     ),
                     SizedBox(width:10),
@@ -372,15 +372,15 @@ class _SarafiPartyPageState extends State<SarafiPartyPage> {
                       child:OutlinedButton.icon(
                         onPressed:()=>move(false),
                         icon:Icon(Icons.north_east_rounded),
-                        label:Text(isClient?'Withdraw':'We pay them'),
+                        label:Text(isClient?fxTr('Withdraw','ایستل'):fxTr('We pay them','موږ هغوی ته ورکوو')),
                       ),
                     ),
                   ],
                 ),
               SizedBox(height:14),
-              Text('Statement',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
+              Text(fxTr('Statement','صورت حساب'),style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
               if(ledger.isEmpty)
-                Padding(padding:EdgeInsets.all(24),child:Center(child:Text('No entries yet.'))),
+                Padding(padding:EdgeInsets.all(24),child:Center(child:Text(fxTr('No entries yet.','تر اوسه ثبت نشته.')))),
               for(final r in ledger)
                 Card(
                   child:ListTile(

@@ -47,7 +47,7 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
   }
 
   Future<void> edit([Map<String,Object?>? existing]) async {
-    if(customers.isEmpty||!LocalAuthService.instance.isAdmin) return;
+    if(customers.isEmpty||!LocalAuthService.instance.canEdit) return;
     String customerId=existing?['customer_id']?.toString()??customers.first['id'].toString();
     DateTime date=DateTime.tryParse(existing?['business_date']?.toString()??'')??DateTime.now();
     final given=TextEditingController(text:existing?['type']=='loan'?_money(existing?['amount']):'0');
@@ -137,6 +137,7 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
+    if(!LocalAuthService.instance.canDelete) return;
     final ok=await _confirmDelete('Customer loan');
     if(ok) {
       await AppDatabase.instance.softDeleteById('customerLoans',x['id'].toString());
@@ -147,7 +148,7 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Customer Loans')),
-    floatingActionButton:LocalAuthService.instance.isAdmin
+    floatingActionButton:LocalAuthService.instance.canEdit
       ?FloatingActionButton.extended(
         onPressed:()=>edit(),
         icon:const Icon(Icons.add),
@@ -184,9 +185,9 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
                       DataCell(Row(
                         mainAxisSize:MainAxisSize.min,
                         children:[
-                          if(LocalAuthService.instance.isAdmin)
+                          if(LocalAuthService.instance.canEdit)
                             IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                          if(LocalAuthService.instance.isAdmin)
+                          if(LocalAuthService.instance.canDelete)
                             IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
                         ],
                       )),
@@ -270,7 +271,7 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
   }
 
   Future<void> edit([Map<String,Object?>? existing]) async {
-    if(!LocalAuthService.instance.isAdmin||salesmen.isEmpty) return;
+    if(!LocalAuthService.instance.canEdit||salesmen.isEmpty) return;
     if(existing!=null&&(existing['source']?.toString()??'manual')!='manual') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Automatic invoice Due / Recovery entries are edited from the Sales invoice.')),
@@ -353,6 +354,7 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
   }
 
   Future<void> remove(Map<String,Object?> x) async {
+    if(!LocalAuthService.instance.canDelete) return;
     if((x['source']?.toString()??'manual')!='manual') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Automatic invoice entry must be deleted/edited from Sales.')),
@@ -379,7 +381,7 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
   @override
   Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('Salesman Loans')),
-    floatingActionButton:LocalAuthService.instance.isAdmin
+    floatingActionButton:LocalAuthService.instance.canEdit
       ?FloatingActionButton.extended(
         onPressed:()=>edit(),
         icon:const Icon(Icons.add),
@@ -415,8 +417,7 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
                   DataColumn(label:Text('Balance'),numeric:true),
                   DataColumn(label:Text('Note')),
                   DataColumn(label:Text('')),
-                ],
-                rows:[
+                ],                rows:[
                   for(final x in rows)
                     DataRow(cells:[
                       DataCell(Text((x['business_date']??x['created_at']).toString().split('T').first)),
@@ -428,9 +429,9 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
                       DataCell(Row(
                         mainAxisSize:MainAxisSize.min,
                         children:[
-                          if(LocalAuthService.instance.isAdmin)
+                          if(LocalAuthService.instance.canEdit)
                             IconButton(onPressed:()=>edit(x),icon:const Icon(Icons.edit_outlined)),
-                          if(LocalAuthService.instance.isAdmin)
+                          if(LocalAuthService.instance.canDelete)
                             IconButton(onPressed:()=>remove(x),icon:const Icon(Icons.delete_outline_rounded)),
                         ],
                       )),

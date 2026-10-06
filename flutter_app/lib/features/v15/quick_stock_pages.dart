@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
 double _n(dynamic v)=>v is num?v.toDouble():double.tryParse(v?.toString()??'')??0;
@@ -62,8 +63,7 @@ class _QuickSearchPageState extends State<QuickSearchPage> {
     }
 
     final suppliers=await db.rawQuery(
-      'SELECT id,name,phone,balance FROM suppliers '
-      'WHERE name LIKE ? OR phone LIKE ? LIMIT 20',
+      'SELECT id,name,phone,balance FROM suppliers '      'WHERE name LIKE ? OR phone LIKE ? LIMIT 20',
       [like,like],
     );
     for(final x in suppliers) {
@@ -232,6 +232,7 @@ class _StockPageState extends State<StockPage> {
   }
 
   Future<void> addAdjustment() async {
+    if(!LocalAuthService.instance.canAdjustStock) return;
     if(productId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content:Text('Select product.')),
@@ -283,7 +284,7 @@ class _StockPageState extends State<StockPage> {
                 child:const Text('Current Stock = Opening + Purchases + Adjustments − Sold Qty.'),
               ),
               const SizedBox(height:10),
-              if(products.isNotEmpty)
+              if(products.isNotEmpty&&LocalAuthService.instance.canAdjustStock)
                 Card(
                   child:Padding(
                     padding:const EdgeInsets.all(12),

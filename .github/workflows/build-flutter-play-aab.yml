@@ -1,6 +1,8 @@
 name: Build and Publish QAMVIO Flutter AAB
 
 on:
+  push:
+    branches: [ "release/flutter-play-v16" ]
   pull_request:
     branches: [ "flutter/qamvio-core" ]
     types: [opened, synchronize, reopened]

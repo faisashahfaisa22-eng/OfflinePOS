@@ -92,13 +92,31 @@ void main() {
       expect(await cash('AFN')-afn0,-3450);
     });
 
-    test('deleting restores cash',() async {
+    test('deleting sends exchange to recycle bin and restore replays cash',() async {
       final usd0=await cash('USD');
       final afn0=await cash('AFN');
       final id=await repo.saveExchange(
         date:DateTime.now(),fromCurrency:'USD',fromAmount:100,
         toCurrency:'AFN',toAmount:6900,rate:69,
       );
+      await repo.deleteExchange(id);
+      expect(await cash('USD')-usd0,0);
+      expect(await cash('AFN')-afn0,0);
+
+      final db=await app.database;
+      final bin=await db.query(
+        'recycle_bin',
+        where:'section=?',
+        whereArgs:['sarafiExchange'],
+        orderBy:'deleted_at DESC',
+        limit:1,
+      );
+      expect(bin,isNotEmpty);
+      await app.restoreRecycle(bin.first['id'].toString());
+      expect(await cash('USD')-usd0,100);
+      expect(await cash('AFN')-afn0,-6900);
+      expect((await repo.exchanges()).any((x)=>x['id']==id),true);
+
       await repo.deleteExchange(id);
       expect(await cash('USD')-usd0,0);
       expect(await cash('AFN')-afn0,0);
@@ -149,10 +167,27 @@ void main() {
       expect(b['USD'],20);
     });
 
-    test('deleting a movement removes cash and balance',() async {
+    test('deleting a movement recycles it and restore returns cash and balance',() async {
       final c=await party('client');
       final afn0=await cash('AFN');
       final id=await repo.saveMovement(date:DateTime.now(),partyId:c,currency:'AFN',amount:300,incoming:true,kind:'deposit');
+      await repo.deleteMovement(id);
+      expect(await bal(c,'AFN'),0);
+      expect(await cash('AFN')-afn0,0);
+
+      final db=await app.database;
+      final bin=await db.query(
+        'recycle_bin',
+        where:'section=?',
+        whereArgs:['sarafiMovement'],
+        orderBy:'deleted_at DESC',
+        limit:1,
+      );
+      expect(bin,isNotEmpty);
+      await app.restoreRecycle(bin.first['id'].toString());
+      expect(await bal(c,'AFN'),300);
+      expect(await cash('AFN')-afn0,300);
+
       await repo.deleteMovement(id);
       expect(await bal(c,'AFN'),0);
       expect(await cash('AFN')-afn0,0);

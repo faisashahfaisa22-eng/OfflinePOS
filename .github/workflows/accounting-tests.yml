@@ -1,6 +1,8 @@
 name: Accounting tests (emulator)
 on:
   workflow_dispatch:
+  push:
+    branches: [ feature/sarafi-v16-clean ]
   pull_request:
     branches: [ release/flutter-play-v16 ]
     paths:

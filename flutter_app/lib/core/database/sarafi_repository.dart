@@ -351,11 +351,7 @@ class SarafiRepository {
   }
 
   Future<void> deleteExchange(String id) async {
-    final db=await _db;
-    await db.transaction((txn) async {
-      await _clearRef(txn,id);
-      await txn.delete('fx_exchanges',where:'id=?',whereArgs:[id]);
-    });
+    await AppDatabase.instance.softDeleteById('sarafiExchange',id);
   }
 
   Future<List<Map<String,Object?>>> exchanges({String? day,int limit=200}) async {
@@ -405,7 +401,9 @@ class SarafiRepository {
 
   Future<void> deleteMovement(String id) async {
     final db=await _db;
-    await _clearRef(db,id);
+    final cash=await db.query('fx_cash',where:'ref_id=?',whereArgs:[id],limit:1);
+    if(cash.isEmpty) throw StateError('Movement not found.');
+    await AppDatabase.instance.softDeleteById('sarafiMovement',cash.first['id'].toString());
   }
 
   /// Own cash correction (opening cash, counting difference). [amount] is

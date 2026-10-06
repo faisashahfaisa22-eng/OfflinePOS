@@ -58,6 +58,7 @@ class AppStrings {
     'reports': ['Reports','راپورونه','گزارش‌ها','رپورٹس'],
     'cloud': ['Cloud & Backup','کلاوډ او بیک اپ','کلاود و پشتیبان','کلاؤڈ اور بیک اپ'],
     'language': ['Language','ژبه','زبان','زبان'],
+    'sarafi': ['Sarafi / Hawala','صرافي / حواله','صرافی / حواله','صرافی / حوالہ'],
   };
 
   String t(String key) {

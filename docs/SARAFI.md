@@ -12,7 +12,11 @@ Tabs: Exchange, Hawala, Accounts (customers + partner sarafs), Rates, Daily Repo
 - Hawala out: cash +(amount+commission), we owe the partner `amount`.
 - Hawala in: nothing posts until "Pay out"; then cash -amount and the partner owes us amount+commission.
 - Cancelling a hawala removes everything it posted.
-- Deleting is Admin only. There is no Recycle Bin for Sarafi records yet.
+- Deleting is Admin only. Exchange deletions and manual account movements go to Recycle Bin with their cash/ledger postings and can be restored. Hawala uses its own Cancel flow, which reverses postings without deleting the record.
 
 ## Tests
 `flutter test integration_test` on an emulator (workflow "Accounting tests (emulator)").
+
+
+## Localization
+Sarafi screens follow the app language setting. English and Pashto UI labels/messages are localized; Dari/Urdu fall back to English where a Sarafi-specific translation is not yet supplied.

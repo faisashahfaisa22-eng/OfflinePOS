@@ -62,7 +62,10 @@ class AppDatabase {
       password: _sqlcipherKey,
       version: 8,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
-      onCreate: (db, version) async => _createSchema(db),
+      onCreate: (db, version) async {
+        await _createSchema(db);
+        await SarafiSchema.create(db);
+      },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) await _createV2Tables(db);
         if (oldVersion < 3) await _createV3Tables(db);

@@ -1172,6 +1172,8 @@ class AppDatabase {
       'customers':'customers',
       'suppliers':'suppliers',
       'products':'products',
+      'sarafiExchange':'fx_exchanges',
+      'sarafiMovement':'fx_cash',
     };
     final table=map[section];
     if(table==null) throw ArgumentError.value(section,'section','Unsupported v15 section.');
@@ -1264,6 +1266,19 @@ class AppDatabase {
             [_nDb(row['qty']),now,tank],
           );
         }
+      } else if(section=='sarafiExchange') {
+        final cash=await txn.query('fx_cash',where:'ref_id=?',whereArgs:[id]);
+        final ledger=await txn.query('fx_ledger',where:'ref_id=?',whereArgs:[id]);
+        linked['fx_cash']=cash;
+        linked['fx_ledger']=ledger;
+        await txn.delete('fx_cash',where:'ref_id=?',whereArgs:[id]);
+        await txn.delete('fx_ledger',where:'ref_id=?',whereArgs:[id]);
+      } else if(section=='sarafiMovement') {
+        final ref=row['ref_id']?.toString()??'';
+        if(ref.isEmpty) throw StateError('Sarafi movement reference is missing.');
+        final ledger=await txn.query('fx_ledger',where:'ref_id=?',whereArgs:[ref]);
+        linked['fx_ledger']=ledger;
+        await txn.delete('fx_ledger',where:'ref_id=?',whereArgs:[ref]);
       } else if(section=='customers') {
         final linkedCount=Sqflite.firstIntValue(await txn.rawQuery(
           'SELECT (SELECT COUNT(*) FROM sales WHERE customer_id=?)+'
@@ -1295,10 +1310,17 @@ class AppDatabase {
         if(linkedCount>0) throw StateError('Product has linked stock history. Delete those records first.');
       }
 
+      var recycleLabel=row['name']?.toString()??row['invoice_no']?.toString()??id;
+      if(section=='sarafiExchange') {
+        recycleLabel='Sarafi exchange ${row['business_date']??''}: ${row['from_currency']??''} → ${row['to_currency']??''}';
+      } else if(section=='sarafiMovement') {
+        recycleLabel='Sarafi ${row['kind']??'movement'} ${row['currency']??''} ${row['amount']??''}';
+      }
+
       await txn.insert('recycle_bin',{
         'id':'recycle_${DateTime.now().microsecondsSinceEpoch}_$id',
         'section':section,
-        'label':row['name']?.toString()??row['invoice_no']?.toString()??id,
+        'label':recycleLabel,
         'record_json':jsonEncode(row),
         'linked_records_json':jsonEncode(linked),
         'deleted_at':now,
@@ -1399,6 +1421,17 @@ class AppDatabase {
             'UPDATE fuel_tanks SET current_stock=current_stock+?,updated_at=?,sync_state=0 WHERE id=?',
             [_nDb(row['qty']),now,tank],
           );
+        }
+      } else if(section=='sarafiExchange') {
+        for(final raw in (linked['fx_cash'] as List? ?? const [])) {
+          await txn.insert('fx_cash',Map<String,Object?>.from(raw as Map));
+        }
+        for(final raw in (linked['fx_ledger'] as List? ?? const [])) {
+          await txn.insert('fx_ledger',Map<String,Object?>.from(raw as Map));
+        }
+      } else if(section=='sarafiMovement') {
+        for(final raw in (linked['fx_ledger'] as List? ?? const [])) {
+          await txn.insert('fx_ledger',Map<String,Object?>.from(raw as Map));
         }
       }
 

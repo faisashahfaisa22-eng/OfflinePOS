@@ -78,15 +78,15 @@ class _SarafiReportTabState extends State<SarafiReportTab> {
       context:context,
       builder:(ctx)=>StatefulBuilder(
         builder:(ctx,setLocal)=>AlertDialog(
-          title:Text('Cash adjustment'),
+          title:Text(fxTr('Cash adjustment','د نغدو اصلاح')),
           content:SingleChildScrollView(
             child:Column(
               mainAxisSize:MainAxisSize.min,
               children:[
                 SegmentedButton<String>(
                   segments:[
-                    ButtonSegment(value:'opening',label:Text('Opening cash')),
-                    ButtonSegment(value:'adjust',label:Text('Correction')),
+                    ButtonSegment(value:'opening',label:Text(fxTr('Opening cash','پیل نغدې'))),
+                    ButtonSegment(value:'adjust',label:Text(fxTr('Correction','اصلاح'))),
                   ],
                   selected:{kind},
                   onSelectionChanged:(s)=>setLocal(()=>kind=s.first),
@@ -94,14 +94,14 @@ class _SarafiReportTabState extends State<SarafiReportTab> {
                 SizedBox(height:6),
                 Text(
                   kind=='opening'
-                    ?'Cash you already have in the box. Enter a positive amount.'
-                    :'Counting difference. Use + for extra cash found, - for missing cash.',
+                    ?fxTr('Cash you already have in the box. Enter a positive amount.','هغه نغدې چې له مخکې په صندوق کې شته؛ مثبت مبلغ داخل کړئ.')
+                    :fxTr('Counting difference. Use + for extra cash found, - for missing cash.','د شمېرنې توپیر: د اضافي نغدو لپاره + او د کمو نغدو لپاره - وکاروئ.'),
                   style:TextStyle(fontSize:12),
                 ),
                 SizedBox(height:10),
                 DropdownButtonFormField<String>(
                   initialValue:currency,
-                  decoration:InputDecoration(labelText:'Currency'),
+                  decoration:InputDecoration(labelText:fxTr('Currency','اسعار')),
                   items:[for(final c in codes) DropdownMenuItem(value:c,child:Text(c))],
                   onChanged:(v)=>currency=v??currency,
                 ),
@@ -109,16 +109,16 @@ class _SarafiReportTabState extends State<SarafiReportTab> {
                 TextField(
                   controller:amount,
                   keyboardType:TextInputType.numberWithOptions(decimal:true,signed:true),
-                  decoration:InputDecoration(labelText:'Amount'),
+                  decoration:InputDecoration(labelText:fxTr('Amount','مبلغ')),
                 ),
                 SizedBox(height:10),
-                TextField(controller:note,decoration:InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:fxTr('Note','یادښت'))),
               ],
             ),
           ),
           actions:[
-            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text('Cancel')),
-            FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text('Save')),
+            TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(fxTr('Cancel','لغوه'))),
+            FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(fxTr('Save','ثبت'))),
           ],
         ),
       ),
@@ -129,7 +129,7 @@ class _SarafiReportTabState extends State<SarafiReportTab> {
     note.dispose();
     if(ok!=true) return;
     if(kind=='opening'&&a<=0) {
-      fxSnack(context,'Opening cash must be greater than zero.');
+      fxSnack(context,fxTr('Opening cash must be greater than zero.','پیل نغدې باید له صفر څخه زیاتې وي.'));
       return;
     }
     try {
@@ -155,13 +155,13 @@ class _SarafiReportTabState extends State<SarafiReportTab> {
         ?FloatingActionButton.extended(
             onPressed:adjust,
             icon:Icon(Icons.account_balance_wallet_rounded),
-            label:Text('Cash adjust'),
+            label:Text(fxTr('Cash adjust','د نغدو اصلاح')),
           )
         :null,
       body:ListView(
         padding:QamvioUi.pagePadding,
         children:[
-          Text('Daily report',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
+          Text(fxTr('Daily report','ورځنی راپور'),style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
           SizedBox(height:8),
           Row(
             children:[
@@ -177,9 +177,9 @@ class _SarafiReportTabState extends State<SarafiReportTab> {
             ],
           ),
           SizedBox(height:10),
-          Text('Cash box by currency',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
+          Text(fxTr('Cash box by currency','نغدي صندوق د اسعارو له مخې'),style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
           if(r.cash.isEmpty)
-            Padding(padding:EdgeInsets.all(20),child:Center(child:Text('No cash movement up to this day.'))),
+            Padding(padding:EdgeInsets.all(20),child:Center(child:Text(fxTr('No cash movement up to this day.','تر دې ورځې پورې نغدي حرکت نشته.')))),
           for(final c in r.cash)
             Card(
               child:Padding(
@@ -189,50 +189,50 @@ class _SarafiReportTabState extends State<SarafiReportTab> {
                   children:[
                     Text(c.currency,style:TextStyle(fontSize:18,fontWeight:FontWeight.w900)),
                     SizedBox(height:6),
-                    Text('Opening:  ${fxFmt(c.opening)}'),
-                    Text('Money in:  ${fxFmt(c.inflow)}'),
-                    Text('Money out:  ${fxFmt(-c.outflow)}'),
+                    Text('${fxTr('Opening','پیل')}:  ${fxFmt(c.opening)}'),
+                    Text('${fxTr('Money in','داخلې نغدې')}:  ${fxFmt(c.inflow)}'),
+                    Text('${fxTr('Money out','وتلې نغدې')}:  ${fxFmt(-c.outflow)}'),
                     Divider(),
-                    Text('Closing:  ${fxFmt(c.closing)}',style:TextStyle(fontWeight:FontWeight.w900)),
+                    Text('${fxTr('Closing','پای')}:  ${fxFmt(c.closing)}',style:TextStyle(fontWeight:FontWeight.w900)),
                   ],
                 ),
               ),
             ),
           SizedBox(height:10),
-          Text('Profit and commission',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
+          Text(fxTr('Profit and commission','ګټه او کمېشن'),style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
           Card(
             child:Padding(
               padding:EdgeInsets.all(12),
               child:Column(
                 crossAxisAlignment:CrossAxisAlignment.start,
                 children:[
-                  Text('Exchanges: ${r.exchangeCount}'),
+                  Text('${fxTr('Exchanges','تبادلې')}: ${r.exchangeCount}'),
                   Text(
-                    'Estimated exchange profit: ${fxFmt(r.exchangeProfitAfn)} ${SarafiSchema.baseCurrency}',
+                    '${fxTr('Estimated exchange profit','اټکلي د تبادلې ګټه')}: ${fxFmt(r.exchangeProfitAfn)} ${SarafiSchema.baseCurrency}',
                     style:TextStyle(fontWeight:FontWeight.w800),
                   ),
                   Text(
-                    'Estimated against the mid rate (average of buy and sell). Set today\'s rates in the Rates tab first.',
+                    fxTr('Estimated against the mid rate (average of buy and sell). Set today\'s rates in the Rates tab first.','اټکل د اخیستلو او پلورلو د منځني نرخ پر بنسټ دی؛ لومړی د نن ورځې نرخونه وټاکئ.'),
                     style:TextStyle(fontSize:12),
                   ),
                   SizedBox(height:8),
-                  Text('Hawala: ${r.hawalaCount}'),
-                  if(r.commissions.isEmpty) Text('Commission: 0'),
+                  Text('${fxTr('Hawala','حواله')}: ${r.hawalaCount}'),
+                  if(r.commissions.isEmpty) Text('${fxTr('Commission','کمېشن')}: 0'),
                   for(final e in r.commissions.entries)
-                    Text('Commission ${e.key}: ${fxFmt(e.value)}',style:TextStyle(fontWeight:FontWeight.w800)),
+                    Text('${fxTr('Commission','کمېشن')} ${e.key}: ${fxFmt(e.value)}',style:TextStyle(fontWeight:FontWeight.w800)),
                 ],
               ),
             ),
           ),
           SizedBox(height:10),
-          Text('Cash in the box now (all days)',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
+          Text(fxTr('Cash in the box now (all days)','اوسني نغدې په صندوق کې (ټولې ورځې)'),style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
           Card(
             child:Padding(
               padding:EdgeInsets.all(12),
               child:Column(
                 crossAxisAlignment:CrossAxisAlignment.start,
                 children:[
-                  if(cashNow.isEmpty) Text('Empty'),
+                  if(cashNow.isEmpty) Text(fxTr('Empty','تش')),
                   for(final e in cashNow.entries)
                     Text('${e.key}: ${fxFmt(e.value)}',style:TextStyle(fontWeight:FontWeight.w800)),
                 ],

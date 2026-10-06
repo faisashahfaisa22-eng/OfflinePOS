@@ -962,7 +962,7 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
       ),
       (
         page: AppPage.sarafi,
-        label: 'Sarafi / Hawala',
+        label: widget.strings.t('sarafi'),
         icon: Icons.currency_exchange_rounded,
         widget: const SarafiPage(),
       ),
@@ -1016,7 +1016,7 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
         ],
       ),
       (
-        title: 'SARAFI',
+        title: widget.strings.t('sarafi').toUpperCase(),
         pages: [AppPage.sarafi],
       ),
       (

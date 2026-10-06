@@ -5,6 +5,7 @@ import '../../core/security/permissions.dart';
 import '../../core/ui/qamvio_ui.dart';
 import '../fuel/fuel_page.dart';
 import '../sales/sales_page.dart';
+import '../sarafi/sarafi_page.dart';
 import '../reports/reports_page.dart';
 import '../v15/quick_stock_pages.dart';
 import '../v15/statement_pages.dart';
@@ -81,6 +82,12 @@ class RoleHomePage extends StatelessWidget {
         Icons.assignment_ind_rounded,
         'Salesman Statement',
         const SalesmanStatementPage(),
+      ),
+      (
+        AppPage.sarafi,
+        Icons.currency_exchange_rounded,
+        'Sarafi / Hawala',
+        const SarafiPage(),
       ),
       (
         AppPage.reports,

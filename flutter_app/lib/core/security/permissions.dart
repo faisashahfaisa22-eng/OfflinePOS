@@ -78,6 +78,7 @@ class Permissions {
       case UserRole.viewer:
         return _viewerPages.contains(page);
       case UserRole.cashier:
+        return _v15Restricted.contains(page)||page==AppPage.sarafi;
       case UserRole.salesman:
         return _v15Restricted.contains(page);
     }

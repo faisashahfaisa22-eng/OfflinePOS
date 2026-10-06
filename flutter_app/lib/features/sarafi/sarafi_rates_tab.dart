@@ -53,26 +53,26 @@ class _SarafiRatesTabState extends State<SarafiRatesTab> {
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
-        title:Text('$code rate (AFN per 1 $code)'),
+        title:Text('$code ${fxTr('rate','نرخ')} (AFN / 1 $code)'),
         content:Column(
           mainAxisSize:MainAxisSize.min,
           children:[
             TextField(
               controller:buy,
               keyboardType:TextInputType.numberWithOptions(decimal:true),
-              decoration:InputDecoration(labelText:'We BUY at (customer gives $code)'),
+              decoration:InputDecoration(labelText:fxTr('We BUY at (customer gives $code)','موږ په دې نرخ اخلو (مشتري $code راکوي)')),
             ),
             SizedBox(height:10),
             TextField(
               controller:sell,
               keyboardType:TextInputType.numberWithOptions(decimal:true),
-              decoration:InputDecoration(labelText:'We SELL at (customer receives $code)'),
+              decoration:InputDecoration(labelText:fxTr('We SELL at (customer receives $code)','موږ په دې نرخ پلورو (مشتري $code اخلي)')),
             ),
           ],
         ),
         actions:[
-          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text('Cancel')),
-          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text('Save')),
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(fxTr('Cancel','لغوه'))),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(fxTr('Save','ثبت'))),
         ],
       ),
     );
@@ -96,22 +96,22 @@ class _SarafiRatesTabState extends State<SarafiRatesTab> {
     final ok=await showDialog<bool>(
       context:context,
       builder:(ctx)=>AlertDialog(
-        title:Text('Add currency'),
+        title:Text(fxTr('Add currency','اسعار اضافه کړئ')),
         content:Column(
           mainAxisSize:MainAxisSize.min,
           children:[
             TextField(
               controller:code,
               textCapitalization:TextCapitalization.characters,
-              decoration:InputDecoration(labelText:'Code (for example GBP)'),
+              decoration:InputDecoration(labelText:fxTr('Code (for example GBP)','کوډ (لکه GBP)')),
             ),
             SizedBox(height:10),
-            TextField(controller:name,decoration:InputDecoration(labelText:'Name')),
+            TextField(controller:name,decoration:InputDecoration(labelText:fxTr('Name','نوم'))),
           ],
         ),
         actions:[
-          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text('Cancel')),
-          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text('Add')),
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(fxTr('Cancel','لغوه'))),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(fxTr('Add','اضافه کول'))),
         ],
       ),
     );
@@ -152,15 +152,15 @@ class _SarafiRatesTabState extends State<SarafiRatesTab> {
         ?FloatingActionButton.extended(
             onPressed:addCurrency,
             icon:Icon(Icons.add),
-            label:Text('Currency'),
+            label:Text(fxTr('Currency','اسعار')),
           )
         :null,
       body:ListView(
         padding:QamvioUi.pagePadding,
         children:[
-          Text('Exchange rates',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
+          Text(fxTr('Exchange rates','د اسعارو نرخونه'),style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
           SizedBox(height:4),
-          Text('Rates are AFN for 1 unit of the currency. Buy = what you pay a customer who gives you the currency. Sell = what you charge a customer who takes it.'),
+          Text(fxTr('Rates are AFN for 1 unit of the currency. Buy = what you pay a customer who gives you the currency. Sell = what you charge a customer who takes it.','نرخ د هر اسعار د ۱ واحد په بدل کې افغانۍ دي. اخیستل = هغه نرخ چې له مشتري څخه اسعار اخلئ؛ پلورل = هغه نرخ چې مشتري ته اسعار ورکوئ.')),
           SizedBox(height:12),
           for(final c in currencies)
             Card(
@@ -168,10 +168,10 @@ class _SarafiRatesTabState extends State<SarafiRatesTab> {
                 title:Text('${c['code']}  ${c['name']}'),
                 subtitle:Text(
                   c['code']==SarafiSchema.baseCurrency
-                    ?'Base currency'
+                    ?fxTr('Base currency','اصلي اسعار')
                     :(rates[c['code']]==null
-                        ?'No rate yet. Tap to set.'
-                        :'Buy ${fxFmt(rates[c['code']]!.buy)}   Sell ${fxFmt(rates[c['code']]!.sell)}'),
+                        ?fxTr('No rate yet. Tap to set.','تر اوسه نرخ نشته؛ د ټاکلو لپاره یې کېکاږئ.')
+                         :'${fxTr('Buy','اخیستل')} ${fxFmt(rates[c['code']]!.buy)}   ${fxTr('Sell','پلورل')} ${fxFmt(rates[c['code']]!.sell)}'),
                 ),
                 trailing:c['code']==SarafiSchema.baseCurrency
                   ?null

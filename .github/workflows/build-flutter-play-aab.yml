@@ -167,7 +167,12 @@ jobs:
         run: flutter build appbundle --release --build-name=16.0.0 --build-number=16
 
       - name: Verify AAB signature
-        run: jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab
+        run: |
+          set -euo pipefail
+          jarsigner -verify -verbose -certs \
+            -keystore "$RUNNER_TEMP/offlinepos-upload.jks" \
+            -storepass "$SIGNING_STORE_PASSWORD" \
+            build/app/outputs/bundle/release/app-release.aab
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4

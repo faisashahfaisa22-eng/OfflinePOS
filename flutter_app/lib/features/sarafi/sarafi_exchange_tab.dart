@@ -92,18 +92,18 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
     final r=fxParse(rate.text)??0;
     final out=receives;
     if(fromCur==toCur) {
-      fxSnack(context,'Choose two different currencies.');
+      fxSnack(context,fxTr('Choose two different currencies.','دوه بېلابېل اسعار وټاکئ.'));
       return;
     }
     if(a<=0||r<=0||out<=0) {
-      fxSnack(context,'Enter the amount and the rate.');
+      fxSnack(context,fxTr('Enter the amount and the rate.','مبلغ او نرخ داخل کړئ.'));
       return;
     }
     final ok=await fxConfirm(
       context,
-      'Confirm exchange',
-      'Customer gives ${fxFmt(a)} $fromCur\nCustomer receives ${fxFmt(out)} $toCur\nRate: ${FxQuote.label(fromCur,toCur).replaceFirst('?',fxFmt(r))}',
-      action:'Save',
+      fxTr('Confirm exchange','د تبادلې تایید'),
+      fxTr('Customer gives ${fxFmt(a)} $fromCur\nCustomer receives ${fxFmt(out)} $toCur\nRate: ${FxQuote.label(fromCur,toCur).replaceFirst('?',fxFmt(r))}','مشتري ورکوي ${fxFmt(a)} $fromCur\nمشتري اخلي ${fxFmt(out)} $toCur\nنرخ: ${FxQuote.label(fromCur,toCur).replaceFirst('?',fxFmt(r))}'),
+      action:fxTr('Save','ثبت'),
     );
     if(!ok) return;
     try {
@@ -120,7 +120,7 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
       fromAmount.clear();
       note.clear();
       widget.tick.value++;
-      fxSnack(context,'Exchange saved.');
+      fxSnack(context,fxTr('Exchange saved.','تبادله ثبت شوه.'));
     } catch(e) {
       fxSnack(context,fxErr(e));
     }
@@ -130,9 +130,9 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
     if(!canDelete) return;
     final ok=await fxConfirm(
       context,
-      'Delete exchange?',
-      'This removes the exchange and its cash movement. This cannot be undone.',
-      action:'Delete',
+      fxTr('Delete exchange?','تبادله ړنګه شي؟'),
+      fxTr('This removes the exchange and its cash movement. This cannot be undone.','دا تبادله او د هغې نغدي حرکت ړنګوي او بېرته نه راګرځي.'),
+      action:fxTr('Delete','ړنګول'),
     );
     if(!ok) return;
     try {
@@ -160,7 +160,7 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
     return ListView(
       padding:QamvioUi.pagePadding,
       children:[
-        Text('Currency exchange',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
+        Text(fxTr('Currency exchange','د اسعارو تبادله'),style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),
         SizedBox(height:10),
         if(canWrite)
           Card(
@@ -172,18 +172,18 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
                   Row(
                     children:[
                       Expanded(
-                        child:currencyDropdown('Customer gives',fromCur,(v) {
+                        child:currencyDropdown(fxTr('Customer gives','مشتري ورکوي'),fromCur,(v) {
                           setState(()=>fromCur=v);
                           applySuggestion();
                         }),
                       ),
                       IconButton(
-                        tooltip:'Swap',
+                        tooltip:fxTr('Swap','بدلول'),
                         onPressed:swap,
                         icon:Icon(Icons.swap_horiz_rounded),
                       ),
                       Expanded(
-                        child:currencyDropdown('Customer receives',toCur,(v) {
+                        child:currencyDropdown(fxTr('Customer receives','مشتري اخلي'),toCur,(v) {
                           setState(()=>toCur=v);
                           applySuggestion();
                         }),
@@ -195,7 +195,7 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
                     controller:fromAmount,
                     onChanged:(_)=>setState(() {}),
                     keyboardType:TextInputType.numberWithOptions(decimal:true),
-                    decoration:InputDecoration(labelText:'Amount customer gives ($fromCur)'),
+                    decoration:InputDecoration(labelText:'${fxTr('Amount customer gives','د مشتري ورکړی مبلغ')} ($fromCur)'),
                   ),
                   SizedBox(height:10),
                   TextField(
@@ -203,8 +203,8 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
                     onChanged:(_)=>setState(() {}),
                     keyboardType:TextInputType.numberWithOptions(decimal:true),
                     decoration:InputDecoration(
-                      labelText:'Rate: ${FxQuote.label(fromCur,toCur)}',
-                      helperText:rates.isEmpty?'Set buy/sell rates in the Rates tab to get suggestions.':null,
+                      labelText:'${fxTr('Rate','نرخ')}: ${FxQuote.label(fromCur,toCur)}',
+                      helperText:rates.isEmpty?fxTr('Set buy/sell rates in the Rates tab to get suggestions.','د وړاندیز لپاره په نرخونو برخه کې د اخیستلو/پلورلو نرخونه وټاکئ.'):null,
                     ),
                   ),
                   SizedBox(height:10),
@@ -216,29 +216,29 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
                       borderRadius:BorderRadius.circular(14),
                     ),
                     child:Text(
-                      'Customer receives: ${fxFmt(receives)} $toCur',
+                      '${fxTr('Customer receives','مشتري اخلي')}: ${fxFmt(receives)} $toCur',
                       style:TextStyle(fontSize:20,fontWeight:FontWeight.w900),
                     ),
                   ),
                   SizedBox(height:10),
                   DropdownButtonFormField<String>(
                     initialValue:clientId,
-                    decoration:InputDecoration(labelText:'Customer (optional)'),
+                    decoration:InputDecoration(labelText:fxTr('Customer (optional)','مشتري (اختیاري)')),
                     items:[
-                      DropdownMenuItem(value:'',child:Text('Walk-in customer')),
+                      DropdownMenuItem(value:'',child:Text(fxTr('Walk-in customer','نغدي مشتری'))),
                       for(final c in clients) DropdownMenuItem(value:c['id'].toString(),child:Text(c['name'].toString())),
                     ],
                     onChanged:(v)=>clientId=v??'',
                   ),
                   SizedBox(height:10),
-                  TextField(controller:note,decoration:InputDecoration(labelText:'Note (optional)')),
+                  TextField(controller:note,decoration:InputDecoration(labelText:fxTr('Note (optional)','یادښت (اختیاري)'))),
                   SizedBox(height:12),
                   SizedBox(
                     width:double.infinity,
                     child:FilledButton.icon(
                       onPressed:save,
                       icon:Icon(Icons.currency_exchange_rounded),
-                      label:Text('Save exchange'),
+                      label:Text(fxTr('Save exchange','تبادله ثبت کړئ')),
                     ),
                   ),
                 ],
@@ -246,16 +246,16 @@ class _SarafiExchangeTabState extends State<SarafiExchangeTab> {
             ),
           ),
         SizedBox(height:14),
-        Text('Recent exchanges',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
+        Text(fxTr('Recent exchanges','وروستۍ تبادلې'),style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
         SizedBox(height:6),
         if(recent.isEmpty)
-          Padding(padding:EdgeInsets.all(20),child:Center(child:Text('No exchanges yet.'))),
+          Padding(padding:EdgeInsets.all(20),child:Center(child:Text(fxTr('No exchanges yet.','تر اوسه تبادله نشته.')))),
         for(final x in recent)
           Card(
             child:ListTile(
               title:Text('${fxFmt(x['from_amount'] as num)} ${x['from_currency']}  →  ${fxFmt(x['to_amount'] as num)} ${x['to_currency']}'),
               subtitle:Text(
-                '${x['business_date']}  •  rate ${fxFmt(x['rate'] as num)}'
+                '${x['business_date']}  •  ${fxTr('rate','نرخ')} ${fxFmt(x['rate'] as num)}'
                 '${x['party_name']==null?'':'  •  ${x['party_name']}'}',
               ),
               trailing:canDelete

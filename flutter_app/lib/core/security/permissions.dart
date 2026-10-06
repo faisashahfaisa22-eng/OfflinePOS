@@ -33,6 +33,7 @@ enum AppPage {
   safetyCenter,
   userManagement,
   backup,
+  sarafi,
 }
 
 class Permissions {

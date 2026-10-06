@@ -32,4 +32,4 @@ jobs:
           target: google_apis
           disable-animations: true
           working-directory: flutter_app
-          script: flutter test integration_test/accounting_test.dart
+          script: flutter test integration_test

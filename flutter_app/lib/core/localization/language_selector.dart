@@ -25,7 +25,7 @@ class LanguageSelector extends StatelessWidget {
       animation: controller,
       builder: (_, __) {
         return DropdownButtonFormField<AppLanguage>(
-          value: controller.language,
+          initialValue: controller.language,
           decoration: const InputDecoration(
             labelText: 'Language',
             border: OutlineInputBorder(),

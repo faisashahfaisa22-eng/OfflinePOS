@@ -1,0 +1,13 @@
+{
+  "appTitle": "QAMVIO POS",
+  "sales": "Ventas",
+  "stock": "Stock",
+  "invoice": "Factura",
+  "customer": "Cliente",
+  "supplier": "Proveedor",
+  "purchase": "Compra",
+  "debt": "Deuda",
+  "payment": "Pago",
+  "settings": "Configuración",
+  "language": "Idioma"
+}

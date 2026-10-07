@@ -290,8 +290,8 @@ class _CloudPageState extends State<CloudPage> {
                     controller:legacyPassword,
                     obscureText:true,
                     enabled:!busy,
-                    decoration:const InputDecoration(
-                      labelText:'Original local QAMVIO password',
+                    decoration:InputDecoration(
+                      labelText:tr('Original local QAMVIO password'),
                       prefixIcon:Icon(Icons.lock_outline_rounded),
                     ),
                   ),
@@ -441,7 +441,7 @@ class _RestoreDialogState extends State<_RestoreDialog> {
       children:[
         const Text('Enter the email/mobile and password (or recovery code) of the account that created the backup. This is what decrypts it.'),
         const SizedBox(height:12),
-        TextField(controller:id,decoration:const InputDecoration(labelText:'Email or mobile')),
+        TextField(controller:id,decoration:InputDecoration(labelText:tr('Email or mobile'))),
         const SizedBox(height:8),
         TextField(
           controller:secret,
@@ -551,13 +551,13 @@ class _CloudSignInPanelState extends State<CloudSignInPanel> {
             const SizedBox(height:4),
             const Text('Use the same password you use to sign in to QAMVIO.'),
             const SizedBox(height:10),
-            TextField(controller:password,enabled:!busy,obscureText:true,decoration:const InputDecoration(labelText:'QAMVIO password')),
+            TextField(controller:password,enabled:!busy,obscureText:true,decoration:InputDecoration(labelText:tr('QAMVIO password'))),
             TextButton(
               onPressed:busy?null:()=>setState(()=>showLegacy=!showLegacy),
               child:Text(showLegacy?'Hide older cloud password':'Older cloud password (only if asked)'),
             ),
             if(showLegacy)
-              TextField(controller:legacy,enabled:!busy,obscureText:true,decoration:const InputDecoration(labelText:'Older separate cloud password')),
+              TextField(controller:legacy,enabled:!busy,obscureText:true,decoration:InputDecoration(labelText:tr('Older separate cloud password'))),
             if(message.isNotEmpty) Padding(padding:const EdgeInsets.only(top:10),child:Text(message)),
             const SizedBox(height:12),
             FilledButton(onPressed:busy?null:submit,child:const Text('Connect cloud backup')),

@@ -281,7 +281,7 @@ class _DashboardPageState extends State<DashboardPage> {
         title:Text('QAMVIO • ${BusinessModelController.instance.label}'),
         actions:[
           IconButton(
-            tooltip:'WhatsApp all debts / report',
+            tooltip:tr('WhatsApp all debts / report'),
             onPressed:shareBusinessReport,
             icon:const Icon(Icons.chat_rounded),
           ),
@@ -1129,7 +1129,7 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Logout',
+                    tooltip:tr('Logout'),
                     icon: const Icon(
                       Icons.logout_rounded,
                       color: Color(0xFFCBD5E1),

@@ -199,7 +199,7 @@ class _PartyPageState extends State<PartyPage> {
                 ),
                 DropdownButtonFormField<String>(
                   initialValue:supplierId,
-                  decoration:const InputDecoration(labelText:'Supplier'),
+                  decoration:InputDecoration(labelText:tr('Supplier')),
                   items:[
                     for(final x in rows)
                       DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
@@ -210,16 +210,16 @@ class _PartyPageState extends State<PartyPage> {
                 TextField(
                   controller:paid,
                   keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                  decoration:const InputDecoration(labelText:'Paid to Supplier'),
+                  decoration:InputDecoration(labelText:tr('Paid to Supplier')),
                 ),
                 const SizedBox(height:10),
                 TextField(
                   controller:received,
                   keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                  decoration:const InputDecoration(labelText:'Received from Supplier'),
+                  decoration:InputDecoration(labelText:tr('Received from Supplier')),
                 ),
                 const SizedBox(height:10),
-                TextField(controller:memo,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:memo,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),
@@ -374,15 +374,15 @@ class _PartyPageState extends State<PartyPage> {
             crossAxisAlignment:WrapCrossAlignment.end,
             children:[
               SizedBox(width:230,child:TextField(controller:name,decoration:InputDecoration(labelText:customer?'Customer Name':'Supplier Name'))),
-              SizedBox(width:210,child:TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'Phone (with country code)',hintText:'93701234567'))),
+              SizedBox(width:210,child:TextField(controller:phone,keyboardType:TextInputType.phone,decoration:InputDecoration(labelText:tr('Phone (with country code)'),hintText:tr('93701234567')))),
               if(customer)
-                SizedBox(width:145,child:TextField(controller:creditLimit,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Credit Limit'))),
+                SizedBox(width:145,child:TextField(controller:creditLimit,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Credit Limit')))),
               if(customer)
                 SizedBox(
                   width:190,
                   child:DropdownButtonFormField<String>(
                     initialValue:salesmanId,
-                    decoration:const InputDecoration(labelText:'Salesman'),
+                    decoration:InputDecoration(labelText:tr('Salesman')),
                     items:[
                       const DropdownMenuItem(value:'',child:Text('No Salesman')),
                       for(final x in salesmen)
@@ -391,8 +391,8 @@ class _PartyPageState extends State<PartyPage> {
                     onChanged:(v)=>setState(()=>salesmanId=v??''),
                   ),
                 ),
-              SizedBox(width:145,child:TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Balance'))),
-              SizedBox(width:230,child:TextField(controller:note,decoration:const InputDecoration(labelText:'Note'))),
+              SizedBox(width:145,child:TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Opening Balance')))),
+              SizedBox(width:230,child:TextField(controller:note,decoration:InputDecoration(labelText:tr('Note')))),
               FilledButton(onPressed:saveMaster,child:Text(editingId.isEmpty?(customer?'Save':'Save Supplier'):'Update')),
               if(editingId.isNotEmpty)
                 OutlinedButton(onPressed:resetForm,child:const Text('Cancel Edit')),
@@ -458,7 +458,7 @@ class _PartyPageState extends State<PartyPage> {
                     mainAxisSize:MainAxisSize.min,
                     children:[
                       IconButton(
-                        tooltip:'WhatsApp',
+                        tooltip:tr('WhatsApp'),
                         onPressed:()=>WhatsAppShare.shareSupplierCredit(x),
                         icon:const Icon(Icons.chat_rounded),
                       ),

@@ -133,11 +133,11 @@ class _FuelPageState extends State<FuelPage> {
             child:Column(
               mainAxisSize:MainAxisSize.min,
               children:[
-                TextField(controller:name,decoration:const InputDecoration(labelText:'Tank Name')),
+                TextField(controller:name,decoration:InputDecoration(labelText:tr('Tank Name'))),
                 const SizedBox(height:10),
                 DropdownButtonFormField<String>(
                   initialValue:productId,
-                  decoration:const InputDecoration(labelText:'Fuel Product'),
+                  decoration:InputDecoration(labelText:tr('Fuel Product')),
                   items:[
                     for(final p in products)
                       DropdownMenuItem(value:p['id'].toString(),child:Text(p['name'].toString())),
@@ -145,11 +145,11 @@ class _FuelPageState extends State<FuelPage> {
                   onChanged:(v)=>setLocal(()=>productId=v??productId),
                 ),
                 const SizedBox(height:10),
-                TextField(controller:capacity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Capacity (L)')),
+                TextField(controller:capacity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Capacity (L)'))),
                 const SizedBox(height:10),
-                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Liters')),
+                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Opening Liters'))),
                 const SizedBox(height:10),
-                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),
@@ -192,11 +192,11 @@ class _FuelPageState extends State<FuelPage> {
             child:Column(
               mainAxisSize:MainAxisSize.min,
               children:[
-                TextField(controller:name,decoration:const InputDecoration(labelText:'Nozzle / Pump Name')),
+                TextField(controller:name,decoration:InputDecoration(labelText:tr('Nozzle / Pump Name'))),
                 const SizedBox(height:10),
                 DropdownButtonFormField<String>(
                   initialValue:tankId,
-                  decoration:const InputDecoration(labelText:'Tank'),
+                  decoration:InputDecoration(labelText:tr('Tank')),
                   items:[
                     for(final t in tanks)
                       DropdownMenuItem(value:t['id'].toString(),child:Text(t['name'].toString())),
@@ -204,9 +204,9 @@ class _FuelPageState extends State<FuelPage> {
                   onChanged:(v)=>setLocal(()=>tankId=v??tankId),
                 ),
                 const SizedBox(height:10),
-                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Meter')),
+                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Opening Meter'))),
                 const SizedBox(height:10),
-                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),
@@ -263,27 +263,27 @@ class _FuelPageState extends State<FuelPage> {
                 ),
                 DropdownButtonFormField<String>(
                   initialValue:supplierId,
-                  decoration:const InputDecoration(labelText:'Supplier'),
+                  decoration:InputDecoration(labelText:tr('Supplier')),
                   items:[for(final x in suppliers) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString()))],
                   onChanged:(v)=>setLocal(()=>supplierId=v??supplierId),
                 ),
                 const SizedBox(height:10),
                 DropdownButtonFormField<String>(
                   initialValue:tankId,
-                  decoration:const InputDecoration(labelText:'Tank'),
+                  decoration:InputDecoration(labelText:tr('Tank')),
                   items:[for(final x in tanks) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString()))],
                   onChanged:(v)=>setLocal(()=>tankId=v??tankId),
                 ),
                 const SizedBox(height:10),
-                TextField(controller:invoice,decoration:const InputDecoration(labelText:'Invoice No')),
+                TextField(controller:invoice,decoration:InputDecoration(labelText:tr('Invoice No'))),
                 const SizedBox(height:10),
-                TextField(controller:liters,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Liters')),
+                TextField(controller:liters,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Liters'))),
                 const SizedBox(height:10),
-                TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost / Liter')),
+                TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Cost / Liter'))),
                 const SizedBox(height:10),
-                TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Paid')),
+                TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Paid'))),
                 const SizedBox(height:10),
-                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),
@@ -363,11 +363,11 @@ class _FuelPageState extends State<FuelPage> {
                       if(d!=null) setLocal(()=>date=d);
                     },
                   ),
-                  TextField(controller:shift,decoration:const InputDecoration(labelText:'Shift',hintText:'Morning / Evening / Night')),
+                  TextField(controller:shift,decoration:InputDecoration(labelText:tr('Shift'),hintText:tr('Morning / Evening / Night'))),
                   const SizedBox(height:10),
                   DropdownButtonFormField<String>(
                     initialValue:nozzleId,
-                    decoration:const InputDecoration(labelText:'Nozzle'),
+                    decoration:InputDecoration(labelText:tr('Nozzle')),
                     items:[for(final x in nozzles) DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString()))],
                     onChanged:(v) {
                       nozzleId=v??nozzleId;
@@ -378,11 +378,11 @@ class _FuelPageState extends State<FuelPage> {
                     },
                   ),
                   const SizedBox(height:10),
-                  TextField(controller:invoice,decoration:const InputDecoration(labelText:'Invoice No',hintText:'Auto if blank')),
+                  TextField(controller:invoice,decoration:InputDecoration(labelText:tr('Invoice No'),hintText:tr('Auto if blank'))),
                   const SizedBox(height:10),
                   DropdownButtonFormField<String>(
                     initialValue:salesmanId,
-                    decoration:const InputDecoration(labelText:'Salesman'),
+                    decoration:InputDecoration(labelText:tr('Salesman')),
                     items:[
                       if(!LocalAuthService.instance.isSalesmanUser)
                         const DropdownMenuItem(value:'',child:Text('Select Salesman')),
@@ -395,7 +395,7 @@ class _FuelPageState extends State<FuelPage> {
                   const SizedBox(height:10),
                   DropdownButtonFormField<String>(
                     initialValue:customerId,
-                    decoration:const InputDecoration(labelText:'Customer'),
+                    decoration:InputDecoration(labelText:tr('Customer')),
                     items:[
                       const DropdownMenuItem(value:'',child:Text('Select Customer')),
                       for(final x in customers.where((c)=>salesmanId.isEmpty||c['salesman_id']?.toString()==salesmanId))
@@ -404,15 +404,15 @@ class _FuelPageState extends State<FuelPage> {
                     onChanged:(v)=>setLocal(()=>customerId=v??''),
                   ),
                   const SizedBox(height:10),
-                  TextField(controller:opening,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Meter')),
+                  TextField(controller:opening,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Opening Meter'))),
                   const SizedBox(height:10),
-                  TextField(controller:closing,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Closing Meter')),
+                  TextField(controller:closing,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Closing Meter'))),
                   const SizedBox(height:10),
-                  TextField(controller:price,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Price / Liter')),
+                  TextField(controller:price,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Price / Liter'))),
                   const SizedBox(height:10),
-                  TextField(controller:cash,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cash Received')),
+                  TextField(controller:cash,onChanged:(_)=>setLocal(() {}),keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Cash Received'))),
                   const SizedBox(height:10),
-                  TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                  TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
                   const SizedBox(height:12),
                   Wrap(
                     spacing:8,
@@ -521,15 +521,15 @@ class _FuelPageState extends State<FuelPage> {
                     if(d!=null) setLocal(()=>date=d);
                   },
                 ),
-                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening Cash')),
+                TextField(controller:opening,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Opening Cash'))),
                 const SizedBox(height:10),
-                TextField(controller:cashIn,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cash In')),
+                TextField(controller:cashIn,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Cash In'))),
                 const SizedBox(height:10),
-                TextField(controller:cashOut,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cash Out')),
+                TextField(controller:cashOut,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Cash Out'))),
                 const SizedBox(height:10),
-                TextField(controller:actual,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Actual Cash')),
+                TextField(controller:actual,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Actual Cash'))),
                 const SizedBox(height:10),
-                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),

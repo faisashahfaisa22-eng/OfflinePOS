@@ -33,7 +33,7 @@ class RoleHomePage extends StatelessWidget {
           title: Text('QAMVIO • ${BusinessModelController.instance.label}'),
           actions: [
             IconButton(
-              tooltip: 'Lock / Logout',
+              tooltip:tr('Lock / Logout'),
               onPressed: () => LocalAuthService.instance.logout(),
               icon: const Icon(Icons.lock_outline_rounded),
             ),
@@ -102,7 +102,7 @@ class RoleHomePage extends StatelessWidget {
         title: Text('QAMVIO • ${BusinessModelController.instance.label}'),
         actions: [
           IconButton(
-            tooltip: 'Lock / Logout',
+            tooltip:tr('Lock / Logout'),
             onPressed: () => LocalAuthService.instance.logout(),
             icon: const Icon(Icons.lock_outline_rounded),
           ),

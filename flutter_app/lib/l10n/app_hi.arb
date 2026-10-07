@@ -1,0 +1,13 @@
+{
+  "appTitle": "QAMVIO POS",
+  "sales": "बिक्री",
+  "stock": "स्टॉक",
+  "invoice": "चालान",
+  "customer": "ग्राहक",
+  "supplier": "आपूर्तिकर्ता",
+  "purchase": "खरीद",
+  "debt": "ऋण",
+  "payment": "भुगतान",
+  "settings": "सेटिंग्स",
+  "language": "भाषा"
+}

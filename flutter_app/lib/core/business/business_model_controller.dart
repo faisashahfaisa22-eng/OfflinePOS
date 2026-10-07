@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../localization/localized_text.dart';
+
 enum BusinessModelType {
   retailStore,
   fuelStation,
@@ -10,21 +12,21 @@ enum BusinessModelType {
 
 extension BusinessModelTypeX on BusinessModelType {
   String get label => switch (this) {
-        BusinessModelType.retailStore => 'Retail Store',
-        BusinessModelType.fuelStation => 'Oil / Fuel',
-        BusinessModelType.restaurant => 'Restaurant',
-        BusinessModelType.pharmacy => 'Pharmacy',
+        BusinessModelType.retailStore => tr('Retail Store'),
+        BusinessModelType.fuelStation => tr('Oil / Fuel'),
+        BusinessModelType.restaurant => tr('Restaurant'),
+        BusinessModelType.pharmacy => tr('Pharmacy'),
       };
 
   String get description => switch (this) {
         BusinessModelType.retailStore =>
-          'General shop, supermarket, wholesale or everyday retail.',
+          tr('General shop, supermarket, wholesale or everyday retail.'),
         BusinessModelType.fuelStation =>
-          'Fuel station with tanks, nozzles, meter sales and fuel stock.',
+          tr('Fuel station with tanks, nozzles, meter sales and fuel stock.'),
         BusinessModelType.restaurant =>
-          'Restaurant POS using the core sales, stock and customer tools.',
+          tr('Restaurant POS using the core sales, stock and customer tools.'),
         BusinessModelType.pharmacy =>
-          'Medicine sales with batch, stock and expiry tracking.',
+          tr('Medicine sales with batch, stock and expiry tracking.'),
       };
 }
 
@@ -40,7 +42,7 @@ class BusinessModelController extends ChangeNotifier {
   BusinessModelType? get type => _type;
   bool get loaded => _loaded;
   bool get configured => _type != null;
-  String get label => _type?.label ?? 'Business';
+  String get label => _type?.label ?? tr('Business');
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();

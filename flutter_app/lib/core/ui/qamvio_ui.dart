@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
+import '../localization/localized_text.dart';
 
 class QamvioUi {
   QamvioUi._();

@@ -70,15 +70,15 @@ class _CapitalPageState extends State<CapitalPage> {
                     if(picked!=null) setLocal(()=>date=picked);
                   },
                 ),
-                TextField(controller:name,decoration:const InputDecoration(labelText:'Person / Partner')),
+                TextField(controller:name,decoration:InputDecoration(labelText:tr('Person / Partner'))),
                 const SizedBox(height:10),
                 TextField(
                   controller:amount,
                   keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                  decoration:const InputDecoration(labelText:'Amount'),
+                  decoration:InputDecoration(labelText:tr('Amount')),
                 ),
                 const SizedBox(height:10),
-                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),
@@ -346,7 +346,7 @@ class _DailyClosingPageState extends State<DailyClosingPage> {
           label:Text(_day(date)),
         ),
         IconButton(
-          tooltip:'Print Closing',
+          tooltip:tr('Print Closing'),
           onPressed:printClosing,
           icon:const Icon(Icons.print_outlined),
         ),
@@ -736,7 +736,7 @@ class _CashBookPageState extends State<CashBookPage> {
                   child:InkWell(
                     onTap:()=>_pick(true),
                     child:InputDecorator(
-                      decoration:const InputDecoration(labelText:'From'),
+                      decoration:InputDecoration(labelText:tr('From')),
                       child:Text(from==null?'All':_day(from!)),
                     ),
                   ),
@@ -746,7 +746,7 @@ class _CashBookPageState extends State<CashBookPage> {
                   child:InkWell(
                     onTap:()=>_pick(false),
                     child:InputDecorator(
-                      decoration:const InputDecoration(labelText:'To'),
+                      decoration:InputDecoration(labelText:tr('To')),
                       child:Text(to==null?'All':_day(to!)),
                     ),
                   ),
@@ -755,9 +755,9 @@ class _CashBookPageState extends State<CashBookPage> {
                   width:260,
                   child:TextField(
                     controller:search,
-                    decoration:const InputDecoration(
-                      labelText:'Search',
-                      hintText:'Type, reference, note...',
+                    decoration:InputDecoration(
+                      labelText:tr('Search'),
+                      hintText:tr('Type, reference, note...'),
                     ),
                   ),
                 ),

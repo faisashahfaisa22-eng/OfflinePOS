@@ -4,26 +4,27 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../database/app_database.dart';
+import '../localization/localized_text.dart';
 import 'crypto_utils.dart';
 
 enum UserRole { admin, manager, cashier, salesman, viewer }
 
 extension UserRoleX on UserRole {
   String get label=>switch(this){
-    UserRole.admin=>'Admin',
-    UserRole.manager=>'Manager',
-    UserRole.cashier=>'Cashier',
-    UserRole.salesman=>'Salesman',
-    UserRole.viewer=>'Viewer',
+    UserRole.admin=>tr('Admin'),
+    UserRole.manager=>tr('Manager'),
+    UserRole.cashier=>tr('Cashier'),
+    UserRole.salesman=>tr('Salesman'),
+    UserRole.viewer=>tr('Viewer'),
   };
 
   /// One-line explanation shown when the owner picks a role.
   String get description=>switch(this){
-    UserRole.admin=>'Full access, users and backup.',
-    UserRole.manager=>'Everything except users, backup, owner money and deleting records.',
-    UserRole.cashier=>'Sales, fuel pump, stock and statements.',
-    UserRole.salesman=>'Own sales and fuel shifts; own customers and statements; stock and stock ledger are view-only. No stock adjustments.',
-    UserRole.viewer=>'View only: stock, statements and reports. Cannot change anything.',
+    UserRole.admin=>tr('Full access, users and backup.'),
+    UserRole.manager=>tr('Everything except users, backup, owner money and deleting records.'),
+    UserRole.cashier=>tr('Sales, fuel pump, stock and statements.'),
+    UserRole.salesman=>tr('Own sales and fuel shifts; own customers and statements; stock and stock ledger are view-only. No stock adjustments.'),
+    UserRole.viewer=>tr('View only: stock, statements and reports. Cannot change anything.'),
   };
   static UserRole parse(String v)=>UserRole.values.firstWhere(
     (r)=>r.label.toLowerCase()==v.toLowerCase(),

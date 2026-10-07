@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
+import '../../core/localization/localized_text.dart';
 
 import '../../core/business/business_model_controller.dart';
 import '../../core/security/local_auth_service.dart';

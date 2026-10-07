@@ -278,6 +278,17 @@ const Map<String, List<String>> _ui = {
   'Fuel': ['Fuel','سون توکي','سوخت','فیول','الوقود','ईंधन','Combustible','Carburant','Yakıt'],
   'Backup': ['Backup','بیک اپ','پشتیبان','بیک اپ','نسخ احتياطي','बैकअप','Copia','Sauvegarde','Yedek'],
   'User': ['User','کاروونکی','کاربر','یوزر','مستخدم','उपयोगकर्ता','Usuario','Utilisateur','Kullanıcı'],
+  'Retail Store': ['Retail Store','پرچون پلورنځی','فروشگاه پرچون','ریٹیل اسٹور','متجر تجزئة','रिटेल स्टोर','Tienda minorista','Magasin de détail','Perakende Mağaza'],
+  'Oil / Fuel': ['Oil / Fuel','تېل / سون توکي','روغن / سوخت','آئل / فیول','زيت / وقود','तेल / ईंधन','Aceite / Combustible','Huile / Carburant','Yağ / Yakıt'],
+  'Restaurant': ['Restaurant','رستورانت','رستوران','ریستوران','مطعم','रेस्तरां','Restaurante','Restaurant','Restoran'],
+  'Admin': ['Admin','اډمین','ادمین','ایڈمن','مدير','एडमिन','Administrador','Administrateur','Yönetici'],
+  'Manager': ['Manager','منیجر','مدیر','منیجر','مدير','प्रबंधक','Gerente','Gestionnaire','Yönetici'],
+  'Cashier': ['Cashier','کاشیر','صندوقدار','کیشئر','أمين الصندوق','कैशियर','Cajero','Caissier','Kasiyer'],
+  'Viewer': ['Viewer','کتونکی','بیننده','ناظر','مشاهد','दर्शक','Visor','Lecteur','Görüntüleyici'],
+  'Full access, users and backup.': ['Full access, users and backup.','بشپړ لاسرسی، کاروونکي او بیک اپ.','دسترسی کامل، کاربران و پشتیبان.','مکمل رسائی، یوزرز اور بیک اپ۔','وصول كامل، المستخدمون والنسخ الاحتياطي.','पूर्ण पहुँच, उपयोगकर्ता और बैकअप।','Acceso total, usuarios y copia de seguridad.','Accès complet, utilisateurs et sauvegarde.','Tam erişim, kullanıcılar ve yedekleme.'],
+  'Everything except users, backup, owner money and deleting records.': ['Everything except users, backup, owner money and deleting records.','له کاروونکو، بیک اپ، د مالک پیسو او ریکارډ ړنګولو پرته هر څه.','همه چیز به‌جز کاربران، پشتیبان، پول مالک و حذف رکوردها.','یوزرز، بیک اپ، مالک کی رقم اور ریکارڈ حذف کرنے کے علاوہ سب کچھ۔','كل شيء عدا المستخدمين والنسخ الاحتياطي وأموال المالك وحذف السجلات.','उपयोगकर्ता, बैकअप, मालिक धन और रिकॉर्ड हटाने के अलावा सब कुछ।','Todo excepto usuarios, copia de seguridad, dinero del propietario y borrar registros.','Tout sauf utilisateurs, sauvegarde, argent du propriétaire et suppression des enregistrements.','Kullanıcılar, yedekleme, sahip parası ve kayıt silme dışında her şey.'],
+  'Sales, fuel pump, stock and statements.': ['Sales, fuel pump, stock and statements.','خرڅلاو، د تېلو پمپ، سټاک او حسابونه.','فروش، پمپ سوخت، موجودی و صورت‌حساب‌ها.','فروخت، فیول پمپ، اسٹاک اور اسٹیٹمنٹس۔','المبيعات ومضخة الوقود والمخزون والكشوفات.','बिक्री, ईंधन पंप, स्टॉक और स्टेटमेंट।','Ventas, bomba de combustible, stock y estados.','Ventes, pompe à carburant, stock et relevés.','Satış, yakıt pompası, stok ve ekstreler.'],
+  'View only: stock, statements and reports. Cannot change anything.': ['View only: stock, statements and reports. Cannot change anything.','یوازې کتنه: سټاک، حسابونه او راپورونه. هېڅ شی نشي بدلولی.','فقط مشاهده: موجودی، صورت‌حساب‌ها و گزارش‌ها. امکان تغییر نیست.','صرف دیکھنے کے لیے: اسٹاک، اسٹیٹمنٹس اور رپورٹس۔ کچھ تبدیل نہیں کر سکتا۔','عرض فقط: المخزون والكشوفات والتقارير. لا يمكن تغيير أي شيء.','केवल देखें: स्टॉक, स्टेटमेंट और रिपोर्ट। कुछ बदल नहीं सकते।','Solo lectura: stock, estados e informes. No puede cambiar nada.','Lecture seule : stock, relevés et rapports. Aucun changement possible.','Salt görüntüleme: stok, ekstreler ve raporlar. Hiçbir şey değiştirilemez.'],
 };
 
 final Map<AppLanguage, Map<String, String>> _wordMap = {

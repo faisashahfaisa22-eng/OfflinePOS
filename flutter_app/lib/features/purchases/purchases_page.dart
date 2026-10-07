@@ -127,13 +127,13 @@ class _PurchasesPageState extends State<PurchasesPage> {
                               children:[
                                 if(LocalAuthService.instance.canEdit)
                                   IconButton(
-                                    tooltip:'Edit',
+                                    tooltip:tr('Edit'),
                                     onPressed:()=>openPurchase(x),
                                     icon:const Icon(Icons.edit_outlined),
                                   ),
                                 if(LocalAuthService.instance.canDelete)
                                   IconButton(
-                                    tooltip:'Delete',
+                                    tooltip:tr('Delete'),
                                     onPressed:()=>deletePurchase(x),
                                     icon:const Icon(Icons.delete_outline_rounded),
                                   ),
@@ -318,7 +318,7 @@ class _V15PurchaseFormState extends State<V15PurchaseForm> {
                           child:InkWell(
                             onTap:chooseDate,
                             child:InputDecorator(
-                              decoration:const InputDecoration(labelText:'Date'),
+                              decoration:InputDecoration(labelText:tr('Date')),
                               child:Text(_day(date)),
                             ),
                           ),
@@ -327,7 +327,7 @@ class _V15PurchaseFormState extends State<V15PurchaseForm> {
                           width:220,
                           child:DropdownButtonFormField<String>(
                             initialValue:supplierId,
-                            decoration:const InputDecoration(labelText:'Supplier'),
+                            decoration:InputDecoration(labelText:tr('Supplier')),
                             items:[
                               for(final x in suppliers)
                                 DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
@@ -335,9 +335,9 @@ class _V15PurchaseFormState extends State<V15PurchaseForm> {
                             onChanged:(v)=>setState(()=>supplierId=v??supplierId),
                           ),
                         ),
-                        SizedBox(width:180,child:TextField(controller:invoiceNo,decoration:const InputDecoration(labelText:'Invoice No'))),
-                        SizedBox(width:150,child:TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Paid'))),
-                        SizedBox(width:260,child:TextField(controller:note,decoration:const InputDecoration(labelText:'Note'))),
+                        SizedBox(width:180,child:TextField(controller:invoiceNo,decoration:InputDecoration(labelText:tr('Invoice No')))),
+                        SizedBox(width:150,child:TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Paid')))),
+                        SizedBox(width:260,child:TextField(controller:note,decoration:InputDecoration(labelText:tr('Note')))),
                       ],
                     ),
                     const Divider(height:28),
@@ -350,7 +350,7 @@ class _V15PurchaseFormState extends State<V15PurchaseForm> {
                           width:260,
                           child:DropdownButtonFormField<String>(
                             initialValue:selectedProductId,
-                            decoration:const InputDecoration(labelText:'Product'),
+                            decoration:InputDecoration(labelText:tr('Product')),
                             items:[
                               for(final x in products)
                                 DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
@@ -362,8 +362,8 @@ class _V15PurchaseFormState extends State<V15PurchaseForm> {
                             },
                           ),
                         ),
-                        SizedBox(width:130,child:TextField(controller:qty,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Qty'))),
-                        SizedBox(width:150,child:TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost Price'))),
+                        SizedBox(width:130,child:TextField(controller:qty,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Qty')))),
+                        SizedBox(width:150,child:TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Cost Price')))),
                         OutlinedButton(onPressed:addLine,child:const Text('Add Line')),
                       ],
                     ),

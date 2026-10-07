@@ -176,6 +176,21 @@ jobs:
             -storepass "$SIGNING_STORE_PASSWORD" \
             build/app/outputs/bundle/release/app-release.aab
 
+      - name: Build signed APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/offlinepos-upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.SIGNING_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ env.SIGNING_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ env.SIGNING_KEY_PASSWORD }}
+        run: flutter build apk --release --build-name=16.0.0 --build-number=16
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Android-APK-v16
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:

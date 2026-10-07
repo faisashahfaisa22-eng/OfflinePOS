@@ -112,7 +112,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       title:const Text('Recycle Bin'),
       actions:[
         IconButton(
-          tooltip:'Empty Recycle Bin',
+          tooltip:tr('Empty Recycle Bin'),
           onPressed:rows.isEmpty?null:empty,
           icon:const Icon(Icons.delete_forever_outlined),
         ),
@@ -131,8 +131,8 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
           const SizedBox(height:16),
           TextField(
             controller:search,
-            decoration:const InputDecoration(
-              labelText:'Search recycle bin',
+            decoration:InputDecoration(
+              labelText:tr('Search recycle bin'),
               prefixIcon:Icon(Icons.search_rounded),
             ),
           ),
@@ -311,7 +311,7 @@ class _DeleteEntryPageState extends State<DeleteEntryPage> {
                 const SizedBox(height:12),
                 DropdownButtonFormField<String>(
                   initialValue:section,
-                  decoration:const InputDecoration(labelText:'Section'),
+                  decoration:InputDecoration(labelText:tr('Section')),
                   items:[
                     for(final e in sections.entries)
                       DropdownMenuItem(value:e.key,child:Text(e.value)),
@@ -321,8 +321,8 @@ class _DeleteEntryPageState extends State<DeleteEntryPage> {
                 const SizedBox(height:10),
                 TextField(
                   controller:id,
-                  decoration:const InputDecoration(
-                    labelText:'Record ID',
+                  decoration:InputDecoration(
+                    labelText:tr('Record ID'),
                     prefixIcon:Icon(Icons.tag_rounded),
                   ),
                 ),
@@ -347,7 +347,7 @@ class _DeleteEntryPageState extends State<DeleteEntryPage> {
                 const SizedBox(height:12),
                 DropdownButtonFormField<String>(
                   initialValue:clearSection,
-                  decoration:const InputDecoration(labelText:'Section'),
+                  decoration:InputDecoration(labelText:tr('Section')),
                   items:[
                     for(final e in sections.entries)
                       DropdownMenuItem(value:e.key,child:Text(e.value)),
@@ -415,15 +415,15 @@ class _SafetyCenterPageState extends State<SafetyCenterPage> {
           child:Column(
             mainAxisSize:MainAxisSize.min,
             children:[
-              TextField(controller:name,decoration:const InputDecoration(labelText:'Business Name')),
+              TextField(controller:name,decoration:InputDecoration(labelText:tr('Business Name'))),
               const SizedBox(height:10),
-              TextField(controller:phone,decoration:const InputDecoration(labelText:'Phone')),
+              TextField(controller:phone,decoration:InputDecoration(labelText:tr('Phone'))),
               const SizedBox(height:10),
-              TextField(controller:address,decoration:const InputDecoration(labelText:'Address')),
+              TextField(controller:address,decoration:InputDecoration(labelText:tr('Address'))),
               const SizedBox(height:10),
-              TextField(controller:currency,decoration:const InputDecoration(labelText:'Currency')),
+              TextField(controller:currency,decoration:InputDecoration(labelText:tr('Currency'))),
               const SizedBox(height:10),
-              TextField(controller:type,decoration:const InputDecoration(labelText:'Business Type')),
+              TextField(controller:type,decoration:InputDecoration(labelText:tr('Business Type'))),
             ],
           ),
         ),

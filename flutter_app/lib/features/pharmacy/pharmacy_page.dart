@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
+import '../../core/localization/localized_text.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/ui/qamvio_ui.dart';

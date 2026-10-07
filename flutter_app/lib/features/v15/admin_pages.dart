@@ -1,6 +1,8 @@
 import 'package:cryptography/cryptography.dart'
     show SecretBoxAuthenticationError;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
+import '../../core/localization/localized_text.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
 import '../../core/database/app_database.dart';

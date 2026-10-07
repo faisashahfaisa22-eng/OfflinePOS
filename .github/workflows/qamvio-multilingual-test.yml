@@ -1,4 +1,4 @@
-name: QAMVIO Multilingual Tests & APK
+name: QAMVIO Multilingual Tests, APK & Web
 
 on:
   push:
@@ -24,8 +24,8 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Create Android project files
-        run: flutter create --platforms=android --project-name qamvio_pos .
+      - name: Create Android and Web project files
+        run: flutter create --platforms=android,web --project-name qamvio_pos .
 
       - name: Install dependencies
         run: flutter pub get
@@ -47,5 +47,16 @@ jobs:
         with:
           name: QAMVIO-Android-APK
           path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build QAMVIO Web for Chrome
+        run: flutter build web --release
+
+      - name: Upload QAMVIO Web for Chrome
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Web-Chrome
+          path: flutter_app/build/web
           if-no-files-found: error
           retention-days: 30

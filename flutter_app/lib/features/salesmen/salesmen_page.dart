@@ -182,10 +182,10 @@ class _SalesmenPageState extends State<SalesmenPage> {
                   runSpacing:10,
                   crossAxisAlignment:WrapCrossAlignment.end,
                   children:[
-                    SizedBox(width:230,child:TextField(controller:name,decoration:const InputDecoration(labelText:'Salesman Name'))),
-                    SizedBox(width:210,child:TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'Phone (with country code)',hintText:'93701234567'))),
-                    SizedBox(width:150,child:TextField(controller:creditLimit,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Credit Limit'))),
-                    SizedBox(width:240,child:TextField(controller:note,decoration:const InputDecoration(labelText:'Note'))),
+                    SizedBox(width:230,child:TextField(controller:name,decoration:InputDecoration(labelText:tr('Salesman Name')))),
+                    SizedBox(width:210,child:TextField(controller:phone,keyboardType:TextInputType.phone,decoration:InputDecoration(labelText:tr('Phone (with country code)'),hintText:tr('93701234567')))),
+                    SizedBox(width:150,child:TextField(controller:creditLimit,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Credit Limit')))),
+                    SizedBox(width:240,child:TextField(controller:note,decoration:InputDecoration(labelText:tr('Note')))),
                     FilledButton(onPressed:save,child:Text(editingId.isEmpty?'Save Salesman':'Update')),
                     if(editingId.isNotEmpty)
                       OutlinedButton(onPressed:resetForm,child:const Text('Cancel Edit')),
@@ -226,19 +226,19 @@ class _SalesmenPageState extends State<SalesmenPage> {
                         mainAxisSize:MainAxisSize.min,
                         children:[
                           IconButton(
-                            tooltip:'WhatsApp',
+                            tooltip:tr('WhatsApp'),
                             onPressed:()=>WhatsAppShare.shareSalesmanCredit(x),
                             icon:const Icon(Icons.chat_rounded),
                           ),
                           if(canEdit)
                             IconButton(
-                              tooltip:'Edit',
+                              tooltip:tr('Edit'),
                               onPressed:()=>edit(x),
                               icon:const Icon(Icons.edit_outlined),
                             ),
                           if(canEdit)
                             IconButton(
-                              tooltip:'Delete',
+                              tooltip:tr('Delete'),
                               onPressed:()=>remove(x),
                               icon:const Icon(Icons.delete_outline_rounded),
                             ),

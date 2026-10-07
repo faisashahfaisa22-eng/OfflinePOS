@@ -215,8 +215,8 @@ class _UsersPageState extends State<UsersPage> {
                         enabled: !busy,
                         keyboardType: TextInputType.emailAddress,
                         autocorrect: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Email or mobile (+93...)',
+                        decoration: InputDecoration(
+                          labelText:tr('Email or mobile (+93...)'),
                           prefixIcon: Icon(Icons.person_outline_rounded),
                         ),
                       ),
@@ -226,9 +226,8 @@ class _UsersPageState extends State<UsersPage> {
                         enabled: !busy,
                         obscureText: obscurePassword,
                         decoration: InputDecoration(
-                          labelText: 'Password',
-                          helperText:
-                              'Minimum 8 characters, with a letter and a number',
+                          labelText:tr('Password'),
+                          helperText:tr('Minimum 8 characters, with a letter and a number'),
                           prefixIcon: const Icon(Icons.lock_outline_rounded),
                           suffixIcon: IconButton(
                             tooltip: obscurePassword
@@ -255,8 +254,8 @@ class _UsersPageState extends State<UsersPage> {
                         onSubmitted: (_) {
                           if (!busy) _create();
                         },
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm password',
+                        decoration: InputDecoration(
+                          labelText:tr('Confirm password'),
                           prefixIcon: Icon(Icons.lock_outline_rounded),
                         ),
                       ),
@@ -264,8 +263,8 @@ class _UsersPageState extends State<UsersPage> {
                       DropdownButtonFormField<UserRole>(
                         key: ValueKey(role),
                         initialValue: role,
-                        decoration: const InputDecoration(
-                          labelText: 'Role',
+                        decoration: InputDecoration(
+                          labelText:tr('Role'),
                           prefixIcon:
                               Icon(Icons.admin_panel_settings_outlined),
                         ),
@@ -292,8 +291,8 @@ class _UsersPageState extends State<UsersPage> {
                         DropdownButtonFormField<String>(
                           key: ValueKey('salesman_$salesmanId'),
                           initialValue: salesmanId.isEmpty ? null : salesmanId,
-                          decoration: const InputDecoration(
-                            labelText: 'Linked salesman',
+                          decoration: InputDecoration(
+                            labelText:tr('Linked salesman'),
                             prefixIcon: Icon(Icons.badge_outlined),
                           ),
                           items: [

@@ -119,8 +119,8 @@ class _LoansPageState extends State<LoansPage> {
                 const SizedBox(height:10),
                 DropdownButtonFormField<String>(
                   initialValue:type,
-                  decoration:const InputDecoration(
-                    labelText:'Transaction type',
+                  decoration:InputDecoration(
+                    labelText:tr('Transaction type'),
                     prefixIcon:Icon(Icons.swap_vert_rounded),
                   ),
                   items:typeItems,
@@ -131,16 +131,16 @@ class _LoansPageState extends State<LoansPage> {
                   controller:amount,
                   autofocus:true,
                   keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                  decoration:const InputDecoration(
-                    labelText:'Amount',
+                  decoration:InputDecoration(
+                    labelText:tr('Amount'),
                     prefixIcon:Icon(Icons.payments_outlined),
                   ),
                 ),
                 const SizedBox(height:10),
                 TextField(
                   controller:note,
-                  decoration:const InputDecoration(
-                    labelText:'Note',
+                  decoration:InputDecoration(
+                    labelText:tr('Note'),
                     prefixIcon:Icon(Icons.notes_rounded),
                   ),
                 ),
@@ -282,7 +282,7 @@ class _LoansPageState extends State<LoansPage> {
                 'Total: ${WhatsAppShare.money(invoiceDue+manual)}',
               ),
               trailing:IconButton(
-                tooltip:'Close',
+                tooltip:tr('Close'),
                 onPressed:()=>Navigator.pop(sheetContext),
                 icon:const Icon(Icons.close),
               ),
@@ -339,7 +339,7 @@ class _LoansPageState extends State<LoansPage> {
                 'Current payable balance: ${WhatsAppShare.money(supplier['balance'])}',
               ),
               trailing:IconButton(
-                tooltip:'Close',
+                tooltip:tr('Close'),
                 onPressed:()=>Navigator.pop(sheetContext),
                 icon:const Icon(Icons.close),
               ),

@@ -292,7 +292,7 @@ class _ReportsPageState extends State<ReportsPage> {
     appBar:AppBar(
       title:const Text('Reports'),
       actions:[
-        IconButton(onPressed:shareWhatsApp,icon:const Icon(Icons.chat_rounded),tooltip:'WhatsApp report'),
+        IconButton(onPressed:shareWhatsApp,icon:const Icon(Icons.chat_rounded),tooltip:tr('WhatsApp report')),
       ],
     ),
     body:FutureBuilder<Map<String,dynamic>>(
@@ -406,7 +406,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 width:150,
                 child:DropdownButtonFormField<String>(
                   initialValue:periodType,
-                  decoration:const InputDecoration(labelText:'Report Type'),
+                  decoration:InputDecoration(labelText:tr('Report Type')),
                   items:const [
                     DropdownMenuItem(value:'day',child:Text('Daily')),
                     DropdownMenuItem(value:'month',child:Text('Monthly')),
@@ -424,7 +424,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   child:InkWell(
                     onTap:chooseDay,
                     child:InputDecorator(
-                      decoration:const InputDecoration(labelText:'Date'),
+                      decoration:InputDecoration(labelText:tr('Date')),
                       child:Text(DateFormat('yyyy-MM-dd').format(date)),
                     ),
                   ),
@@ -434,7 +434,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   width:120,
                   child:DropdownButtonFormField<int>(
                     initialValue:month,
-                    decoration:const InputDecoration(labelText:'Month'),
+                    decoration:InputDecoration(labelText:tr('Month')),
                     items:[for(var i=1;i<=12;i++) DropdownMenuItem(value:i,child:Text(i.toString().padLeft(2,'0')))],
                     onChanged:(v) async {
                       setState(()=>month=v??month);
@@ -501,7 +501,7 @@ class _ReportsPageState extends State<ReportsPage> {
     child:TextFormField(
       initialValue:year.toString(),
       keyboardType:TextInputType.number,
-      decoration:const InputDecoration(labelText:'Year'),
+      decoration:InputDecoration(labelText:tr('Year')),
       onChanged:(v)=>year=int.tryParse(v)??year,
       onFieldSubmitted:(_) async =>refresh(),
     ),

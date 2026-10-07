@@ -242,7 +242,7 @@ class _LoginPageState extends State<LoginPage> {
                             enabled:!busy,
                             keyboardType:TextInputType.emailAddress,
                             autocorrect:false,
-                            decoration:const InputDecoration(labelText:'Email or mobile (+93...)',prefixIcon:Icon(Icons.person_outline_rounded)),
+                            decoration:InputDecoration(labelText:tr('Email or mobile (+93...)'),prefixIcon:Icon(Icons.person_outline_rounded)),
                           ),
                           if(mode==_Mode.recover) ...[
                             const SizedBox(height:12),
@@ -251,7 +251,7 @@ class _LoginPageState extends State<LoginPage> {
                               enabled:!busy,
                               autocorrect:false,
                               textCapitalization:TextCapitalization.characters,
-                              decoration:const InputDecoration(labelText:'Recovery code',prefixIcon:Icon(Icons.key_rounded)),
+                              decoration:InputDecoration(labelText:tr('Recovery code'),prefixIcon:Icon(Icons.key_rounded)),
                             ),
                           ],
                           const SizedBox(height:12),
@@ -276,7 +276,7 @@ class _LoginPageState extends State<LoginPage> {
                               controller:confirm,
                               enabled:!busy,
                               obscureText:obscure,
-                              decoration:const InputDecoration(labelText:'Confirm password',prefixIcon:Icon(Icons.lock_outline_rounded)),
+                              decoration:InputDecoration(labelText:tr('Confirm password'),prefixIcon:Icon(Icons.lock_outline_rounded)),
                             ),
                           ],
                           if(message.isNotEmpty) ...[

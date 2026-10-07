@@ -1,0 +1,13 @@
+{
+  "appTitle": "نظام QAMVIO POS",
+  "sales": "المبيعات",
+  "stock": "المخزون",
+  "invoice": "الفاتورة",
+  "customer": "العميل",
+  "supplier": "المورد",
+  "purchase": "المشتريات",
+  "debt": "الدين",
+  "payment": "الدفع",
+  "settings": "الإعدادات",
+  "language": "اللغة"
+}

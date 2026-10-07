@@ -131,8 +131,8 @@ class _QuickSearchPageState extends State<QuickSearchPage> {
           textInputAction:TextInputAction.search,
           onSubmitted:(_)=>search(),
           decoration:InputDecoration(
-            labelText:'Search',
-            hintText:'Name, phone, barcode, SKU or invoice',
+            labelText:tr('Search'),
+            hintText:tr('Name, phone, barcode, SKU or invoice'),
             prefixIcon:const Icon(Icons.search_rounded),
             suffixIcon:busy
               ?const Padding(
@@ -300,7 +300,7 @@ class _StockPageState extends State<StockPage> {
                           width:240,
                           child:DropdownButtonFormField<String>(
                             initialValue:productId,
-                            decoration:const InputDecoration(labelText:'Product'),
+                            decoration:InputDecoration(labelText:tr('Product')),
                             items:[
                               for(final p in products)
                                 DropdownMenuItem(value:p['id'].toString(),child:Text(p['name'].toString())),
@@ -313,14 +313,14 @@ class _StockPageState extends State<StockPage> {
                           child:TextField(
                             controller:qty,
                             keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),
-                            decoration:const InputDecoration(labelText:'Adjustment Qty (+/-)'),
+                            decoration:InputDecoration(labelText:tr('Adjustment Qty (+/-)')),
                           ),
                         ),
                         SizedBox(
                           width:260,
                           child:TextField(
                             controller:note,
-                            decoration:const InputDecoration(labelText:'Note'),
+                            decoration:InputDecoration(labelText:tr('Note')),
                           ),
                         ),
                         FilledButton(
@@ -499,8 +499,8 @@ class _StockLedgerPageState extends State<StockLedgerPage> {
         else ...[
           DropdownButtonFormField<String>(
             initialValue:productId,
-            decoration:const InputDecoration(
-              labelText:'Product',
+            decoration:InputDecoration(
+              labelText:tr('Product'),
               prefixIcon:Icon(Icons.inventory_2_outlined),
             ),
             items:[

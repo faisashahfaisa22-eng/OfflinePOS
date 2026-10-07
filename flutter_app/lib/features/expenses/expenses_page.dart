@@ -148,17 +148,17 @@ class _ExpensesPageState extends State<ExpensesPage> {
                       child:InkWell(
                         onTap:chooseDate,
                         child:InputDecorator(
-                          decoration:const InputDecoration(labelText:'Date'),
+                          decoration:InputDecoration(labelText:tr('Date')),
                           child:Text(DateFormat('yyyy-MM-dd').format(date)),
                         ),
                       ),
                     ),
-                    SizedBox(width:220,child:TextField(controller:name,decoration:const InputDecoration(labelText:'Expense Name',hintText:'Enter expense name'))),
+                    SizedBox(width:220,child:TextField(controller:name,decoration:InputDecoration(labelText:tr('Expense Name'),hintText:tr('Enter expense name')))),
                     SizedBox(
                       width:180,
                       child:DropdownButtonFormField<String>(
                         initialValue:category,
-                        decoration:const InputDecoration(labelText:'Expense Category'),
+                        decoration:InputDecoration(labelText:tr('Expense Category')),
                         items:const [
                           DropdownMenuItem(value:'Salary',child:Text('Salary')),
                           DropdownMenuItem(value:'Oil',child:Text('Oil')),
@@ -169,8 +169,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
                         onChanged:(v)=>setState(()=>category=v??category),
                       ),
                     ),
-                    SizedBox(width:150,child:TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount'))),
-                    SizedBox(width:250,child:TextField(controller:note,decoration:const InputDecoration(labelText:'Note'))),
+                    SizedBox(width:150,child:TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Amount')))),
+                    SizedBox(width:250,child:TextField(controller:note,decoration:InputDecoration(labelText:tr('Note')))),
                     FilledButton(onPressed:save,child:Text(editingId.isEmpty?'Save Expense':'Update Expense')),
                     if(editingId.isNotEmpty)
                       OutlinedButton(onPressed:resetForm,child:const Text('Cancel Edit')),

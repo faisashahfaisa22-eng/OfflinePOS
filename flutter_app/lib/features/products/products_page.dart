@@ -158,7 +158,7 @@ class _ProductsPageState extends State<ProductsPage> {
                     child:TextField(
                       controller:name,
                       enabled:canEdit,
-                      decoration:const InputDecoration(labelText:'Product Name'),
+                      decoration:InputDecoration(labelText:tr('Product Name')),
                     ),
                   ),
                   SizedBox(
@@ -167,7 +167,7 @@ class _ProductsPageState extends State<ProductsPage> {
                       controller:salePrice,
                       enabled:canEdit,
                       keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Sale Price'),
+                      decoration:InputDecoration(labelText:tr('Sale Price')),
                     ),
                   ),
                   SizedBox(
@@ -176,7 +176,7 @@ class _ProductsPageState extends State<ProductsPage> {
                       controller:costPrice,
                       enabled:canEdit,
                       keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Cost Price'),
+                      decoration:InputDecoration(labelText:tr('Cost Price')),
                     ),
                   ),
                   SizedBox(
@@ -185,7 +185,7 @@ class _ProductsPageState extends State<ProductsPage> {
                       controller:openingQty,
                       enabled:canEdit,
                       keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Opening Qty'),
+                      decoration:InputDecoration(labelText:tr('Opening Qty')),
                     ),
                   ),
                   SizedBox(
@@ -194,7 +194,7 @@ class _ProductsPageState extends State<ProductsPage> {
                       controller:reorderLevel,
                       enabled:canEdit,
                       keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Reorder Level'),
+                      decoration:InputDecoration(labelText:tr('Reorder Level')),
                     ),
                   ),
                   if(canEdit)
@@ -240,12 +240,12 @@ class _ProductsPageState extends State<ProductsPage> {
                             mainAxisSize:MainAxisSize.min,
                             children:[
                               IconButton(
-                                tooltip:'Edit',
+                                tooltip:tr('Edit'),
                                 onPressed:()=>edit(x),
                                 icon:const Icon(Icons.edit_outlined),
                               ),
                               IconButton(
-                                tooltip:'Delete',
+                                tooltip:tr('Delete'),
                                 onPressed:()=>remove(x),
                                 icon:const Icon(Icons.delete_outline_rounded),
                               ),

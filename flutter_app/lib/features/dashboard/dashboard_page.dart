@@ -287,12 +287,14 @@ class _DashboardPageState extends State<DashboardPage> {
             tooltip:strings.t('language'),
             icon:const Icon(Icons.language_rounded),
             onSelected:LanguageController.instance.setLanguage,
-            itemBuilder:(_)=>const [
-              PopupMenuItem(value:AppLanguage.english,child:Text('English')),
-              PopupMenuItem(value:AppLanguage.pashto,child:Text('پښتو')),
-              PopupMenuItem(value:AppLanguage.dari,child:Text('دری')),
-              PopupMenuItem(value:AppLanguage.urdu,child:Text('اردو')),
-            ],
+            itemBuilder:(_)=>LanguageController.supportedLanguages
+                .map(
+                  (language)=>PopupMenuItem<AppLanguage>(
+                    value:language,
+                    child:Text(LanguageController.instance.languageName(language)),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),

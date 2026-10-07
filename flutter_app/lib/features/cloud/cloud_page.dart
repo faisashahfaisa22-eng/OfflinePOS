@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
+import '../../core/localization/localized_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/cloud/cloud_account.dart';

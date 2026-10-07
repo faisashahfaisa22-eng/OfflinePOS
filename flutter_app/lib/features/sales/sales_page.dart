@@ -181,18 +181,18 @@ class _SalesPageState extends State<SalesPage> {
                               children:[
                                 if(LocalAuthService.instance.canSell)
                                   IconButton(
-                                    tooltip:'Edit',
+                                    tooltip:tr('Edit'),
                                     onPressed:()=>openInvoice(x),
                                     icon:const Icon(Icons.edit_outlined),
                                   ),
                                 IconButton(
-                                  tooltip:'WhatsApp',
+                                  tooltip:tr('WhatsApp'),
                                   onPressed:()=>share(x),
                                   icon:const Icon(Icons.chat_rounded),
                                 ),
                                 if(LocalAuthService.instance.canDelete)
                                   IconButton(
-                                    tooltip:'Delete',
+                                    tooltip:tr('Delete'),
                                     onPressed:()=>deleteSale(x),
                                     icon:const Icon(Icons.delete_outline_rounded),
                                   ),
@@ -713,14 +713,14 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
                     spacing:10,
                     runSpacing:10,
                     children:[
-                      SizedBox(width:180,child:TextField(controller:vehicle,decoration:const InputDecoration(labelText:'Vehicle No'))),
+                      SizedBox(width:180,child:TextField(controller:vehicle,decoration:InputDecoration(labelText:tr('Vehicle No')))),
                       SizedBox(width:210,child:_salesmanField()),
                       SizedBox(
                         width:170,
                         child:InkWell(
                           onTap:chooseDate,
                           child:InputDecorator(
-                            decoration:const InputDecoration(labelText:'Date'),
+                            decoration:InputDecoration(labelText:tr('Date')),
                             child:Text(_date(date)),
                           ),
                         ),
@@ -731,7 +731,7 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
                         child:Column(
                           crossAxisAlignment:CrossAxisAlignment.stretch,
                           children:[
-                            TextField(controller:invoiceNo,decoration:const InputDecoration(labelText:'Invoice No')),
+                            TextField(controller:invoiceNo,decoration:InputDecoration(labelText:tr('Invoice No'))),
                             const SizedBox(height:5),
                             OutlinedButton(onPressed:generateInvoiceNo,child:const Text('Auto No')),
                           ],
@@ -843,13 +843,13 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
     final forced=(widget.forcedSalesmanId??'').isNotEmpty;
     if(forced) {
       return InputDecorator(
-        decoration:const InputDecoration(labelText:'Salesman'),
+        decoration:InputDecoration(labelText:tr('Salesman')),
         child:Text(salesmanName.isEmpty?'Linked Salesman':salesmanName),
       );
     }
     return DropdownButtonFormField<String>(
       initialValue:salesmanId,
-      decoration:const InputDecoration(labelText:'Salesman'),
+      decoration:InputDecoration(labelText:tr('Salesman')),
       items:[
         const DropdownMenuItem(value:'',child:Text('Select Salesman')),
         for(final x in salesmen)
@@ -864,7 +864,7 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
 
   Widget _customerField()=>DropdownButtonFormField<String>(
     initialValue:customerId,
-    decoration:const InputDecoration(labelText:'Customer'),
+    decoration:InputDecoration(labelText:tr('Customer')),
     items:[
       const DropdownMenuItem(value:'',child:Text('Select Customer')),
       for(final x in customers)
@@ -958,7 +958,7 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
       _sumRow('Received Cash',TextField(
         controller:received,
         keyboardType:const TextInputType.numberWithOptions(decimal:true),
-        decoration:const InputDecoration(isDense:true),
+        decoration:InputDecoration(isDense:true),
       )),
       _sumRow('Invoice Due',Text(_money(due),style:const TextStyle(fontWeight:FontWeight.w900))),
       _sumRow('Recovery',Text(_money(recovery),style:const TextStyle(fontWeight:FontWeight.w900))),
@@ -967,12 +967,12 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
       _sumRow('Oil Expense',TextField(
         controller:oil,
         keyboardType:const TextInputType.numberWithOptions(decimal:true),
-        decoration:const InputDecoration(isDense:true),
+        decoration:InputDecoration(isDense:true),
       )),
       _sumRow('Masre / Other Expense',TextField(
         controller:other,
         keyboardType:const TextInputType.numberWithOptions(decimal:true),
-        decoration:const InputDecoration(isDense:true),
+        decoration:InputDecoration(isDense:true),
       )),
       _sumRow('Total Cash After Expenses',Text(_money(totalCash),style:const TextStyle(fontWeight:FontWeight.w900))),
     ],
@@ -1027,8 +1027,8 @@ class _ProductPickerState extends State<_ProductPicker> {
                 controller:search,
                 autofocus:true,
                 onChanged:(_)=>setState(() {}),
-                decoration:const InputDecoration(
-                  labelText:'Search Product',
+                decoration:InputDecoration(
+                  labelText:tr('Search Product'),
                   prefixIcon:Icon(Icons.search_rounded),
                 ),
               ),

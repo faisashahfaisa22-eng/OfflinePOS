@@ -81,7 +81,7 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
                 ),
                 DropdownButtonFormField<String>(
                   initialValue:customerId,
-                  decoration:const InputDecoration(labelText:'Customer'),
+                  decoration:InputDecoration(labelText:tr('Customer')),
                   items:[
                     for(final x in customers)
                       DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
@@ -92,16 +92,16 @@ class _CustomerLoansV15PageState extends State<CustomerLoansV15Page> {
                 TextField(
                   controller:given,
                   keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                  decoration:const InputDecoration(labelText:'Loan Given'),
+                  decoration:InputDecoration(labelText:tr('Loan Given')),
                 ),
                 const SizedBox(height:10),
                 TextField(
                   controller:received,
                   keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                  decoration:const InputDecoration(labelText:'Loan Received'),
+                  decoration:InputDecoration(labelText:tr('Loan Received')),
                 ),
                 const SizedBox(height:10),
-                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),
@@ -306,7 +306,7 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
                 ),
                 DropdownButtonFormField<String>(
                   initialValue:salesmanId,
-                  decoration:const InputDecoration(labelText:'Salesman'),
+                  decoration:InputDecoration(labelText:tr('Salesman')),
                   items:[
                     for(final x in salesmen)
                       DropdownMenuItem(value:x['id'].toString(),child:Text(x['name'].toString())),
@@ -314,11 +314,11 @@ class _SalesmanLoansV15PageState extends State<SalesmanLoansV15Page> {
                   onChanged:(v)=>setLocal(()=>salesmanId=v??salesmanId),
                 ),
                 const SizedBox(height:10),
-                TextField(controller:given,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Loan Given')),
+                TextField(controller:given,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Loan Given'))),
                 const SizedBox(height:10),
-                TextField(controller:received,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Loan Received')),
+                TextField(controller:received,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:tr('Loan Received'))),
                 const SizedBox(height:10),
-                TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),
+                TextField(controller:note,decoration:InputDecoration(labelText:tr('Note'))),
               ],
             ),
           ),
@@ -822,7 +822,7 @@ class _StatementShell extends StatelessWidget {
                 width:260,
                 child:DropdownButtonFormField<String>(
                   initialValue:selected,
-                  decoration:const InputDecoration(labelText:'Account'),
+                  decoration:InputDecoration(labelText:tr('Account')),
                   items:[
                     for(final p in parties)
                       DropdownMenuItem(value:p['id'].toString(),child:Text(p['name'].toString())),

@@ -39,17 +39,6 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Build installable Android APK
-        run: flutter build apk --debug
-
-      - name: Upload QAMVIO Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: QAMVIO-Android-APK
-          path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Build QAMVIO Web for Chrome
         run: flutter build web --release
 
@@ -58,5 +47,16 @@ jobs:
         with:
           name: QAMVIO-Web-Chrome
           path: flutter_app/build/web
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build installable Android APK
+        run: flutter build apk --debug
+
+      - name: Upload QAMVIO Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Android-APK
+          path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 30

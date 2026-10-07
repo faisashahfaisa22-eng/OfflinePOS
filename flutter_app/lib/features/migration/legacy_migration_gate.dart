@@ -141,8 +141,8 @@ class _LegacyMigrationGateState extends State<LegacyMigrationGate> {
                         obscureText:obscure,
                         enabled:!busy,
                         decoration:InputDecoration(
-                          labelText:'Original local QAMVIO password',
-                          helperText:'This may differ from your cloud account password.',
+                          labelText:tr('Original local QAMVIO password'),
+                          helperText:tr('This may differ from your cloud account password.'),
                           prefixIcon:const Icon(Icons.lock_outline_rounded),
                           suffixIcon:IconButton(
                             onPressed:busy

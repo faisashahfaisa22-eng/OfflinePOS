@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/security/local_auth_service.dart';
 import '../../core/ui/qamvio_ui.dart';
 
 double _n(dynamic v)=>v is num?v.toDouble():double.tryParse(v?.toString()??'')??0;

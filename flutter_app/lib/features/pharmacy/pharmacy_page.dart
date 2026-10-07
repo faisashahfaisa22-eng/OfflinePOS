@@ -100,25 +100,25 @@ class _PharmacyPageState extends State<PharmacyPage> {
               TextField(
                 controller:name,
                 autofocus:true,
-                decoration:const InputDecoration(
-                  labelText:'Medicine name',
+                decoration:InputDecoration(
+                  labelText:tr('Medicine name'),
                   prefixIcon:Icon(Icons.medication_outlined),
                 ),
               ),
               const SizedBox(height:10),
               TextField(
                 controller:batch,
-                decoration:const InputDecoration(
-                  labelText:'Batch number',
+                decoration:InputDecoration(
+                  labelText:tr('Batch number'),
                   prefixIcon:Icon(Icons.numbers_rounded),
                 ),
               ),
               const SizedBox(height:10),
               TextField(
                 controller:expiry,
-                decoration:const InputDecoration(
-                  labelText:'Expiry date',
-                  hintText:'YYYY-MM-DD',
+                decoration:InputDecoration(
+                  labelText:tr('Expiry date'),
+                  hintText:tr('YYYY-MM-DD'),
                   prefixIcon:Icon(Icons.event_outlined),
                 ),
               ),
@@ -129,7 +129,7 @@ class _PharmacyPageState extends State<PharmacyPage> {
                     child:TextField(
                       controller:price,
                       keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Sale price'),
+                      decoration:InputDecoration(labelText:tr('Sale price')),
                     ),
                   ),
                   const SizedBox(width:10),
@@ -137,7 +137,7 @@ class _PharmacyPageState extends State<PharmacyPage> {
                     child:TextField(
                       controller:stock,
                       keyboardType:const TextInputType.numberWithOptions(decimal:true),
-                      decoration:const InputDecoration(labelText:'Stock'),
+                      decoration:InputDecoration(labelText:tr('Stock')),
                     ),
                   ),
                 ],
@@ -225,7 +225,7 @@ class _PharmacyPageState extends State<PharmacyPage> {
             TextField(
               controller:search,
               decoration:InputDecoration(
-                hintText:'Search medicine, batch or expiry',
+                hintText:tr('Search medicine, batch or expiry'),
                 prefixIcon:const Icon(Icons.search_rounded),
                 suffixIcon:search.text.isEmpty
                   ?null

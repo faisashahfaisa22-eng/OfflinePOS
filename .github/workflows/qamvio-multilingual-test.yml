@@ -1,0 +1,32 @@
+name: QAMVIO Multilingual Tests
+
+on:
+  push:
+    branches:
+      - feature/qamvio-multilingual
+  pull_request:
+    branches:
+      - release/flutter-play-v16
+      - feature/qamvio-multilingual
+  workflow_dispatch:
+
+jobs:
+  flutter-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Generate localization
+        run: flutter gen-l10n
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test

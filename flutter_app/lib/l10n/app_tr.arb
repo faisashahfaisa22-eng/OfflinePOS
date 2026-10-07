@@ -1,0 +1,13 @@
+{
+  "appTitle": "QAMVIO POS",
+  "sales": "Satışlar",
+  "stock": "Stok",
+  "invoice": "Fatura",
+  "customer": "Müşteri",
+  "supplier": "Tedarikçi",
+  "purchase": "Satın Alma",
+  "debt": "Borç",
+  "payment": "Ödeme",
+  "settings": "Ayarlar",
+  "language": "Dil"
+}

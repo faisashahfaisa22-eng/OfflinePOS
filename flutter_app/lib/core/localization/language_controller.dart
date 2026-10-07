@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_strings.dart';
 
@@ -9,6 +10,18 @@ class LanguageController extends ChangeNotifier {
   AppLanguage _language = AppLanguage.english;
   AppLanguage get language => _language;
   AppStrings get strings => AppStrings(_language);
+
+  Locale get locale => switch (_language) {
+    AppLanguage.english => const Locale('en'),
+    AppLanguage.pashto => const Locale('ps'),
+    AppLanguage.dari => const Locale('fa'),
+    AppLanguage.urdu => const Locale('ur'),
+    AppLanguage.arabic => const Locale('ar'),
+    AppLanguage.hindi => const Locale('hi'),
+    AppLanguage.spanish => const Locale('es'),
+    AppLanguage.french => const Locale('fr'),
+    AppLanguage.turkish => const Locale('tr'),
+  };
 
   static const supportedLanguages = <AppLanguage>[
     AppLanguage.english,

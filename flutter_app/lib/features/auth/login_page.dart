@@ -140,8 +140,8 @@ class _LoginPageState extends State<LoginPage> {
         icon:const Icon(Icons.cloud_done_rounded,size:36),
         title:const Text('You already have an account'),
         content:Text(
-          'We found your account ${LocalAuthService.normalizeLoginId(id.text)} with a backup from ${_fmt(when)}.\n\n'
-          'Restore it on this device? Your sales, stock, customers and all users will come back, and you sign in with the same password.',
+          '${tr('We found your account')} ${LocalAuthService.normalizeLoginId(id.text)} ${tr('with a backup from')} ${_fmt(when)}.\n\n'
+          '${tr('Restore it on this device? Your sales, stock, customers and all users will come back, and you sign in with the same password.')}',
         ),
         actions:[
           TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Not now')),
@@ -178,9 +178,8 @@ class _LoginPageState extends State<LoginPage> {
         icon:const Icon(Icons.cloud_done_rounded,size:36),
         title:const Text('You already have an account'),
         content:Text(
-          'A backup from ${_fmt(at)} exists for this email.\n\n'
-          'Restore it instead of starting empty? If you create a new account, '
-          'the next cloud backup will REPLACE that old backup.',
+          '${tr('A backup from')} ${_fmt(at)} ${tr('exists for this email.')}\n\n'
+          '${tr('Restore it instead of starting empty? If you create a new account, the next cloud backup will REPLACE that old backup.')}',
         ),
         actions:[
           TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Create new anyway')),

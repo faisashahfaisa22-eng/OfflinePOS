@@ -251,7 +251,7 @@ class _DashboardPageState extends State<DashboardPage> {
       await WhatsAppShare.shareBusinessReport();
     } catch(e) {
       if(!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('WhatsApp: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('${tr('WhatsApp')}: $e')));
     }
   }
 
@@ -545,8 +545,8 @@ class _DashboardPageState extends State<DashboardPage> {
       children:[
         Expanded(child:Text(label,style:const TextStyle(fontWeight:FontWeight.w900))),
         Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
-          Text('This week  ${_m(current)}',style:const TextStyle(fontWeight:FontWeight.w800)),
-          Text('Last week  ${_m(previous)}',style:const TextStyle(fontSize:11,color:Color(0xFF64748B))),
+          Text('${tr('This week')}  ${_m(current)}',style:const TextStyle(fontWeight:FontWeight.w800)),
+          Text('${tr('Last week')}  ${_m(previous)}',style:const TextStyle(fontSize:11,color:Color(0xFF64748B))),
         ]),
         const SizedBox(width:12),
         Text(
@@ -737,7 +737,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
               ),
-            Text('Primary = Sales • Secondary = $secondLabel',style:const TextStyle(fontSize:9,color:Color(0xFF64748B))),
+            Text('${tr('Primary')} = ${tr('Sales')} • ${tr('Secondary')} = $secondLabel',style:const TextStyle(fontSize:9,color:Color(0xFF64748B))),
           ],
         ),
       ),

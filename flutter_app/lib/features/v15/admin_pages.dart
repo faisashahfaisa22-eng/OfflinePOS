@@ -64,7 +64,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       await load();
     } catch(e) {
       if(!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Restore failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('${tr('Restore failed:')} $e')));
     }
   }
 

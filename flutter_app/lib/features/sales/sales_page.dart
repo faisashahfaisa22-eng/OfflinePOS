@@ -540,35 +540,35 @@ class _V15InvoicePageState extends State<V15InvoicePage> {
 
   Future<void> shareCurrent() async {
     final b=StringBuffer()
-      ..writeln('QAMVIO POS — Cash Report')
-      ..writeln('Vehicle No: ${vehicle.text}')
-      ..writeln('Salesman: $salesmanName')
-      ..writeln('Date: ${_date(date)}')
-      ..writeln('Customer: $customerName')
-      ..writeln('Invoice No: ${invoiceNo.text}')
+      ..writeln(tr('QAMVIO POS — Cash Report'))
+      ..writeln('${tr('Vehicle No')}: ${vehicle.text}')
+      ..writeln('${tr('Salesman')}: $salesmanName')
+      ..writeln('${tr('Date')}: ${_date(date)}')
+      ..writeln('${tr('Customer')}: $customerName')
+      ..writeln('${tr('Invoice No')}: ${invoiceNo.text}')
       ..writeln()
-      ..writeln('Products:');
+      ..writeln('${tr('Products')}:');
     for(final x in cart.values) {
       b.writeln(
-        '• ${x['product_name']} | Price ${_money(x['price'])} | '
-        'Qty ${_money(x['qty'])} | Amount ${_money(_n(x['price'])*_n(x['qty']))} | '
-        'Discount ${_money(x['discount'])} | T Amount ${_money((_n(x['price'])*_n(x['qty'])-_n(x['discount'])).clamp(0,double.infinity))}',
+        '• ${x['product_name']} | ${tr('Price')} ${_money(x['price'])} | '
+        '${tr('Qty')} ${_money(x['qty'])} | ${tr('Amount')} ${_money(_n(x['price'])*_n(x['qty']))} | '
+        '${tr('Discount')} ${_money(x['discount'])} | ${tr('T Amount')} ${_money((_n(x['price'])*_n(x['qty'])-_n(x['discount'])).clamp(0,double.infinity))}',
       );
     }
     b
       ..writeln()
-      ..writeln('G.TOTAL Qty: ${_money(totalQty)}')
-      ..writeln('Gross: ${_money(gross)}')
-      ..writeln('Discount: ${_money(lineDiscount)}')
-      ..writeln('Invoice Net Amount: ${_money(net)}')
-      ..writeln('Received Cash: ${_money(receivedValue)}')
-      ..writeln('Invoice Due: ${_money(due)}')
-      ..writeln('Recovery: ${_money(recovery)}')
-      ..writeln('Old Account Balance: ${_money(oldBalance)}')
-      ..writeln('New Account Balance: ${_money(newBalance)}')
-      ..writeln('Oil Expense: ${_money(oil.text)}')
-      ..writeln('Masre / Other Expense: ${_money(other.text)}')
-      ..writeln('Total Cash After Expenses: ${_money(totalCash)}');
+      ..writeln('${tr('G.TOTAL Qty')}: ${_money(totalQty)}')
+      ..writeln('${tr('Gross')}: ${_money(gross)}')
+      ..writeln('${tr('Discount')}: ${_money(lineDiscount)}')
+      ..writeln('${tr('Invoice Net Amount')}: ${_money(net)}')
+      ..writeln('${tr('Received Cash')}: ${_money(receivedValue)}')
+      ..writeln('${tr('Invoice due')}: ${_money(due)}')
+      ..writeln('${tr('Recovery')}: ${_money(recovery)}')
+      ..writeln('${tr('Old Account Balance')}: ${_money(oldBalance)}')
+      ..writeln('${tr('New Account Balance')}: ${_money(newBalance)}')
+      ..writeln('${tr('Oil Expense')}: ${_money(oil.text)}')
+      ..writeln('${tr('Masre / Other Expense')}: ${_money(other.text)}')
+      ..writeln('${tr('Total Cash After Expenses')}: ${_money(totalCash)}');
     await WhatsAppShare.send(
       b.toString(),
       phone:customerId.isEmpty?null:customers.where((x)=>x['id'].toString()==customerId).firstOrNull?['phone']?.toString(),

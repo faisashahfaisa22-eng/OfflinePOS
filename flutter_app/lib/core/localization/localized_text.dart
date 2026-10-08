@@ -6,11 +6,25 @@ import 'localized_text_ui_1.dart';
 import 'localized_text_ui_2.dart';
 import 'localized_text_ui_3.dart';
 import 'localized_text_words.dart';
+import 'localized_text_ui_10.dart';
+import 'localized_text_ui_9.dart';
+import 'localized_text_ui_8.dart';
+import 'localized_text_ui_7.dart';
+import 'localized_text_ui_6.dart';
+import 'localized_text_ui_5.dart';
+import 'localized_text_ui_4.dart';
 
 const Map<String, List<String>> _ui = {
   ...ui1,
   ...ui2,
   ...ui3,
+  ...ui4,
+  ...ui5,
+  ...ui6,
+  ...ui7,
+  ...ui8,
+  ...ui9,
+  ...ui10,
 };
 
 String tr(String value) {

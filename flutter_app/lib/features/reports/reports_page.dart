@@ -207,7 +207,7 @@ class _ReportsPageState extends State<ReportsPage> {
       'FROM sales s LEFT JOIN customers c ON c.id=s.customer_id '
       'LEFT JOIN salesmen sm ON sm.id=s.salesman_id ORDER BY s.created_at',
     );
-    final b=StringBuffer('Date,Invoice,Customer,Salesman,Gross,Discount,Net,Received,Due,Recovery,Oil,Other,Note\n');
+    final b=StringBuffer('${tr('Date')},${tr('Invoice')},${tr('Customer')},${tr('Salesman')},${tr('Gross')},${tr('Discount')},${tr('Net')},${tr('Received')},${tr('Due')},${tr('Recovery')},${tr('Oil')},${tr('Other')},${tr('Note')}\n');
     for(final x in rows) {
       b.writeln([
         x['business_date'],x['invoice_no'],x['customer'],x['salesman'],x['subtotal'],
@@ -223,7 +223,7 @@ class _ReportsPageState extends State<ReportsPage> {
       'SELECT c.name,c.phone,sm.name salesman,c.credit_limit,c.opening,c.balance,c.note '
       'FROM customers c LEFT JOIN salesmen sm ON sm.id=c.salesman_id ORDER BY c.name',
     );
-    final b=StringBuffer('Customer,Phone,Salesman,Credit Limit,Opening,Current Balance,Note\n');
+    final b=StringBuffer('${tr('Customer')},${tr('Phone')},${tr('Salesman')},${tr('Credit Limit')},${tr('Opening')},${tr('Current Balance')},${tr('Note')}\n');
     for(final x in rows) {
       b.writeln([
         x['name'],x['phone'],x['salesman'],x['credit_limit'],x['opening'],x['balance'],x['note'],
@@ -235,7 +235,7 @@ class _ReportsPageState extends State<ReportsPage> {
   Future<void> exportSuppliers() async {
     final db=await AppDatabase.instance.database;
     final rows=await db.query('suppliers',orderBy:'name');
-    final b=StringBuffer('Supplier,Phone,Opening,Current Balance,Note\n');
+    final b=StringBuffer('${tr('Supplier')},${tr('Phone')},${tr('Opening')},${tr('Current Balance')},${tr('Note')}\n');
     for(final x in rows) {
       b.writeln([
         x['name'],x['phone'],x['opening'],x['balance'],x['note'],
@@ -247,7 +247,7 @@ class _ReportsPageState extends State<ReportsPage> {
   Future<void> exportStock() async {
     final db=await AppDatabase.instance.database;
     final rows=await db.query('products',orderBy:'name');
-    final b=StringBuffer('Product,Opening,Current,Reorder,Cost,Sale Price,Stock Value\n');
+    final b=StringBuffer('${tr('Product')},${tr('Opening')},${tr('Current')},${tr('Reorder')},${tr('Cost')},${tr('Sale Price')},${tr('Stock Value')}\n');
     for(final x in rows) {
       b.writeln([
         x['name'],x['opening_qty'],x['stock'],x['reorder_level'],x['cost'],x['price'],
@@ -259,22 +259,22 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Future<void> exportLoanRecovery() async {
     final db=await AppDatabase.instance.database;
-    final b=StringBuffer('QAMVIO POS — Loan & Recovery Report\n\n');
+    final b=StringBuffer('${tr('QAMVIO POS — Loan & Recovery Report')}\n\n');
     final customer=await db.rawQuery(
       'SELECT l.*,c.name FROM customer_loans l JOIN customers c ON c.id=l.customer_id '
       'ORDER BY l.business_date,l.created_at',
     );
-    b.writeln('CUSTOMER LOANS');
+    b.writeln(tr('CUSTOMER LOANS'));
     for(final x in customer) {
-      b.writeln('${x['business_date']??''} | ${x['name']} | ${x['type']} | ${_m(x['amount'])} | ${x['note']??''}');
+      b.writeln('${x['business_date']??''} | ${x['name']} | ${tr((x['type']??'').toString())} | ${_m(x['amount'])} | ${x['note']??''}');
     }
     final salesman=await db.rawQuery(
       'SELECT l.*,sm.name FROM salesman_loans l JOIN salesmen sm ON sm.id=l.salesman_id '
       'ORDER BY COALESCE(l.business_date,substr(l.created_at,1,10)),l.created_at',
     );
-    b.writeln('\nSALESMAN LOANS / RECOVERY');
+    b.writeln('\n${tr('SALESMAN LOANS / RECOVERY')}');
     for(final x in salesman) {
-      b.writeln('${x['business_date']??''} | ${x['name']} | ${x['type']} | ${_m(x['amount'])} | ${x['source']??'manual'} | ${x['note']??''}');
+      b.writeln('${x['business_date']??''} | ${x['name']} | ${tr((x['type']??'').toString())} | ${_m(x['amount'])} | ${tr((x['source']??'manual').toString().replaceAll('_',' '))} | ${x['note']??''}');
     }
     await _shareFile('QAMVIO-loan-recovery.txt',b.toString());
   }

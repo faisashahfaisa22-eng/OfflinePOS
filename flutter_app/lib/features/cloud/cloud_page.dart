@@ -537,7 +537,7 @@ class _CloudSignInPanelState extends State<CloudSignInPanel> {
       return Card(
         child:Padding(
           padding:const EdgeInsets.all(16),
-          child:Text('Cloud backup is managed by the owner account ${primary??''}. Sign in with that account to connect it.'),
+          child:Text('${tr('Cloud backup is managed by the owner account')} ${primary??''}. ${tr('Sign in with that account to connect it.')}'),
         ),
       );
     }

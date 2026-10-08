@@ -10,6 +10,7 @@ import 'localized_text_ui_10.dart';
 import 'localized_text_ui_11.dart';
 import 'localized_text_ui_12.dart';
 import 'localized_text_ui_16.dart';
+import 'localized_text_ui_17.dart';
 import 'localized_text_ui_15.dart';
 import 'localized_text_ui_14.dart';
 import 'localized_text_ui_13.dart';
@@ -37,6 +38,7 @@ const Map<String, List<String>> _ui = {
   ...ui14,
   ...ui15,
   ...ui16,
+  ...ui17,
 };
 
 String tr(String value) {

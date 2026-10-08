@@ -142,7 +142,7 @@ class RoleHomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${BusinessModelController.instance.label} • restricted role',
+                  '${BusinessModelController.instance.label} • ${tr('restricted role')}',
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 10,

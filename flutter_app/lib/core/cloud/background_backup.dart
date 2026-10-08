@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
@@ -6,6 +8,7 @@ import 'cloud_backup_service.dart';
 import 'cloud_config.dart';
 
 const qamvioDailyBackupTask = 'qamvioDailyBackup';
+const qamvioIosDailyBackupTask = 'com.offlinepos.accounts.dailyBackup';
 
 /// Runs in a background isolate. The encrypted database cannot be opened here
 /// because the database key is only available after a local user signs in.
@@ -39,9 +42,10 @@ void cloudBackupDispatcher() {
 }
 
 Future<void> scheduleDailyCloudBackup() async {
+  final isIos = Platform.isIOS;
   await Workmanager().registerPeriodicTask(
-    'qamvio-daily-cloud-backup',
-    qamvioDailyBackupTask,
+    isIos ? qamvioIosDailyBackupTask : 'qamvio-daily-cloud-backup',
+    isIos ? qamvioIosDailyBackupTask : qamvioDailyBackupTask,
     frequency: const Duration(hours: 24),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     constraints: Constraints(

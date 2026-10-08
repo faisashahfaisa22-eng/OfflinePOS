@@ -231,7 +231,7 @@ class LocalAuthService extends ChangeNotifier {
 
   Future<void> _ensureNotLocked() async {
     final s=await lockSecondsRemaining();
-    if(s>0) throw AuthException('Too many failed attempts. Try again in $s seconds.');
+    if(s>0) throw AuthException('${tr('Too many failed attempts. Try again in')} $s ${tr('seconds.')}');
   }
 
   // ----------------------------------------------------------------- helpers
@@ -321,7 +321,7 @@ class LocalAuthService extends ChangeNotifier {
     } catch(e) {
       _dek=null;
       await AppDatabase.instance.lock();
-      throw AuthException('Cannot open the encrypted database: $e');
+      throw AuthException('${tr('Cannot open the encrypted database')}: $e');
     }
   }
 

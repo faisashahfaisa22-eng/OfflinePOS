@@ -27,7 +27,7 @@ extension UserRoleX on UserRole {
     UserRole.viewer=>tr('View only: stock, statements and reports. Cannot change anything.'),
   };
   static UserRole parse(String v)=>UserRole.values.firstWhere(
-    (r)=>r.label.toLowerCase()==v.toLowerCase(),
+    (r)=>r.name.toLowerCase()==v.toLowerCase(),
     orElse:()=>UserRole.cashier,
   );
 }
@@ -36,7 +36,7 @@ class AuthException implements Exception {
   final String message;
   const AuthException(this.message);
   @override
-  String toString()=>message;
+  String toString()=>tr(message);
 }
 
 class AuthUser {
@@ -88,7 +88,7 @@ class AuthUser {
   Map<String,dynamic> toJson()=>{
     'id':id,
     'loginId':loginId,
-    'role':role.label,
+    'role':role.name,
     'salesmanId':salesmanId,
     'active':active,
     'createdAt':createdAt,

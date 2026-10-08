@@ -21,7 +21,7 @@ import 'localized_text_ui_6.dart';
 import 'localized_text_ui_5.dart';
 import 'localized_text_ui_4.dart';
 
-const Map<String, List<String>> _ui = {
+final Map<String, List<String>> _ui = {
   ...ui1,
   ...ui2,
   ...ui3,

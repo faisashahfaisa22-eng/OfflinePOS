@@ -66,7 +66,7 @@ class _LoansPageState extends State<LoansPage> {
     if(parties.isEmpty) {
       if(mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content:Text('Add a $partyLabel first.')),
+          SnackBar(content:Text('${tr('Add a')} $partyLabel ${tr('first.')}')),
         );
       }
       return;
@@ -100,7 +100,7 @@ class _LoansPageState extends State<LoansPage> {
                   ),
                 ),
                 const SizedBox(height:4),
-                Text('Record a ledger transaction for this $partyLabel account.'),
+                Text('${tr('Record a ledger transaction for this')} $partyLabel ${tr('account.')}'),
                 const SizedBox(height:18),
                 DropdownButtonFormField<String>(
                   initialValue:partyId,
@@ -275,11 +275,11 @@ class _LoansPageState extends State<LoansPage> {
         child:Column(
           children:[
             ListTile(
-              title:Text('${salesman['name']} — Ledger'),
+              title:Text('${salesman['name']} — ${tr('Ledger')}'),
               subtitle:Text(
-                'Invoice due: ${WhatsAppShare.money(invoiceDue)} • '
-                'Manual loan: ${WhatsAppShare.money(manual)} • '
-                'Total: ${WhatsAppShare.money(invoiceDue+manual)}',
+                '${tr('Invoice due')}: ${WhatsAppShare.money(invoiceDue)} • '
+                '${tr('Manual loan')}: ${WhatsAppShare.money(manual)} • '
+                '${tr('Total')}: ${WhatsAppShare.money(invoiceDue+manual)}',
               ),
               trailing:IconButton(
                 tooltip:tr('Close'),
@@ -334,9 +334,9 @@ class _LoansPageState extends State<LoansPage> {
         child:Column(
           children:[
             ListTile(
-              title:Text('${supplier['name']} — Supplier Ledger'),
+              title:Text('${supplier['name']} — ${tr('Supplier Ledger')}'),
               subtitle:Text(
-                'Current payable balance: ${WhatsAppShare.money(supplier['balance'])}',
+                '${tr('Current payable balance')}: ${WhatsAppShare.money(supplier['balance'])}',
               ),
               trailing:IconButton(
                 tooltip:tr('Close'),
@@ -380,7 +380,7 @@ class _LoansPageState extends State<LoansPage> {
     } catch(e) {
       if(!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content:Text('WhatsApp: $e')),
+        SnackBar(content:Text('${tr('WhatsApp')}: $e')),
       );
     }
   }

@@ -1,0 +1,74 @@
+name: Build QAMVIO Flutter APK
+on:
+  push:
+    branches: [ flutter/qamvio-core ]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/build-flutter.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Create Flutter platform files
+        run: flutter create --platforms=android --org com.qamvio --project-name qamvio_pos .
+      - name: Harden Android security
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text()
+          attrs = []
+          if 'android:allowBackup=' not in text:
+              attrs.append('android:allowBackup="false"')
+          if 'android:fullBackupContent=' not in text:
+              attrs.append('android:fullBackupContent="false"')
+          if 'android:usesCleartextTraffic=' not in text:
+              attrs.append('android:usesCleartextTraffic="false"')
+          if attrs:
+              text = text.replace(
+                  '<application',
+                  '<application\n        ' + '\n        '.join(attrs),
+                  1,
+              )
+              manifest.write_text(text)
+
+          for name in ("android/app/build.gradle.kts", "android/app/build.gradle"):
+              p = Path(name)
+              if not p.exists():
+                  continue
+              s = p.read_text()
+              s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
+              s = s.replace('minSdkVersion flutter.minSdkVersion', 'minSdkVersion 24')
+              p.write_text(s)
+          PY
+          grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
+          grep -R -q 'com.qamvio.qamvio_pos' android/app
+
+      - name: Clean
+        run: flutter clean
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+      - name: Build APK
+        run: flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Flutter-Core-APK
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk

@@ -45,7 +45,9 @@ class _LicenseAdminPageState extends State<LicenseAdminPage> {
         email: adminEmail.text.trim(), password: adminPassword.text);
       adminPassword.clear();
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) {
+        setState(() => error = '$e');
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -81,7 +83,9 @@ class _LicenseAdminPageState extends State<LicenseAdminPage> {
         attempts = (result['attempts'] as List?) ?? [];
       });
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) {
+        setState(() => error = '$e');
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -112,7 +116,9 @@ class _LicenseAdminPageState extends State<LicenseAdminPage> {
         });
       });
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) {
+        setState(() => error = '$e');
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -143,7 +149,9 @@ class _LicenseAdminPageState extends State<LicenseAdminPage> {
         attempts = (result['attempts'] as List?) ?? [];
       });
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) {
+        setState(() => error = '$e');
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -256,3 +264,4 @@ class _LicenseAdminPageState extends State<LicenseAdminPage> {
           ),
     ]),
   );
+}

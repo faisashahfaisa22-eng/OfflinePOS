@@ -12,7 +12,10 @@ class LicenseGate extends StatefulWidget {
 }
 
 class _LicenseGateState extends State<LicenseGate> {
-  static const publicKey = String.fromEnvironment('QAMVIO_LICENSE_PUBLIC_KEY');
+  static const publicKey = String.fromEnvironment(
+    'QAMVIO_LICENSE_PUBLIC_KEY',
+    defaultValue: 'XQPGDm8ImKiHBZBux7lz2NfAZbDZ2SKT97ZTuOUJoUI',
+  );
   late Future<bool> _valid;
 
   @override

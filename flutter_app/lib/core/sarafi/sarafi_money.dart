@@ -1,0 +1,35 @@
+name: qamvio_pos
+description: QAMVIO POS offline-first Flutter application
+publish_to: "none"
+version: 16.0.0+16
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite_sqlcipher: ^3.1.0+1
+  flutter_secure_storage: ^9.2.2
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+  supabase_flutter: ^2.8.0
+  connectivity_plus: ^6.0.5
+  workmanager: ^0.10.10
+  mobile_scanner: ^6.0.2
+  qr_flutter: ^4.1.0
+  intl: ^0.19.0
+  crypto: ^3.0.5
+  cryptography: ^2.9.0
+  cryptography_flutter: ^2.3.4
+  url_launcher: ^6.3.2
+  printing: ^5.14.3
+  pdf: ^3.11.3
+  share_plus: ^10.1.4
+dev_dependencies:
+  integration_test:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true

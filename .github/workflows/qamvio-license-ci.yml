@@ -27,6 +27,8 @@ jobs:
         run: flutter analyze --no-fatal-infos
       - name: Unit tests
         run: flutter test
+      - name: Generate missing Android Flutter project scaffold
+        run: flutter create --platforms=android --project-name=qamvio_pos .
       - name: Build Android debug APK (licensing disabled until live E2E verification)
         run: flutter build apk --debug --dart-define=QAMVIO_REQUIRE_LICENSE=false
       - name: Upload test APK

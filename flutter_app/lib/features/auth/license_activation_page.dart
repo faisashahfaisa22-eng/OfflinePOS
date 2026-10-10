@@ -6,8 +6,9 @@ import '../../core/security/license_verifier.dart';
 /// Activation UI. Call this from a license gate after the signing public key
 /// and the server function have been provisioned and tested.
 class LicenseActivationPage extends StatefulWidget {
-  const LicenseActivationPage({super.key, required this.publicKey});
+  const LicenseActivationPage({super.key, required this.publicKey, this.onActivated});
   final String publicKey;
+  final VoidCallback? onActivated;
   @override
   State<LicenseActivationPage> createState() => _LicenseActivationPageState();
 }
@@ -41,7 +42,13 @@ class _LicenseActivationPageState extends State<LicenseActivationPage> {
         throw const FormatException('Invalid server response');
       }
       await verifier.saveToken(data['token'] as String);
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        if (widget.onActivated != null) {
+          widget.onActivated!();
+        } else {
+          Navigator.of(context).pop(true);
+        }
+      }
     } catch (_) {
       if (mounted) {
         setState(() => error =

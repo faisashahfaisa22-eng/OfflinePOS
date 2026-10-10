@@ -14,7 +14,7 @@ const digest = async (s: string) => {
 
 Deno.serve(async (request) => {
   if (request.method !== "POST") return respond({ error: "method_not_allowed" }, 405);
-  const dbUrl = Deno.env.get("DATABASE_URL");
+  const dbUrl = (Deno.env.get("DATABASE_URL") ?? Deno.env.get("SUPABASE_DB_URL"));
   const signingKey = Deno.env.get("QAMVIO_LICENSE_ED25519_PKCS8");
   if (!dbUrl || !signingKey) return respond({ error: "server_not_configured" }, 503);
   let input: { code?: unknown; device_id?: unknown };

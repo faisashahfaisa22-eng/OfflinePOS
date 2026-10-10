@@ -24,7 +24,7 @@ class _LicenseActivationPageState extends State<LicenseActivationPage> {
     super.dispose();
   }
 
-  Future<void> activate() async {
+  Future<void> submitActivation() async {
     if (busy || code.text.trim().isEmpty) return;
     setState(() { busy = true; error = null; });
     try {
@@ -73,15 +73,16 @@ class _LicenseActivationPageState extends State<LicenseActivationPage> {
           const SizedBox(height: 16),
           TextField(controller: code, enabled: !busy,
             decoration: const InputDecoration(labelText: 'Activation code'),
-            onSubmitted: (_) => activate()),
+            onSubmitted: (_) => submitActivation()),
           if (error != null) Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
           const SizedBox(height: 20),
-          FilledButton(onPressed: busy ? null : activate,
+          FilledButton(onPressed: busy ? null : submitActivation,
             child: Text(busy ? 'Activating...' : 'Activate')),
         ]),
       ),
     )),
   );
+}

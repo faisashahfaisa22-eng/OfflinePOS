@@ -36,7 +36,7 @@ class LicenseVerifier {
 
   Future<bool> hasValidLicense() async {
     final token = await _storage.read(key: _tokenKey);
-    return token != null && verify(token);
+    return token != null && await verify(token);
   }
 
   Future<bool> verify(String token) async {

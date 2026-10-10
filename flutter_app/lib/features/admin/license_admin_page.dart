@@ -12,6 +12,8 @@ class LicenseAdminPage extends StatefulWidget {
 }
 
 class _LicenseAdminPageState extends State<LicenseAdminPage> {
+  final adminEmail = TextEditingController();
+  final adminPassword = TextEditingController();
   final customer = TextEditingController();
   final devices = TextEditingController(text: '1');
   bool loading = false;
@@ -24,14 +26,30 @@ class _LicenseAdminPageState extends State<LicenseAdminPage> {
   @override
   void initState() {
     super.initState();
-    refresh();
+    if (Supabase.instance.client.auth.currentSession != null) refresh();
   }
 
   @override
   void dispose() {
+    adminEmail.dispose();
+    adminPassword.dispose();
     customer.dispose();
     devices.dispose();
     super.dispose();
+  }
+
+  Future<void> signIn() async {
+    setState(() { loading = true; error = null; });
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: adminEmail.text.trim(), password: adminPassword.text);
+      adminPassword.clear();
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+    if (mounted && Supabase.instance.client.auth.currentSession != null) refresh();
   }
 
   Future<Map<String, dynamic>> request(Map<String, dynamic> body) async {
@@ -135,10 +153,37 @@ class _LicenseAdminPageState extends State<LicenseAdminPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('QAMVIO Licenses'),
-      actions: [IconButton(onPressed: loading ? null : refresh,
-        icon: const Icon(Icons.refresh))],
+      actions: [
+        if (Supabase.instance.client.auth.currentSession != null)
+          IconButton(onPressed: loading ? null : refresh,
+            icon: const Icon(Icons.refresh)),
+        if (Supabase.instance.client.auth.currentSession != null)
+          IconButton(tooltip: 'Sign out', icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (mounted) setState(() { issuedCode = null; licenses = []; deviceRows = []; attempts = []; });
+            }),
+      ],
     ),
-    body: ListView(padding: const EdgeInsets.all(16), children: [
+    body: Supabase.instance.client.auth.currentSession == null
+      ? ListView(padding: const EdgeInsets.all(16), children: [
+          Text('Supabase license administrator sign-in',
+            style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          TextField(controller: adminEmail, enabled: !loading,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Admin email')),
+          const SizedBox(height: 8),
+          TextField(controller: adminPassword, enabled: !loading,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password')),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: loading ? null : signIn,
+            child: const Text('Sign in')),
+          if (error != null) Text(error!, style: TextStyle(
+            color: Theme.of(context).colorScheme.error)),
+        ])
+      : ListView(padding: const EdgeInsets.all(16), children: [
       if (loading) const LinearProgressIndicator(),
       if (error != null) Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),

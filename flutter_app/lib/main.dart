@@ -9,6 +9,7 @@ import 'core/localization/language_controller.dart';
 import 'core/security/local_auth_service.dart';
 import 'core/ui/qamvio_ui.dart';
 import 'features/auth/login_page.dart';
+import 'features/auth/license_gate.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'features/dashboard/role_home_page.dart';
 import 'features/migration/legacy_migration_gate.dart';
@@ -44,6 +45,14 @@ class QamvioApp extends StatefulWidget {
 }
 
 class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
+  Widget _homeFor(LocalAuthService auth) => !auth.unlocked
+      ? const LoginPage()
+      : auth.isAdmin
+          ? const LegacyMigrationGate()
+          : auth.isManager
+              ? const DashboardPage()
+              : const RoleHomePage();
+
   /// Locks the app (and closes the encrypted database) after this long in the
   /// background.
   static const autoLockAfter = Duration(minutes: 5);
@@ -123,13 +132,9 @@ class _QamvioAppState extends State<QamvioApp> with WidgetsBindingObserver {
           theme: QamvioUi.theme(),
           darkTheme: QamvioUi.darkTheme(),
           themeMode: ThemeMode.system,
-          home: !auth.unlocked
-              ? const LoginPage()
-              : auth.isAdmin
-                  ? const LegacyMigrationGate()
-                  : auth.isManager
-                      ? const DashboardPage()
-                      : const RoleHomePage(),
+          home: const bool.fromEnvironment('QAMVIO_REQUIRE_LICENSE', defaultValue: false)
+              ? LicenseGate(child: _homeFor(auth))
+              : _homeFor(auth),
         );
       },
     );

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
@@ -21,7 +22,8 @@ class LicenseVerifier {
   Future<String> installationId() async {
     final existing = await _storage.read(key: _deviceKey);
     if (existing != null && existing.isNotEmpty) return existing;
-    final bytes = Cryptography.instance.newRandomBytes(32);
+    final random = Random.secure();
+    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
     final id = base64UrlEncode(bytes).replaceAll('=', '');
     await _storage.write(key: _deviceKey, value: id);
     return id;

@@ -23,7 +23,7 @@ void main() {
     final verifier = LicenseVerifier(
       base64UrlEncode(pub.bytes).replaceAll('=', ''),
     );
-    final device = await verifier.installationId();
+    const device = 'test-device';
     final now = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
     final payload = base64UrlEncode(utf8.encode(jsonEncode({
       'typ': 'qamvio-license-v1',

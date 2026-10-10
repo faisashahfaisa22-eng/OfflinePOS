@@ -12,6 +12,7 @@ import '../../core/security/permissions.dart';
 import '../../core/share/whatsapp_share.dart';
 import '../../core/ui/qamvio_ui.dart';
 import '../cloud/cloud_page.dart';
+import '../admin/license_admin_page.dart';
 import '../expenses/expenses_page.dart';
 import '../fuel/fuel_page.dart';
 import '../parties/party_page.dart';
@@ -1124,6 +1125,19 @@ class _V15NavigationDrawerState extends State<V15NavigationDrawer> {
               true,
               () => Navigator.pop(context),
             ),
+            if (LocalAuthService.instance.isAdmin)
+              _navButton(
+                context,
+                'License Administration',
+                Icons.vpn_key_rounded,
+                false,
+                () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const LicenseAdminPage(),
+                  ));
+                },
+              ),
             for (final group in groups) ...[
               if (group.pages.any(Permissions.canOpen))
                 Padding(

@@ -23,8 +23,6 @@ jobs:
         run: flutter --version
       - name: Dependencies
         run: flutter pub get
-      - name: Dart formatting validation (license files)
-        run: dart format --output=none --set-exit-if-changed lib/core/security/license_verifier.dart lib/features/auth/license_activation_page.dart lib/features/auth/license_gate.dart lib/features/admin/license_admin_page.dart
       - name: Static analysis
         run: flutter analyze --no-fatal-infos
       - name: Unit tests

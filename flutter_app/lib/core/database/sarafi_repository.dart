@@ -180,7 +180,7 @@ class SarafiRepository {
   /// [buy]/[sell] = how many AFN for 1 unit of [currency].
   Future<void> setRate(String currency,double buy,double sell) async {
     if(currency==SarafiSchema.baseCurrency) throw ArgumentError('The base currency has no rate.');
-    if(buy<0||sell<0) throw ArgumentError('Rates cannot be negative.');
+    if(!buy.isFinite||!sell.isFinite||buy<0||sell<0) throw ArgumentError('Rates must be finite and non-negative.');
     final db=await _db;
     await db.insert('fx_rates',{
       'currency':currency,
@@ -315,8 +315,8 @@ class SarafiRepository {
     String? note,
   }) async {
     if(fromCurrency==toCurrency) throw ArgumentError('Choose two different currencies.');
-    if(fromAmount<=0||toAmount<=0) throw ArgumentError('Amounts must be greater than zero.');
-    if(rate<=0) throw ArgumentError('Rate must be greater than zero.');
+    if(!fromAmount.isFinite||!toAmount.isFinite||fromAmount<=0||toAmount<=0) throw ArgumentError('Amounts must be finite and greater than zero.');
+    if(!rate.isFinite||rate<=0) throw ArgumentError('Rate must be finite and greater than zero.');
     final xid=id??newId('ex');
     final day=dayOf(date);
     final mid=await midRates();
@@ -385,7 +385,7 @@ class SarafiRepository {
     required String kind,
     String? note,
   }) async {
-    if(amount<=0) throw ArgumentError('Amount must be greater than zero.');
+    if(!amount.isFinite||amount<=0) throw ArgumentError('Amount must be finite and greater than zero.');
     if(partyId.isEmpty) throw ArgumentError('Choose an account.');
     final mid=id??newId('mv');
     final day=dayOf(date);
@@ -416,7 +416,7 @@ class SarafiRepository {
     String kind='adjust',
     String? note,
   }) async {
-    if(amount==0) throw ArgumentError('Amount cannot be zero.');
+    if(!amount.isFinite||amount==0) throw ArgumentError('Amount must be finite and non-zero.');
     final aid=id??newId('ca');
     final db=await _db;
     await db.transaction((txn) async {
@@ -448,8 +448,8 @@ class SarafiRepository {
     String? note,
   }) async {
     if(direction!='out'&&direction!='in') throw ArgumentError.value(direction,'direction','Use out or in.');
-    if(amount<=0) throw ArgumentError('Amount must be greater than zero.');
-    if(commission<0) throw ArgumentError('Commission cannot be negative.');
+    if(!amount.isFinite||amount<=0) throw ArgumentError('Amount must be finite and greater than zero.');
+    if(!commission.isFinite||commission<0) throw ArgumentError('Commission must be finite and non-negative.');
     if(partnerId.isEmpty) throw ArgumentError('Choose a partner.');
     final hid=id??newId('hw');
     final day=dayOf(date);

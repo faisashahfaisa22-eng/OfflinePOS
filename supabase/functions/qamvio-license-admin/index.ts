@@ -29,6 +29,34 @@ Deno.serve(async (request) => {
   try { input = await request.json(); } catch { return reply({ error: "invalid_json" }, 400); }
   const sql = postgres(dbUrl, { max: 1, connect_timeout: 8 });
   try {
+    if (input.action === "create") {
+      const customer = typeof input.customer_name === "string"
+        ? input.customer_name.trim() : "";
+      const devices = input.max_devices;
+      const expiry = input.expires_at;
+      if (customer.length < 2 || customer.length > 160 ||
+          !Number.isInteger(devices) || (devices as number) < 1 ||
+          (devices as number) > 100 ||
+          (expiry !== null && expiry !== undefined &&
+            (typeof expiry !== "string" ||
+             !Number.isFinite(Date.parse(expiry)) ||
+             Date.parse(expiry) <= Date.now()))) {
+        return reply({ error: "invalid_license_details" }, 400);
+      }
+      const random = crypto.getRandomValues(new Uint8Array(24));
+      const code = "QV-" + Array.from(random, (b) =>
+        b.toString(16).padStart(2, "0")).join("").toUpperCase();
+      const hash = Array.from(new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(code))
+      ), (b) => b.toString(16).padStart(2, "0")).join("");
+      const rows = await sql`insert into public.licenses
+        (customer_name,code_hash,max_devices,expires_at)
+        values (${customer},${hash},${devices as number},
+          ${expiry ?? null}::timestamptz)
+        returning id, customer_name, max_devices, expires_at, status`;
+      // Activation code is returned once, never stored in plaintext.
+      return reply({ license: rows[0], activation_code: code }, 201);
+    }
     if (input.action === "list") {
       const licenses = await sql`select id, customer_name, max_devices, expires_at, status, created_at from public.licenses order by created_at desc limit 100`;
       return reply({ licenses });

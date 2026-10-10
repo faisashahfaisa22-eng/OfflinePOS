@@ -13,7 +13,7 @@ Deno.serve(async (request) => {
   const jwt = bearer.startsWith("Bearer ") ? bearer.slice(7) : "";
   const url = Deno.env.get("SUPABASE_URL");
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
-  const dbUrl = Deno.env.get("DATABASE_URL");
+  const dbUrl = (Deno.env.get("DATABASE_URL") ?? Deno.env.get("SUPABASE_DB_URL"));
   const allow = (Deno.env.get("QAMVIO_LICENSE_ADMIN_UIDS") ?? "")
     .split(",").map((x) => x.trim()).filter(Boolean);
   if (!url || !anon || !dbUrl || allow.length === 0) {

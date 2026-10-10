@@ -59,7 +59,9 @@ Deno.serve(async (request) => {
     }
     if (input.action === "list") {
       const licenses = await sql`select id, customer_name, max_devices, expires_at, status, created_at from public.licenses order by created_at desc limit 100`;
-      return reply({ licenses });
+      const devices = await sql`select id, license_id, activated_at, last_seen_at, revoked_at from public.license_devices order by activated_at desc limit 500`;
+      const attempts = await sql`select license_id, outcome, created_at from public.license_attempts order by created_at desc limit 100`;
+      return reply({ licenses, devices, attempts });
     }
     if (input.action === "revoke_device" && typeof input.device_id === "string") {
       const result = await sql`update public.license_devices set revoked_at=now()

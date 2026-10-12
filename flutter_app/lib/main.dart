@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
@@ -17,25 +19,35 @@ import 'features/migration/legacy_migration_gate.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Supabase is used ONLY as a cloud-backup destination. Login is local/offline.
-  // Startup must never block the offline app: if any of these fail (no Play
-  // Services, no network on first launch, or Workmanager initialization issue),
-  // log the error and continue so local sign-in and the encrypted database work.
+  // Local authentication is the critical startup path. Network/cloud and
+  // background scheduling must never block the offline sign-in screen.
+  await LocalAuthService.instance.load();
+  await LanguageController.instance.load();
+  runApp(const QamvioApp());
+
+  // Cloud is best-effort. A stalled plugin/network initialization must not
+  // hold the first frame or the local encrypted database hostage.
+  unawaited(_initializeOptionalCloudServices());
+}
+
+Future<void> _initializeOptionalCloudServices() async {
   try {
     await Supabase.initialize(
       url: CloudConfig.supabaseUrl,
       publishableKey: CloudConfig.supabaseAnonKey,
     );
+  } catch (e, st) {
+    debugPrint('Optional cloud initialization failed: $e\\n$st');
+  }
+
+  try {
     await Workmanager().initialize(cloudBackupDispatcher);
     await scheduleDailyCloudBackup();
   } catch (e, st) {
-    debugPrint('Startup cloud init failed: $e\n$st');
+    debugPrint('Optional backup scheduling failed: $e\\n$st');
   }
-
-  await LocalAuthService.instance.load();
-  await LanguageController.instance.load();
-  runApp(const QamvioApp());
 }
+
 
 class QamvioApp extends StatefulWidget {
   const QamvioApp({super.key});

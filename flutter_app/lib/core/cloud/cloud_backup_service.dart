@@ -156,13 +156,22 @@ class CloudBackupService {
     }
 
     final key = await auth.backupKey();
-    final plain = utf8.encode(jsonEncode(await snapshot()));
+    final snapshotData = await snapshot();
+    final rows = snapshotData['data'] as Map<String, dynamic>;
+    final rowCounts = <String, int>{
+      for (final entry in rows.entries)
+        entry.key: (entry.value as List).length,
+    };
+    final plain = utf8.encode(jsonEncode(snapshotData));
     final box = await CryptoUtils.encryptBox(plain, key);
 
     return {
       'format': 2,
       'app': 'QAMVIO POS Flutter',
       'enc': 'aes-gcm-256',
+      // Non-sensitive record counts enable safe backup health checks without
+      // decrypting private customer or transaction data on the server.
+      'row_counts': rowCounts,
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'auth_users': [
         for (final u in auth.users)
@@ -245,6 +254,32 @@ class CloudBackupService {
     String userId,
     Map<String, dynamic> payload,
   ) async {
+    // A fresh empty install must never silently replace an existing cloud
+    // backup. Counts are stored outside ciphertext but contain no business data.
+    final countsRaw = payload['row_counts'];
+    if (countsRaw is Map) {
+      const businessTables = <String>[
+        'products', 'customers', 'suppliers', 'sales', 'purchases',
+        'expenses', 'fx_parties', 'fx_ledger', 'fx_exchanges', 'fx_hawala',
+      ];
+      final hasBusinessData = businessTables.any((table) {
+        final count = countsRaw[table];
+        return count is num && count > 0;
+      });
+      if (!hasBusinessData) {
+        final existing = await client
+            .from('qamvio_flutter_backups')
+            .select('user_id')
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (existing != null) {
+          throw StateError(
+            'Cloud backup protected: an empty business database cannot '
+            'overwrite an existing backup.',
+          );
+        }
+      }
+    }
     await client.from('qamvio_flutter_backups').upsert(
       {
         'user_id': userId,

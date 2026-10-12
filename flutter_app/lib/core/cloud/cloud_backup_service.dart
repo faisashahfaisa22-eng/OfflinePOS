@@ -41,6 +41,13 @@ class CloudBackupService {
     'users',
     'settings',
     'legacy_archives',
+    'fx_currencies',
+    'fx_rates',
+    'fx_parties',
+    'fx_ledger',
+    'fx_cash',
+    'fx_exchanges',
+    'fx_hawala',
     'migration_state',
   ];
 
@@ -67,6 +74,13 @@ class CloudBackupService {
     'users',
     'settings',
     'legacy_archives',
+    'fx_currencies',
+    'fx_rates',
+    'fx_parties',
+    'fx_ledger',
+    'fx_cash',
+    'fx_exchanges',
+    'fx_hawala',
     'migration_state',
   ];
 
@@ -93,6 +107,13 @@ class CloudBackupService {
     'users',
     'settings',
     'legacy_archives',
+    'fx_currencies',
+    'fx_rates',
+    'fx_parties',
+    'fx_ledger',
+    'fx_cash',
+    'fx_exchanges',
+    'fx_hawala',
     'migration_state',
   ];
 
@@ -317,6 +338,20 @@ class CloudBackupService {
       'stock_adjustments',
       'fuel_closings',
       'recycle_bin',
+    ]) {
+      data.putIfAbsent(table, () => <dynamic>[]);
+    }
+
+    // Older encrypted backups predate the Sarafi tables. Their missing tables
+    // represent no historical Sarafi data, not a corrupt backup.
+    for (final table in const <String>[
+      'fx_currencies',
+      'fx_rates',
+      'fx_parties',
+      'fx_ledger',
+      'fx_cash',
+      'fx_exchanges',
+      'fx_hawala',
     ]) {
       data.putIfAbsent(table, () => <dynamic>[]);
     }

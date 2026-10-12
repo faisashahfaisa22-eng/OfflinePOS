@@ -169,9 +169,13 @@ class LegacyMigrationService {
   Future<bool> hasPendingMigration() async {
     if(await _hasBusinessData()) return false;
     if(await _completed()) return false;
+    // Optional legacy cloud discovery must not keep an offline admin staring
+    // at a loading spinner. They can import later when connected.
     try {
-      return await _legacyRow()!=null;
-    } catch(_) {
+      return await _legacyRow()
+          .timeout(const Duration(seconds: 3))
+          .then((row) => row != null);
+    } catch (_) {
       return false;
     }
   }

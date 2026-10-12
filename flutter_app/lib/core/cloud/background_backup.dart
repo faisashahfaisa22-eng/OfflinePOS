@@ -28,8 +28,10 @@ void cloudBackupDispatcher() {
         publishableKey: CloudConfig.supabaseAnonKey,
       );
 
-      await CloudBackupService.instance.uploadPendingFile();
-      return true;
+      // Missing cloud session or pending file is NOT a successful backup.
+      // Report failure so Workmanager can retry instead of silently marking
+      // the scheduled backup complete without uploading any data.
+      return await CloudBackupService.instance.uploadPendingFile();
     } catch (_) {
       // Returning false lets Workmanager treat the execution as unsuccessful
       // without crashing or blocking the offline-first app.

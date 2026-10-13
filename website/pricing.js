@@ -1,8 +1,8 @@
 /* QAMVIO public estimate calculator. Prices are illustrative and editable only in repository. */
 (()=>{'use strict';
 const catalog={
-pos:[{id:'setup',name:'Android POS setup',price:29},{id:'inventory',name:'Inventory preparation (up to 100 products)',price:49},{id:'training',name:'Remote staff training (1 hour)',price:25},{id:'records',name:'Business records workflow review',price:39}],
-digital:[{id:'website',name:'Starter business website assessment/package',price:199},{id:'store',name:'Starter online store setup assessment/package',price:299},{id:'graphics',name:'Social media graphics package (5 designs)',price:45}]};
+pos:[{id:'setup',name:'Android POS setup',price:9},{id:'inventory',name:'Inventory starter preparation (up to 20 products)',price:15},{id:'training',name:'Remote staff orientation (15 minutes)',price:7},{id:'records',name:'Business records workflow review',price:9}],
+digital:[{id:'website',name:'One-page starter website (template-based)',price:19},{id:'store',name:'Starter store configuration (up to 5 products)',price:39},{id:'graphics',name:'5 social media graphics (template-based)',price:9}]};
 document.querySelectorAll('[data-pricing-kind]').forEach(root=>{
 const items=catalog[root.dataset.pricingKind]||[];const picker=root.querySelector('[data-service]');const qty=root.querySelector('[data-quantity]');const code=root.querySelector('[data-promo]');const details=root.querySelector('[data-pricing-result]');const cta=root.querySelector('[data-quote-link]');
 items.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name+' — from $'+x.price.toFixed(2);picker.appendChild(o)});

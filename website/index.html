@@ -122,9 +122,11 @@
 
   <style>
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; overflow-x: clip; }
     body {
       margin: 0;
+      min-width: 0;
+      overflow-x: clip;
       font-family: Inter, Arial, sans-serif;
       background: #f6f9ff;
       color: #0f2342;
@@ -154,7 +156,7 @@
       margin: auto;
       padding: 72px 6% 55px;
       display: grid;
-      grid-template-columns: 1.05fr .95fr;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
       gap: 42px;
       align-items: center;
     }
@@ -276,6 +278,10 @@
       .navlinks { display: none; }
     }
     @media (max-width: 480px) {
+      .hero, .section { padding-left:20px; padding-right:20px; }
+      .hero img { max-width:100%; }
+      .btn { max-width:100%; }
+      .section h2 { font-size:28px; }
       .features { grid-template-columns: 1fr; }
       .hero h1 { font-size: 35px; }
     }
@@ -287,7 +293,8 @@
   <nav aria-label="Main navigation">
     <div class="brand">QAMVIO <span>POS</span></div>
     <div class="navlinks">
-      <a href="#features">Features</a>\n      <a href="#app-gallery">App Gallery</a>
+      <a href="#features">Features</a>
+      <a href="#app-gallery">App Gallery</a>
       <a href="#offline-pos">Offline POS</a>
       <a href="#faq">FAQ</a>
       <a href="laptop.html">Laptop / Chrome</a>

@@ -1,0 +1,183 @@
+name: Release QAMVIO iOS to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_testflight:
+        description: "Upload signed IPA to TestFlight"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qamvio-ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  signed-ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    env:
+      BUNDLE_ID: com.offlinepos.accounts
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      APPSTORE_ISSUER_ID: ${{ vars.APPSTORE_ISSUER_ID }}
+      APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
+
+    steps:
+      - name: Checkout iOS branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/flutter-ios-v16
+
+      - name: Validate Apple release configuration
+        shell: bash
+        env:
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          APPSTORE_CERTIFICATES_FILE_BASE64: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
+          APPSTORE_CERTIFICATES_PASSWORD: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APPLE_TEAM_ID APPSTORE_ISSUER_ID APPSTORE_API_KEY_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions variable: $name"
+              missing=1
+            fi
+          done
+          for name in APPSTORE_API_PRIVATE_KEY APPSTORE_CERTIFICATES_FILE_BASE64 APPSTORE_CERTIFICATES_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Add the required Apple values under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: flutter_app
+        run: flutter analyze
+
+      - name: Test
+        working-directory: flutter_app
+        run: flutter test
+
+      - name: Import Apple Distribution certificate
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
+          p12-password: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
+
+      - name: Write App Store Connect API key
+        id: api-key
+        shell: bash
+        env:
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          KEY_DIR="$RUNNER_TEMP/appstoreconnect"
+          mkdir -p "$KEY_DIR"
+          KEY_PATH="$KEY_DIR/AuthKey_${APPSTORE_API_KEY_ID}.p8"
+          printf '%s' "$APPSTORE_API_PRIVATE_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Xcode automatic signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          team = os.environ["APPLE_TEAM_ID"].strip()
+          path = Path("flutter_app/ios/Runner.xcodeproj/project.pbxproj")
+          text = path.read_text(encoding="utf-8")
+
+          # Add explicit automatic-signing settings to Runner build configs.
+          marker = 'PRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.accounts;'
+          replacement = (
+              'CODE_SIGN_STYLE = Automatic;\n'
+              f'\t\t\t\tDEVELOPMENT_TEAM = {team};\n'
+              '\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.offlinepos.accounts;'
+          )
+          text = text.replace(marker, replacement)
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Build Flutter iOS assets
+        working-directory: flutter_app
+        run: flutter build ios --release --no-codesign --build-number "${GITHUB_RUN_NUMBER}"
+
+      - name: Archive signed iPhone app
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd flutter_app/ios
+          xcodebuild             -workspace Runner.xcworkspace             -scheme Runner             -configuration Release             -sdk iphoneos             -archivePath "$RUNNER_TEMP/QAMVIO.xcarchive"             DEVELOPMENT_TEAM="$APPLE_TEAM_ID"             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID"             CODE_SIGN_STYLE=Automatic             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"             -allowProvisioningUpdates             -authenticationKeyPath "${{ steps.api-key.outputs.path }}"             -authenticationKeyID "$APPSTORE_API_KEY_ID"             -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID"             archive
+
+      - name: Create App Store export options
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export signed IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/export"
+          xcodebuild             -exportArchive             -archivePath "$RUNNER_TEMP/QAMVIO.xcarchive"             -exportPath "$RUNNER_TEMP/export"             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"             -allowProvisioningUpdates             -authenticationKeyPath "${{ steps.api-key.outputs.path }}"             -authenticationKeyID "$APPSTORE_API_KEY_ID"             -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID"
+
+          IPA="$(find "$RUNNER_TEMP/export" -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$IPA"
+          cp "$IPA" "$RUNNER_TEMP/QAMVIO-iOS-v16-signed.ipa"
+
+      - name: Upload signed IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-iOS-v16-signed
+          path: ${{ runner.temp }}/QAMVIO-iOS-v16-signed.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload to TestFlight
+        if: ${{ inputs.upload_to_testflight }}
+        uses: apple-actions/upload-testflight-build@v5
+        with:
+          app-path: ${{ runner.temp }}/QAMVIO-iOS-v16-signed.ipa
+          issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          wait-for-processing: "true"

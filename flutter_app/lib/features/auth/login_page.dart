@@ -285,7 +285,7 @@ class _LoginPageState extends State<LoginPage> {
                           FilledButton(
                             onPressed:busy?null:submit,
                             child:busy
-                              ?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))
+                              ?const _QamvioLoginOrbs()
                               :Text(title),
                           ),
                           if(busy) const Padding(
@@ -333,6 +333,97 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Three soft sky-blue orbs for the sign-in wait state. Purely visual:
+/// authentication completes at its normal speed, without artificial delays.
+class _QamvioLoginOrbs extends StatefulWidget {
+  const _QamvioLoginOrbs();
+
+  @override
+  State<_QamvioLoginOrbs> createState() => _QamvioLoginOrbsState();
+}
+
+class _QamvioLoginOrbsState extends State<_QamvioLoginOrbs>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1150),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return Semantics(
+      label: 'Signing in, please wait',
+      liveRegion: true,
+      child: SizedBox(
+        width: 82,
+        height: 28,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final phase = _controller.value;
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(3, (index) {
+                final offset = (phase - index * 0.19) % 1.0;
+                final rise = reduceMotion ? 0.0
+                    : -8.0 * (1.0 - (2.0 * offset - 1.0).abs());
+                final pulse = reduceMotion ? 0.0
+                    : (1.0 - (2.0 * offset - 1.0).abs());
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Transform.translate(
+                    offset: Offset(0, rise),
+                    child: Container(
+                      width: 15,
+                      height: 15,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const RadialGradient(
+                          center: Alignment(-0.4, -0.5),
+                          radius: 0.95,
+                          colors: [
+                            Color(0xFFFFFFFF),
+                            Color(0xFFB7F3FF),
+                            Color(0xFF4DCBFA),
+                            Color(0xFF139CE5),
+                          ],
+                          stops: [0, 0.22, 0.65, 1],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF7DE4FF)
+                                .withValues(alpha: 0.28 + pulse * 0.42),
+                            blurRadius: 4 + pulse * 5,
+                            spreadRadius: pulse,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            );
+          },
         ),
       ),
     );

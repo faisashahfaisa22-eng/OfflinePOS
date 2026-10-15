@@ -358,7 +358,7 @@ class _QamvioLoginOrbsState extends State<_QamvioLoginOrbs>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1150),
+      duration: const Duration(milliseconds: 1450),
     )..repeat();
   }
 
@@ -375,53 +375,80 @@ class _QamvioLoginOrbsState extends State<_QamvioLoginOrbs>
       label: 'Signing in, please wait',
       liveRegion: true,
       child: SizedBox(
-        width: 82,
-        height: 28,
+        width: 94,
+        height: 32,
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) {
-            final phase = _controller.value;
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (index) {
-                final offset = (phase - index * 0.19) % 1.0;
-                final rise = reduceMotion ? 0.0
-                    : -8.0 * (1.0 - (2.0 * offset - 1.0).abs());
-                final pulse = reduceMotion ? 0.0
-                    : (1.0 - (2.0 * offset - 1.0).abs());
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Transform.translate(
-                    offset: Offset(0, rise),
-                    child: Container(
-                      width: 15,
-                      height: 15,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const RadialGradient(
-                          center: Alignment(-0.4, -0.5),
-                          radius: 0.95,
-                          colors: [
-                            Color(0xFFFFFFFF),
-                            Color(0xFFB7F3FF),
-                            Color(0xFF4DCBFA),
-                            Color(0xFF139CE5),
-                          ],
-                          stops: [0, 0.22, 0.65, 1],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF7DE4FF)
-                                .withValues(alpha: 0.28 + pulse * 0.42),
-                            blurRadius: 4 + pulse * 5,
-                            spreadRadius: pulse,
+            final t = _controller.value;
+            // Every cycle the outer orbs meet the center orb, bounce away,
+            // and release small sky-blue droplets at the impact points.
+            final meet = t < 0.5 ? t * 2 : (1 - t) * 2;
+            final collision = ((t - 0.5).abs() / 0.12);
+            final impact = reduceMotion ? 0.0 : (1 - collision).clamp(0.0, 1.0);
+            final spread = reduceMotion ? 0.0
+                : ((t - 0.5) / 0.20).clamp(0.0, 1.0);
+            final dropOpacity = (impact * (1 - spread * 0.6)).clamp(0.0, 1.0);
+            return Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                for (var i = 0; i < 3; i++)
+                  Transform.translate(
+                    offset: Offset(
+                      (i - 1) * (reduceMotion ? 24.0 : 24.0 - meet * 13.0),
+                      reduceMotion ? 0.0 : (i == 1 ? -3 * impact : 3 * impact),
+                    ),
+                    child: Transform.scale(
+                      scale: i == 1 ? 1 + impact * 0.12 : 1 - impact * 0.08,
+                      child: Container(
+                        width: 15,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const RadialGradient(
+                            center: Alignment(-0.4, -0.5),
+                            radius: 0.95,
+                            colors: [
+                              Color(0xFFFFFFFF),
+                              Color(0xFFB7F3FF),
+                              Color(0xFF4DCBFA),
+                              Color(0xFF139CE5),
+                            ],
+                            stops: [0, 0.22, 0.65, 1],
                           ),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF7DE4FF)
+                                  .withValues(alpha: 0.30 + impact * 0.40),
+                              blurRadius: 5 + impact * 5,
+                              spreadRadius: impact,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                );
-              }),
+                if (!reduceMotion && dropOpacity > 0)
+                  for (var i = 0; i < 4; i++)
+                    Transform.translate(
+                      offset: Offset(
+                        (i.isEven ? -1.0 : 1.0) * (9 + spread * 12),
+                        (i < 2 ? -1.0 : 1.0) * (5 + spread * 9),
+                      ),
+                      child: Opacity(
+                        opacity: dropOpacity,
+                        child: Container(
+                          width: 3.5,
+                          height: 3.5,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFB7F3FF),
+                          ),
+                        ),
+                      ),
+                    ),
+              ],
             );
           },
         ),

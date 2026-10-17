@@ -1,0 +1,7 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # QAMVIO intentionally keeps a number of long SQL/migration strings
+    # composed in pieces for readability. Keep all other Flutter lints strict.
+    prefer_interpolation_to_compose_strings: false

@@ -1,0 +1,28 @@
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'app_strings.dart';
+
+class LanguageController extends ChangeNotifier {
+  LanguageController._();
+  static final instance = LanguageController._();
+  AppLanguage _language = AppLanguage.english;
+  AppLanguage get language => _language;
+  AppStrings get strings => AppStrings(_language);
+
+  Future<void> load() async {
+    final p = await SharedPreferences.getInstance();
+    final value = p.getString('qamvio_language') ?? 'english';
+    _language = AppLanguage.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => AppLanguage.english,
+    );
+  }
+
+  Future<void> setLanguage(AppLanguage value) async {
+    if (_language == value) return;
+    _language = value;
+    final p = await SharedPreferences.getInstance();
+    await p.setString('qamvio_language', value.name);
+    notifyListeners();
+  }
+}

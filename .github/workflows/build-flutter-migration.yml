@@ -1,0 +1,41 @@
+name: Build QAMVIO Flutter Migration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - flutter-migration-v1
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/build-flutter-migration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android platform
+        run: flutter create --platforms=android --org com.qamvio --project-name qamvio_pos .
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+      - name: Build APK
+        run: flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: QAMVIO-Flutter-v16-APK
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk

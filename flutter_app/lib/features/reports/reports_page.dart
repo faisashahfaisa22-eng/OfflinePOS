@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
+
+import 'package:archive/archive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -185,16 +188,74 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
-  String _csvCell(dynamic v) {
-    final s=(v??'').toString().replaceAll('"','""');
-    return '"$s"';
-  }
 
-  Future<void> _shareFile(String filename,String content) async {
-    final dir=await getTemporaryDirectory();
-    final file=File('${dir.path}/$filename');
-    await file.writeAsString(content,flush:true);
-    await Share.shareXFiles([XFile(file.path)],subject:filename);
+  String _xml(dynamic value) => (value ?? '').toString()
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&apos;');
+
+  String _wordParagraph(dynamic value, {bool bold = false}) =>
+      '<w:p><w:r>${bold ? '<w:rPr><w:b/></w:rPr>' : ''}'
+      '<w:t xml:space="preserve">${_xml(value)}</w:t></w:r></w:p>';
+
+  Future<void> _shareWord(
+    String filename,
+    String title,
+    List<String> headings,
+    List<List<dynamic>> rows,
+  ) async {
+    // A real Office Open XML .docx package, not a renamed CSV or HTML file.
+    final document = StringBuffer()
+      ..write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+      ..write('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>')
+      ..write(_wordParagraph('QAMVIO POS', bold: true))
+      ..write(_wordParagraph(title, bold: true))
+      ..write(_wordParagraph('Exported: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}'));
+    if (headings.isNotEmpty) {
+      document.write('<w:tbl><w:tblPr><w:tblBorders>'
+          '<w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/>'
+          '<w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/>'
+          '<w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/>'
+          '</w:tblBorders></w:tblPr>');
+      for (final row in <List<dynamic>>[headings, ...rows]) {
+        document.write('<w:tr>');
+        for (final cell in row) {
+          document.write('<w:tc>${_wordParagraph(cell, bold: identical(row, headings))}</w:tc>');
+        }
+        document.write('</w:tr>');
+      }
+      document.write('</w:tbl>');
+    }
+    document.write('<w:sectPr/></w:body></w:document>');
+    final archive = Archive();
+    void add(String name, String contents) {
+      final bytes = utf8.encode(contents);
+      archive.addFile(ArchiveFile(name, bytes.length, bytes));
+    }
+    add('[Content_Types].xml',
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        '</Types>');
+    add('_rels/.rels',
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+        '</Relationships>');
+    add('word/document.xml', document.toString());
+    final bytes = ZipEncoder().encode(archive);
+    if (bytes == null) throw StateError('Unable to create Word document');
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+      subject: title,
+    );
   }
 
   Future<void> exportSales() async {
@@ -205,79 +266,71 @@ class _ReportsPageState extends State<ReportsPage> {
       'FROM sales s LEFT JOIN customers c ON c.id=s.customer_id '
       'LEFT JOIN salesmen sm ON sm.id=s.salesman_id ORDER BY s.created_at',
     );
-    final b=StringBuffer('Date,Invoice,Customer,Salesman,Gross,Discount,Net,Received,Due,Recovery,Oil,Other,Note\n');
-    for(final x in rows) {
-      b.writeln([
+    await _shareWord('QAMVIO-sales.docx', 'Sales Report',
+      ['Date','Invoice','Customer','Salesman','Gross','Discount','Net','Received','Due','Recovery','Oil','Other','Note'],
+      [for (final x in rows) [
         x['business_date'],x['invoice_no'],x['customer'],x['salesman'],x['subtotal'],
         x['discount'],x['total'],x['paid'],x['due'],x['recovery'],x['oil'],x['other'],x['note'],
-      ].map(_csvCell).join(','));
-    }
-    await _shareFile('QAMVIO-sales.csv',b.toString());
+      ]]);
   }
 
-  Future<void> exportCustomers() async {
+    Future<void> exportCustomers() async {
     final db=await AppDatabase.instance.database;
     final rows=await db.rawQuery(
       'SELECT c.name,c.phone,sm.name salesman,c.credit_limit,c.opening,c.balance,c.note '
       'FROM customers c LEFT JOIN salesmen sm ON sm.id=c.salesman_id ORDER BY c.name',
     );
-    final b=StringBuffer('Customer,Phone,Salesman,Credit Limit,Opening,Current Balance,Note\n');
-    for(final x in rows) {
-      b.writeln([
+    await _shareWord('QAMVIO-customers.docx', 'Customers Report',
+      ['Customer','Phone','Salesman','Credit Limit','Opening','Current Balance','Note'],
+      [for (final x in rows) [
         x['name'],x['phone'],x['salesman'],x['credit_limit'],x['opening'],x['balance'],x['note'],
-      ].map(_csvCell).join(','));
-    }
-    await _shareFile('QAMVIO-customers.csv',b.toString());
+      ]]);
   }
 
-  Future<void> exportSuppliers() async {
+    Future<void> exportSuppliers() async {
     final db=await AppDatabase.instance.database;
     final rows=await db.query('suppliers',orderBy:'name');
-    final b=StringBuffer('Supplier,Phone,Opening,Current Balance,Note\n');
-    for(final x in rows) {
-      b.writeln([
+    await _shareWord('QAMVIO-suppliers.docx', 'Suppliers Report',
+      ['Supplier','Phone','Opening','Current Balance','Note'],
+      [for (final x in rows) [
         x['name'],x['phone'],x['opening'],x['balance'],x['note'],
-      ].map(_csvCell).join(','));
-    }
-    await _shareFile('QAMVIO-suppliers.csv',b.toString());
+      ]]);
   }
 
-  Future<void> exportStock() async {
+    Future<void> exportStock() async {
     final db=await AppDatabase.instance.database;
     final rows=await db.query('products',orderBy:'name');
-    final b=StringBuffer('Product,Opening,Current,Reorder,Cost,Sale Price,Stock Value\n');
-    for(final x in rows) {
-      b.writeln([
+    await _shareWord('QAMVIO-stock.docx', 'Stock Report',
+      ['Product','Opening','Current','Reorder','Cost','Sale Price','Stock Value'],
+      [for (final x in rows) [
         x['name'],x['opening_qty'],x['stock'],x['reorder_level'],x['cost'],x['price'],
         _n(x['stock'])*_n(x['cost']),
-      ].map(_csvCell).join(','));
-    }
-    await _shareFile('QAMVIO-stock.csv',b.toString());
+      ]]);
   }
 
-  Future<void> exportLoanRecovery() async {
+    Future<void> exportLoanRecovery() async {
     final db=await AppDatabase.instance.database;
-    final b=StringBuffer('QAMVIO POS — Loan & Recovery Report\n\n');
     final customer=await db.rawQuery(
       'SELECT l.*,c.name FROM customer_loans l JOIN customers c ON c.id=l.customer_id '
       'ORDER BY l.business_date,l.created_at',
     );
-    b.writeln('CUSTOMER LOANS');
-    for(final x in customer) {
-      b.writeln('${x['business_date']??''} | ${x['name']} | ${x['type']} | ${_m(x['amount'])} | ${x['note']??''}');
-    }
     final salesman=await db.rawQuery(
       'SELECT l.*,sm.name FROM salesman_loans l JOIN salesmen sm ON sm.id=l.salesman_id '
       'ORDER BY COALESCE(l.business_date,substr(l.created_at,1,10)),l.created_at',
     );
-    b.writeln('\nSALESMAN LOANS / RECOVERY');
-    for(final x in salesman) {
-      b.writeln('${x['business_date']??''} | ${x['name']} | ${x['type']} | ${_m(x['amount'])} | ${x['source']??'manual'} | ${x['note']??''}');
-    }
-    await _shareFile('QAMVIO-loan-recovery.txt',b.toString());
+    await _shareWord('QAMVIO-loan-recovery.docx', 'Loan & Recovery Report',
+      ['Type','Date','Name','Transaction','Amount','Source','Note'],
+      [
+        for (final x in customer) [
+          'Customer',x['business_date'],x['name'],x['type'],_m(x['amount']),'',x['note'],
+        ],
+        for (final x in salesman) [
+          'Salesman',x['business_date'],x['name'],x['type'],_m(x['amount']),x['source']??'manual',x['note'],
+        ],
+      ]);
   }
 
-  Future<void> shareWhatsApp() async {
+    Future<void> shareWhatsApp() async {
     try {
       await WhatsAppShare.shareBusinessReport();
     } catch(e) {
@@ -373,11 +426,11 @@ class _ReportsPageState extends State<ReportsPage> {
             spacing:7,
             runSpacing:7,
             children:[
-              FilledButton(onPressed:exportSales,child:const Text('Export Sales CSV')),
-              FilledButton(onPressed:exportCustomers,child:const Text('Export Customers CSV')),
-              FilledButton(onPressed:exportSuppliers,child:const Text('Export Suppliers CSV')),
-              FilledButton(onPressed:exportStock,child:const Text('Export Stock CSV')),
-              FilledButton.tonal(onPressed:exportLoanRecovery,child:const Text('📄 Download Loan & Recovery TXT')),
+              FilledButton(onPressed:exportSales,child:const Text('Export Sales Word')),
+              FilledButton(onPressed:exportCustomers,child:const Text('Export Customers Word')),
+              FilledButton(onPressed:exportSuppliers,child:const Text('Export Suppliers Word')),
+              FilledButton(onPressed:exportStock,child:const Text('Export Stock Word')),
+              FilledButton.tonal(onPressed:exportLoanRecovery,child:const Text('📄 Export Loan & Recovery Word')),
             ],
           ),
         ],

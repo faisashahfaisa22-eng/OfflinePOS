@@ -316,7 +316,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 physics:const NeverScrollableScrollPhysics(),
                 mainAxisSpacing:8,
                 crossAxisSpacing:8,
-                childAspectRatio:1.65,
+                childAspectRatio:1.18,
                 children:[
                   QamvioStatCard(label:'Net Sales',value:_m(x['allSales']),icon:Icons.point_of_sale_rounded),
                   QamvioStatCard(label:'Discount',value:_m(x['allDiscount']),icon:Icons.discount_rounded),
@@ -462,7 +462,7 @@ class _ReportsPageState extends State<ReportsPage> {
             physics:const NeverScrollableScrollPhysics(),
             mainAxisSpacing:8,
             crossAxisSpacing:8,
-            childAspectRatio:1.7,
+            childAspectRatio:1.12,
             children:[
               QamvioStatCard(label:'Gross Sales',value:_m(x['gross']),icon:Icons.attach_money_rounded),
               QamvioStatCard(label:'Discount',value:_m(x['discount']),icon:Icons.discount_outlined),

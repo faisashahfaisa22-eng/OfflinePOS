@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/cloud/cloud_account.dart';
@@ -61,7 +62,107 @@ class _CloudPageState extends State<CloudPage> {
     }
   }
 
-  Future<void> restoreFlow() async {
+  String _formatBackupTime(DateTime? value) {
+    if (value == null) return 'Unknown time';
+    return DateFormat('yyyy-MM-dd HH:mm').format(value.toLocal());
+  }
+
+  String _backupReason(String value) => switch (value) {
+    'manual' => 'Manual backup',
+    'scheduled' => 'Automatic backup',
+    'pre_restore' => 'Safety checkpoint before restore',
+    'restored' => 'Restored version',
+    'post_restore' => 'Restored version (queued)',
+    _ => 'Cloud backup',
+  };
+
+  Future<void> backupHistoryFlow() async {
+    setState(() {
+      busy=true;
+      message='';
+    });
+
+    List<CloudBackupInfo> backups;
+    try {
+      backups=await CloudBackupService.instance.backupHistory(limit:30);
+    } catch(e) {
+      if(mounted) setState(()=>message='Cloud error: $e');
+      return;
+    } finally {
+      if(mounted) setState(()=>busy=false);
+    }
+
+    if(!mounted) return;
+    if(backups.isEmpty) {
+      setState(()=>message='No cloud backup was found yet.');
+      return;
+    }
+
+    final selected=await showDialog<CloudBackupInfo>(
+      context:context,
+      builder:(dialogContext)=>AlertDialog(
+        title:const Text('Backup history'),
+        content:SizedBox(
+          width:520,
+          height:420,
+          child:ListView.separated(
+            itemCount:backups.length,
+            separatorBuilder:(_,__)=>const Divider(height:1),
+            itemBuilder:(context,index) {
+              final b=backups[index];
+              final time=b.storedAt??b.createdAt;
+              final hash=b.stateSha256;
+              final shortHash=hash==null||hash.isEmpty
+                ?'Legacy protected backup'
+                :'SHA-256 ${hash.substring(0,hash.length<12?hash.length:12)}…';
+              return ListTile(
+                contentPadding:const EdgeInsets.symmetric(
+                  horizontal:4,
+                  vertical:6,
+                ),
+                leading:CircleAvatar(
+                  child:Icon(
+                    b.isCurrent
+                      ?Icons.cloud_done_rounded
+                      :Icons.history_rounded,
+                  ),
+                ),
+                title:Text(
+                  b.isCurrent
+                    ?'Current cloud backup'
+                    :_formatBackupTime(time),
+                  style:const TextStyle(fontWeight:FontWeight.w800),
+                ),
+                subtitle:Padding(
+                  padding:const EdgeInsets.only(top:4),
+                  child:Text(
+                    '${_backupReason(b.reason)} • $shortHash'
+                    '${b.integrityProtected?' • integrity tag':''}',
+                  ),
+                ),
+                trailing:TextButton(
+                  onPressed:()=>Navigator.pop(dialogContext,b),
+                  child:const Text('Restore'),
+                ),
+              );
+            },
+          ),
+        ),
+        actions:[
+          TextButton(
+            onPressed:()=>Navigator.pop(dialogContext),
+            child:const Text('Close'),
+          ),
+        ],
+      ),
+    );
+
+    if(selected!=null&&mounted) {
+      await restoreFlow(selected);
+    }
+  }
+
+  Future<void> restoreFlow([CloudBackupInfo? backup]) async {
     final cred=await showDialog<_RestoreCredentials>(
       context:context,
       builder:(_)=>const _RestoreDialog(),
@@ -72,10 +173,11 @@ class _CloudPageState extends State<CloudPage> {
       context:context,
       builder:(dialogContext)=>AlertDialog(
         title:const Text('Replace local business data?'),
-        content:const Text(
-          'Restoring the cloud backup will replace the current Flutter business '
-          'tables on this device. This cannot be undone from this screen. '
-          'Continue only if the cloud backup is the copy you want to restore.',
+        content:Text(
+          'QAMVIO will decrypt and verify the selected backup, create a protected '
+          'cloud safety checkpoint, and then replace the local business tables '
+          'inside one transaction.\n\n'
+          'Restore target: ${backup==null||backup.isCurrent?'Current cloud backup':_formatBackupTime(backup.storedAt??backup.createdAt)}',
         ),
         actions:[
           TextButton(
@@ -94,14 +196,21 @@ class _CloudPageState extends State<CloudPage> {
 
     await run(
       ()async {
-        final ok=await CloudBackupService.instance.restoreLatest(
-          loginId:cred.loginId,
-          secret:cred.secret,
-          secretIsRecoveryCode:cred.isRecoveryCode,
-        );
-        if(!ok) throw StateError('No cloud backup found for this cloud account.');
+        final ok=backup==null
+          ?await CloudBackupService.instance.restoreLatest(
+            loginId:cred.loginId,
+            secret:cred.secret,
+            secretIsRecoveryCode:cred.isRecoveryCode,
+          )
+          :await CloudBackupService.instance.restoreBackup(
+            backup:backup,
+            loginId:cred.loginId,
+            secret:cred.secret,
+            secretIsRecoveryCode:cred.isRecoveryCode,
+          );
+        if(!ok) throw StateError('The selected cloud backup was not found.');
       },
-      'Latest Flutter backup restored into SQLite.',
+      'Backup restored safely. The pre-restore state is kept in cloud history.',
     );
   }
 
@@ -137,7 +246,7 @@ class _CloudPageState extends State<CloudPage> {
         children:[
           const QamvioPageIntro(
             title:'Cloud & Backup',
-            subtitle:'Protect business data, restore devices and migrate legacy QAMVIO backups.',
+            subtitle:'Protect business data with encrypted version history, safe restore and legacy migration.',
             icon:Icons.cloud_done_rounded,
           ),
           const SizedBox(height:18),
@@ -244,9 +353,22 @@ class _CloudPageState extends State<CloudPage> {
                   OutlinedButton.icon(
                     onPressed:busy
                       ?null
-                      :restoreFlow,
+                      :()=>restoreFlow(),
                     icon:const Icon(Icons.restore_rounded),
                     label:const Text('Restore Latest Flutter Backup'),
+                  ),
+                  const Divider(height:28),
+                  _feature(
+                    context,
+                    Icons.history_rounded,
+                    'Backup history',
+                    'Browse protected versions, integrity metadata and pre-restore safety checkpoints.',
+                  ),
+                  const SizedBox(height:12),
+                  OutlinedButton.icon(
+                    onPressed:busy?null:backupHistoryFlow,
+                    icon:const Icon(Icons.manage_history_rounded),
+                    label:const Text('Open Backup History'),
                   ),
                 ],
               ),

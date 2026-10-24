@@ -33,6 +33,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Publish Play Store AAB release asset
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -49,6 +50,8 @@ jobs:
           gh release upload v1.0.0 /tmp/QAMVIO-v16.0.0-build16.aab --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Publish tested laptop PWA
+        id: laptop_pwa
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -89,6 +92,12 @@ jobs:
 
           grep -q '<base href="/app/">' website/app/index.html
           grep -q 'qamvio_sw.js' website/app/index.html
+
+      - name: Clean up incomplete optional laptop PWA
+        if: steps.laptop_pwa.outcome == 'failure'
+        run: |
+          rm -rf website/app
+          echo 'Laptop PWA publishing failed; continuing with the public website.'
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
